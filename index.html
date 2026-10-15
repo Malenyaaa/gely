@@ -303,8 +303,9 @@ nav.abschnitte a[hidden]{display:none}
 
 /* ---------- Umschalten statt alles zugleich ----------
    Die Leiste schaltet um, welche Karten zu sehen sind. In der Leiste ist
-   immer genau ein Abschnitt gewählt. Eine Eingabe: links ihre Karte, rechts
-   ein bis zwei passende (Zuordnung im Skript „Die Leiste", Tabelle RECHTS).
+   immer genau ein Abschnitt gewählt. Eine Eingabe: links ihre ein bis zwei
+   Karten, rechts ein bis zwei passende (Zuordnung im Skript „Die Leiste",
+   Tabelle ABSCHNITTE).
    Ein Ergebnis: nur dessen Karten, über die ganze Breite (k-ergebnis, die
    linke Spalte fällt weg). Verborgen wird mit einer eigenen Klasse und
    display:none — nicht mit hidden, das benutzt das Werkzeug selbst (Trasse
@@ -312,17 +313,25 @@ nav.abschnitte a[hidden]{display:none}
    verborgene Karte. Nur am Bildschirm: gedruckt wird immer alles.
    Die Spalten sind dabei Flex-Spalten mit Lücke statt Abstand zum
    Vorgänger — sonst rückte die erste sichtbare Karte von einer verborgenen
-   ab — und „order" stellt die gewählte Karte rechts nach oben. */
+   ab — und „order" stellt die Karten in die Reihenfolge der Tabelle. */
 @media screen{
   .spalten.k-umschalten > section > .k-aus{display:none}
   .spalten.k-umschalten > section{display:flex;flex-direction:column;gap:14px}
   .spalten.k-umschalten > section > * + *{margin-top:0}
-  /* Steht wenig da, wird der Platz genutzt: die Ansicht wächst, bis die
-     Seite das Fenster füllt (Höhe aus dem Skript, fuellen()). Die Zeichnung
-     bleibt eingepasst und steht mittig auf dem größeren Blatt. */
-  .spalten.k-umschalten #karte-ansicht .bp-flaeche{
-    min-height:var(--ansicht-hoehe,0px);display:flex;flex-direction:column;justify-content:center}
-  .spalten.k-umschalten #karte-ansicht .bp-flaeche > *{flex:none}
+  /* Bei einer Eingabe passt die rechte Spalte ins Fenster (Werte aus dem
+     Skript, fuellen()): steht wenig da, wächst die Fläche der Ansicht (und
+     des Trassenbilds), und die Zeichnung steht mittig auf dem größeren
+     Blatt. Wird es eng, rollt zuerst die Liste der Prüfungen für sich, dann
+     wird die Zeichnung schmaler — sie behält ihr Seitenverhältnis, Zoom und
+     Verschieben rechnen also weiter richtig. */
+  .spalten.k-umschalten:not(.k-ergebnis) :is(#zeichnung,#zeichnung-trasse){
+    min-height:var(--fl-hoehe,0px);display:flex;flex-direction:column;justify-content:center}
+  .spalten.k-umschalten:not(.k-ergebnis) :is(#zeichnung,#zeichnung-trasse) > *{flex:none}
+  .spalten.k-umschalten:not(.k-ergebnis) :is(#zeichnung,#zeichnung-trasse) > svg{width:var(--fl-svg-b,100%);margin-inline:auto}
+  .spalten.k-umschalten:not(.k-ergebnis) #pruefungen{max-height:var(--liste-max,none);overflow-y:auto;scrollbar-width:thin}
+  /* Passt die rechte Spalte unter das Statusband, bleibt sie beim Rollen
+     dort stehen (Klasse aus fuellen()). */
+  .spalten.k-umschalten > section.k-kleben{position:sticky;top:var(--kleben-oben,72px)}
   /* Ein Ergebnis gewählt: keine Eingabe links, das Ergebnis nimmt die ganze
      Breite. */
   .spalten.k-umschalten.k-ergebnis{grid-template-columns:minmax(0,1fr)}
@@ -644,6 +653,22 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
 .p-ok strong{color:var(--gruen)} .p-hinweis strong{color:var(--ocker)} .p-fehler strong{color:var(--rot)}
 .p-neutral strong{color:var(--ink-weich)}
 .pruefung span em{font-style:normal;color:var(--ink-weich);display:block;font-size:12.5px;margin-top:1px}
+/* Am Bildschirm knapper, damit die Liste neben der Ansicht ins Fenster
+   passt: Rot und Gelb stehen oben (nur die Anzeige, die Prüfungen selbst
+   behalten ihre Reihenfolge), Bestandenes steht mit seiner Erklärung in
+   einer Zeile. Die Trennlinien sind darum die Fugen zwischen den Einträgen
+   (Lücke auf Linienfarbe), nicht Ränder — die stimmten nach dem Umstellen
+   nicht mehr. Gedruckt bleibt alles wie oben. */
+@media screen{
+  #pruefungen{display:flex;flex-direction:column;gap:1px;background:var(--kante)}
+  .pruefung{gap:10px;padding:6px 0 7px;border-bottom:0;background:var(--karte);font-size:13px;line-height:1.4}
+  .pruefung .punkt{margin-top:5px}
+  .pruefung span em{font-size:12px}
+  .p-fehler{order:-2} .p-hinweis{order:-1}
+  .p-ok, .p-neutral{padding:4px 0}
+  .p-ok strong, .p-neutral strong{display:inline;margin-right:6px}
+  .p-ok span em, .p-neutral span em{display:inline;margin:0}
+}
 
 /* ---------- Reiter ---------- */
 .reiter-leiste{display:flex;gap:2px;flex-wrap:wrap;border-bottom:1px solid var(--kante);padding:0 10px}
@@ -1168,7 +1193,7 @@ button, summary, label, select, a, .reiter{cursor:pointer}
       <span id="alle-label">Alle Karten zeigen</span><span class="fuell"></span>
       <button type="button" class="schalter" id="alleschalter" role="switch" aria-checked="false"
               aria-labelledby="alle-label"
-              title="Aus: links eine Eingabekarte, rechts die passenden Ergebnisse — gewählt in der Leiste. An: alle Karten untereinander, die Leiste springt nur noch hin."><span class="knopf"></span></button>
+              title="Aus: nur die Karten des Abschnitts, der in der Leiste gewählt ist — bei einer Eingabe mit Ansicht und Prüfungen dazu. An: alle Karten untereinander, die Leiste springt nur noch hin."><span class="knopf"></span></button>
     </div>
     <div class="leiste-fuss">
       <span>Farbschema</span><span class="fuell"></span>
@@ -1633,7 +1658,7 @@ button, summary, label, select, a, .reiter{cursor:pointer}
         <div class="karte-kopf"><h2>Prüfungen</h2>
           <select id="land-fall" class="neben-wahl" title="Ergänzungen eines Bundeslandes zur RiZ-ING: dieselben Typen Gel 3–7, aber engere Vorgaben, wann welcher Typ und welche Höhe zu nehmen ist. Die Wahl stellt nichts ein, sie prüft die eingetragenen Werte dagegen. Sachsen-Anhalt fehlt: seine Vorgaben stehen allein in einem Dokument, dessen Weitergabe untersagt ist. Bayern gibt nichts Rechenbares her."></select>
         </div>
-        <div class="karte-koerper" style="padding-top:4px;padding-bottom:4px"><div id="pruefungen"></div></div>
+        <div class="karte-koerper" style="padding-top:4px;padding-bottom:4px"><div id="pruefungen" tabindex="0" aria-label="Prüfungen"></div></div>
       </div>
 
       <div class="karte" id="karte-export">
@@ -1833,7 +1858,7 @@ button, summary, label, select, a, .reiter{cursor:pointer}
 
         <div class="tafel" id="tafel-trasse" role="tabpanel" hidden>
             <p class="hilfe" style="margin:0 0 10px">Für gekrümmte, schräge oder geneigte Bauwerke.
-            <b>Die Trasse wird in der Karte <i>6 · Trasse</i> geladen und eingestellt</b> (in der Leiste unter <i>Eingaben</i>) — Achse,
+            <b>Die Trasse wird in der Karte <i>Trasse</i> geladen und eingestellt</b> (in der Leiste unter <i>Eingaben</i>) — Achse,
             Nullpunkt, Stationsbereich, Querversatz und Quergefälle stehen dort, weil sie Eingaben
             sind und die Länge oben bestimmen. Hier steht nur noch der Export.</p>
 
@@ -1931,12 +1956,12 @@ button, summary, label, select, a, .reiter{cursor:pointer}
             </div>
             <p class="hilfe" style="margin:6px 0 0"><b>Teilung, Sonderfelder und Ohr kommen aus den
             Eingaben</b> und gelten hier genauso: <i>Anzahl vorgeben</i> setzt die Pfostenzahl,
-            die Karte <i>Sonderfelder</i> setzt einzelne Felder anders, das Ohr steht je Ende um sein
-            eigenes Maß über. Was davon wirkt, zeigt das Bild <i>Trasse</i> über den Prüfungen — Grundriss und
+            die <i>Sonderfelder</i> in der Karte <i>Teilung</i> setzen einzelne Felder anders, das Ohr steht je Ende um sein
+            eigenes Maß über. Was davon wirkt, zeigt das Bild <i>Trasse</i> (in der Leiste unter <i>Trasse</i>) — Grundriss und
             Höhenverlauf mit jedem Pfosten.</p>
-            <p class="hilfe" style="margin:6px 0 0">Welcher <b>Rand</b> geschrieben wird, steht links
+            <p class="hilfe" style="margin:6px 0 0">Welcher <b>Rand</b> geschrieben wird, steht
             in der Karte <i>Trasse</i> und auf dem Knopf. <b>Für das zweite Geländer nur die Achse
-            wechseln und noch einmal drücken</b>; die Datei wird nach der Achse benannt.</p>
+            unter <i>Trasse</i> wechseln und hier noch einmal drücken</b>; die Datei wird nach der Achse benannt.</p>
             <p class="hilfe" id="trasse-info" style="margin:8px 0 0">Keine Trasse geladen.</p>
         </div>
 
@@ -6644,9 +6669,11 @@ function fehltPruefen(){
 { const alt = zeichneBand; zeichneBand = function(r){ alt(r); fehltPruefen(); }; }
 
 function fehltText(s){ const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
-function zuKarte(nr, feldId){
-  const kopf = [...document.querySelectorAll("summary, h2")].find(e => e.textContent.trim().startsWith(nr + " ·"));
-  const karte = kopf && (kopf.closest("details") || kopf.closest(".karte"));
+/* Gesprungen wird über die Kennung der Karte, nicht über eine Nummer im
+   Kopf: Nummern trägt nur die Leiste, und die zählt Abschnitte, nicht
+   Karten (siehe „Die Leiste"). */
+function zuKarte(id, feldId){
+  const karte = $(id);
   if(karte && karte.tagName === "DETAILS") karte.open = true;
   const ziel = (feldId && $(feldId)) || karte;
   if(!ziel) return;
@@ -6655,24 +6682,23 @@ function zuKarte(nr, feldId){
   ziel.scrollIntoView({block:"center", behavior:"smooth"});
   if(ziel.focus) ziel.focus({preventScroll:true});
 }
-function karteSichtbar(nr){
-  const kopf = [...document.querySelectorAll("summary, h2")].find(e => e.textContent.trim().startsWith(nr + " ·"));
-  const karte = kopf && (kopf.closest("details") || kopf.closest(".karte"));
+function karteSichtbar(id){
+  const karte = $(id);
   // Nur weggeschaltet (Leiste) zählt als vorhanden; verborgen vom Werkzeug (hidden) nicht.
   return !!(karte && !karte.hidden && (karte.getClientRects().length || karte.classList.contains("k-aus")));
 }
 /* Die häufigsten Gründe, einmal formuliert. */
 function ohneGelaender(){
   return {html:`<b>Noch kein Geländer.</b> Erst die Gesamtlänge <i>L</i> eintragen — sie muss größer sein als die beiden Randabstände zusammen.`,
-          geh:{text:"Zu L", tun:() => zuKarte(1, "L")},
+          geh:{text:"Zu L", tun:() => zuKarte("karte-eingabe", "L")},
           erledigt:() => typeof letzte !== "undefined" && letzte && letzte.gueltig};
 }
 function ohneTrasse(){
-  return karteSichtbar(6)
-    ? {html:`<b>Noch keine Trasse.</b> Erst links in <i>6 · Trasse</i> eine laden — TCL-Export, <i>Achse selbst erstellen</i> oder eine fertige JSON.`,
-       geh:{text:"Zu 6 · Trasse", tun:() => zuKarte(6)}}
-    : {html:`<b>Noch keine Trasse.</b> Oben in <i>1 · Bauwerk</i> „auf einer Trasse" wählen, dann in <i>6 · Trasse</i> eine laden.`,
-       geh:{text:"Zu 1 · Bauwerk", tun:() => zuKarte(1)}};
+  return karteSichtbar("karte-trasse")
+    ? {html:`<b>Noch keine Trasse.</b> Erst in der Karte <i>Trasse</i> eine laden — TCL-Export, <i>Achse selbst erstellen</i> oder eine fertige JSON.`,
+       geh:{text:"Zu Trasse", tun:() => zuKarte("karte-trasse")}}
+    : {html:`<b>Noch keine Trasse.</b> Oben in der Karte <i>Bauwerk</i> „auf einer Trasse" wählen, dann in der Karte <i>Trasse</i> eine laden.`,
+       geh:{text:"Zu Bauwerk", tun:() => zuKarte("karte-eingabe")}};
 }
 ["btn-ifc-kurve","btn-dxf-plan-kurve","btn-json","btn-kurve-dxf"].forEach(i => knopfSperren($(i), ohneTrasse));
 
@@ -6681,7 +6707,7 @@ function ohneTrasse(){
 $("btn-zur-trasse").addEventListener("click", () => {
   const b = document.querySelector('[data-bauweg="trasse"]');
   if(b) b.click();
-  zuKarte(6);
+  zuKarte("karte-trasse");
 });
 $("btn-ifc").addEventListener("click", () => {
   const text = ifcErzeugen(letzte);
@@ -7550,12 +7576,15 @@ umrechnen();
    LINKS — was man dem Werkzeug sagt, in der Reihenfolge, in der man ein
    Geländer beschreibt:
 
-     1 Bauwerk    Regelwerk, Typ, L, e₁+e₂, h+Absturzhöhe
-     2 Aufbau     Holme, Handlauf, Füllstabbreite + Rahmenunterkante
-     3 Enden      Geländerohr links+rechts, Eckradius links+rechts
-     4 Teilung    aus L / vorgeben, n, m — und die Sonderfelder darin
-     5 Fußpunkt   Verankerung + Mörtelfuge, Fußbild
-     6 Trasse     unverändert, innen nach vier Fragen geordnet
+     Bauwerk    Regelwerk, Typ, L, e₁+e₂, h+Absturzhöhe
+     Aufbau     Holme, Handlauf, Füllstabbreite + Rahmenunterkante
+     Enden      Geländerohr links+rechts, Eckradius links+rechts
+     Teilung    aus L / vorgeben, n, m — und die Sonderfelder darin
+     Fußpunkt   Verankerung + Mörtelfuge, Fußbild
+     Trasse     unverändert, innen nach vier Fragen geordnet
+
+   Die Köpfe tragen seit dem Zusammenlegen in der Leiste (Bauwerk + Aufbau,
+   Enden + Teilung) keine Nummern mehr; die zählt nur noch die Leiste.
 
    RECHTS — was es antwortet, in der Reihenfolge, in der man es liest:
    Ansicht → Urteil und Prüfungen → Zahlen → Export, im Fuß das
@@ -7563,10 +7592,10 @@ umrechnen();
 
    DREI SACHEN, DIE MAN WISSEN MUSS
 
-   - DIE LEISTE LINKS BAUT IHRE ZEILEN AUS DEN KARTEN, die hier entstehen:
-     die unmittelbaren Kinder der beiden Spalten mit einer id, Nummer und
-     Name aus dem Kartenkopf („2 · Aufbau"). Wer hier eine Karte umbenennt,
-     benennt damit auch ihre Zeile in der Leiste um.
+   - DIE LEISTE LINKS FASST DIE KARTEN, die hier entstehen, ZU ABSCHNITTEN
+     ZUSAMMEN: nach ihrer Kennung, in der Tabelle ABSCHNITTE im Skript „Die
+     Leiste". Wer hier eine Karte neu anlegt, trägt sie dort ein — sonst ist
+     sie umgeschaltet nie zu sehen.
    - „WEITERE EINGABEN" WIRD LEER UND BLEIBT TROTZDEM STEHEN, verborgen. Der
      Rechenteil schreibt weiter in #weiter-neben, was vom Vorgabewert
      abweicht; die Karte zu entfernen hieße, diese Zeile zu ändern — und
@@ -7616,17 +7645,17 @@ try{
   }
   const feldVon = id => { const e = hol(id); return e ? e.closest(".feld") : null; };
 
-  /* ---------- 1 · Bauwerk ---------- */
+  /* ---------- Bauwerk ---------- */
   const bauwerk = hol("karte-eingabe");
-  titel(bauwerk, "1 · Bauwerk");
+  titel(bauwerk, "Bauwerk");
   paar(feldVon("e1"), feldVon("e2"));
   const paarHoehe = paar(feldVon("h"), hol("feld-absturz"));
   // Der Hilfetext der Absturzhöhe zieht mit — er erklärt, warum sie die Höhe
   // begrenzt, und stünde sonst in einer Karte, die niemand mehr aufmacht.
   if(paarHoehe && hol("hilfe-absturz")) paarHoehe.after(hol("hilfe-absturz"));
 
-  /* ---------- 2 · Aufbau ---------- */
-  const aufbau = neueKarte("karte-aufbau", "2 · Aufbau");
+  /* ---------- Aufbau ---------- */
+  const aufbau = neueKarte("karte-aufbau", "Aufbau");
   bauwerk.after(aufbau);
   rein(aufbau, hol("feld-holme"), hol("hilfe-holme"), hol("feld-handlauf"));
   rein(aufbau, paar(hol("feld-b"), hol("feld-rahmen")), hol("hilfe-b"), hol("hilfe-rahmen"));
@@ -7638,20 +7667,20 @@ try{
   }
   rein(aufbau, rohre, hol("hilfe-rohre"));
 
-  /* ---------- 3 · Enden ----------
+  /* ---------- Enden ----------
      Ohr und Eckradius schließen einander aus: Gel 7 hat Radien, alle anderen
      Ohren. In derselben Karte sieht man das; in einer Liste mit fünfzehn
      Feldern sagte es nur der Hilfetext. */
-  const enden = neueKarte("karte-enden", "3 · Enden");
+  const enden = neueKarte("karte-enden", "Enden");
   aufbau.after(enden);
   rein(enden, paar(hol("feld-ohr-l"), hol("feld-ohr-r")), hol("hilfe-ohr"));
   rein(enden, paar(hol("feld-radius-l"), hol("feld-radius-r")), hol("hilfe-radius"));
 
-  /* ---------- 4 · Teilung ----------
+  /* ---------- Teilung ----------
      Die Sonderfeldkarte behält ihre Kennung und bekommt die Teilung obenauf:
      beide beantworten dieselbe Frage — wo stehen die Pfosten. */
   const teilung = hol("karte-sonder");
-  titel(teilung, "4 · Teilung");
+  titel(teilung, "Teilung");
   enden.after(teilung);
   const tKoerper = teilung.querySelector(".karte-koerper");
   const sonderTeil = document.createElement("div");
@@ -7665,18 +7694,18 @@ try{
   rein(teilung, feldVon("teilwahl"), hol("hilfe-teilung"), hol("feld-teilung"));
   tKoerper.appendChild(sonderTeil);
 
-  /* ---------- 5 · Fußpunkt ---------- */
-  const fuss = neueKarte("karte-fuss", "5 · Fußpunkt");
+  /* ---------- Fußpunkt ---------- */
+  const fuss = neueKarte("karte-fuss", "Fußpunkt");
   teilung.after(fuss);
   rein(fuss, paar(hol("feld-verank"), hol("feld-moertel")),
              hol("hilfe-verank"), hol("fuss-details"));
 
-  /* ---------- 6 · Trasse ----------
+  /* ---------- Trasse ----------
      Vierzehn Felder in vier Fragen statt vier Reihen nach Herkunft. Am
      deutlichsten beim Rand: er stand ganz unten, obwohl zwei Felder weiter
      oben darüber entschieden wird, ob es ihn überhaupt gibt. */
   const trasse = hol("karte-trasse");
-  titel(trasse, "6 · Trasse");
+  titel(trasse, "Trasse");
   fuss.after(trasse);
   const trFelder = hol("trasse-felder");
   if(trFelder){
@@ -9076,7 +9105,7 @@ try{
    ganz: es geschieht nichts, und man weiß nicht, warum. Deshalb steht er nur
    auf aria-disabled — er sieht gesperrt aus, nimmt aber den Klick an und
    meldet dann in einem kleinen Kasten, was fehlt, mit einem Knopf, der
-   gleich zur Karte 5 · Fußpunkt springt. Die Meldung verschwindet von
+   gleich zur Karte Fußpunkt springt. Die Meldung verschwindet von
    selbst, sobald eine Verankerung mit Körpern gewählt ist. */
 (function(){
 try{
@@ -9146,9 +9175,9 @@ try{
       return;
     }
     meldung.innerHTML = (keine
-        ? `<b>Keine Verankerung eingestellt.</b> Erst unter <i>5 · Fußpunkt</i> eine Verankerung wählen — dann lässt sich die Verankerung allein exportieren.`
-        : `<b>Diese Verankerung hat keine eigenen Körper.</b> Einbetoniert steckt der Pfosten in der Kappe, es gibt nichts zu setzen. Unter <i>5 · Fußpunkt</i> eine andere wählen.`) +
-      ` <button type="button" class="minitat">Zu 5 · Fußpunkt</button>`;
+        ? `<b>Keine Verankerung eingestellt.</b> Erst in der Karte <i>Fußpunkt</i> eine Verankerung wählen — dann lässt sich die Verankerung allein exportieren.`
+        : `<b>Diese Verankerung hat keine eigenen Körper.</b> Einbetoniert steckt der Pfosten in der Kappe, es gibt nichts zu setzen. In der Karte <i>Fußpunkt</i> eine andere wählen.`) +
+      ` <button type="button" class="minitat">Zu Fußpunkt</button>`;
     meldung.querySelector("button").addEventListener("click", zuFusspunkt);
     meldung.hidden = false;
   }
@@ -9313,7 +9342,7 @@ try{
     quelle.innerHTML = da
       ? `kommt aus der Achse <b>${TRASSE.achse}</b> — Bogenlänge des Randes. ` +
         `Auf dieser Achse ist <i>L</i> keine Eingabe.`
-      : `<b>wartet auf die Achse.</b> Sobald unten eine geladen oder erstellt ist, ` +
+      : `<b>wartet auf die Achse.</b> Sobald unter <i>Trasse</i> eine geladen oder erstellt ist,` +
         `steht hier ihre Bogenlänge.`;
   }
 
@@ -9352,7 +9381,7 @@ try{
         : "";
     } else {
       meldung.innerHTML = `<b>Auf eine Trasse gewechselt.</b> <i>L</i> kommt jetzt aus der Achse — ` +
-        `unten in der Karte <i>6 · Trasse</i> steht, woher sie kommt. Erst danach ist der Export bereit.`;
+        `in der Karte <i>Trasse</i> steht, woher sie kommt. Erst danach ist der Export bereit.`;
     }
     wegZeigen();
     if(typeof umrechnen === "function") umrechnen();
@@ -10018,9 +10047,9 @@ try{
     if(fehlt.length)
       fehltMelden(ablage, {html: `<b>${wofuer} ließ sich nicht vollständig zurückholen.</b> Anders als abgelegt: ` +
         `${fehltText(fehlt.join(", "))}. Bitte diese Eingaben prüfen` +
-        (fehlt.includes("Trasse") ? " und die Trasse unter <i>6 · Trasse</i> neu laden" : "") + ".",
-        geh: fehlt.includes("Trasse") ? {text: "Zu 6 · Trasse", tun: () => zuKarte(6)}
-                                      : {text: "Zu 1 · Bauwerk", tun: () => zuKarte(1)}});
+        (fehlt.includes("Trasse") ? " und die Trasse in der Karte <i>Trasse</i> neu laden" : "") + ".",
+        geh: fehlt.includes("Trasse") ? {text: "Zu Trasse", tun: () => zuKarte("karte-trasse")}
+                                      : {text: "Zu Bauwerk", tun: () => zuKarte("karte-eingabe")}});
     else fehltWeg(ablage);
     return fehlt;
   }
@@ -10246,34 +10275,40 @@ try{
 <script>
 /* ---------- Die Leiste ----------
    Seit 15.10.2026, aus dem Konzeptblatt „Leiste links". Die Leiste ist ein
-   Inhaltsverzeichnis mit Stand: je Karte eine Zeile mit Nummer, Name und
-   rechts dem, was im Kopf der Karte steht (Typ, Länge, Abweichungen vom
-   Vorgabewert, Urteil der Prüfungen, Körperzahl).
+   Inhaltsverzeichnis mit Stand: je Abschnitt eine Zeile mit Nummer (bei den
+   Eingaben) oder Sinnbild (beim Ergebnis), Name und rechts dem, was im Kopf
+   seiner Karten steht (Typ, Länge, Abweichungen vom Vorgabewert, Urteil der
+   Prüfungen, Körperzahl).
 
    UMSCHALTEN, ABER NIE OHNE BILD. Alle Karten zugleich waren zu viel für
    ein Fenster. Ein Klick in der Leiste schaltet darum um, und gewählt ist
-   immer genau EINE Zeile. Eine Eingabe: links steht ihre Karte, rechts
-   stehen die ein bis zwei Karten, die man dabei braucht — wer am Geländer
-   etwas ändert, sieht immer die Ansicht und die Prüfungen dazu. Welche das
-   sind, steht in EINER Tabelle (RECHTS unten). Unter „Ergebnis" stehen genau
-   drei Zeilen — Prüfungen & Zahlen, Export, Nachschlagen —; jede zeigt nur
-   ihren Inhalt, ohne Eingabe und ohne Ansicht, über die ganze Breite.
-   Der Schalter „Alle Karten zeigen" unten in der
+   immer genau EINE Zeile. Ein Abschnitt kann mehrere Karten zeigen: eine
+   Eingabe zeigt ihre Eingabekarten untereinander und daneben die Karten,
+   die man dabei braucht — wer am Geländer etwas ändert, sieht immer die
+   Ansicht und die Prüfungen dazu. Welche Karten zu welchem Abschnitt
+   gehören, steht in EINER Tabelle (ABSCHNITTE unten). Unter „Ergebnis"
+   stehen genau drei Zeilen — Prüfungen & Zahlen, Export, Nachschlagen —;
+   jede zeigt nur ihren Inhalt, ohne Eingabe und ohne Ansicht, über die
+   ganze Breite. Der Schalter „Alle Karten zeigen" unten in der
    Leiste stellt die alte Seite mit allen Karten wieder her; dann rollt ein
    Klick nur hin, und beim Rollen folgt die Markierung.
 
    Weggeschaltet heißt nicht weg: jedes Feld behält Platz und Kennung, die
    Rechnung läuft weiter, und alles, was irgendwohin springt („Zu L",
-   „Zu 6 · Trasse", ein gelber Kasten an einem Knopf), holt die Karte vorher
-   über karteHolen() nach vorn.
+   „Zu Trasse", ein gelber Kasten an einem Knopf), holt die Karte vorher
+   über karteHolen() nach vorn — also den Abschnitt, der sie enthält.
 
-   DIE ZEILEN ENTSTEHEN AUS DEN KARTEN, nicht aus einer eigenen Liste. Nummer
-   und Name kommen aus dem Kartenkopf („1 · Bauwerk"), der Stand aus dessen
-   Nebenangabe. So passen Leiste und Karten immer zusammen, und zuKarte()
-   findet mit derselben Nummer dieselbe Karte. Eine Karte, die das Werkzeug
-   verbirgt (die Trasse auf dem geraden Weg), hat auch keine Zeile; eine,
-   die nur weggeschaltet ist (Klasse k-aus), behält ihre. Ausgenommen sind
-   umgeschaltet Ansicht, Trassenbild und Zahlen (OHNE_ZEILE unten).
+   NUMMERN NUR IN DER LEISTE. Seit Bauwerk und Aufbau, Enden und Teilung je
+   einen Abschnitt teilen, gehören Nummern den Abschnitten, nicht den
+   Karten: die Leiste zählt die Eingaben 1, 2, 3 (4 mit der Trasse). Die
+   Kartenköpfe tragen nur ihren Namen, und Meldungen nennen eine Karte beim
+   Namen („Zu Trasse"); zuKarte() sucht über die Kennung, nicht über eine
+   Nummer. So kann keine Nummer der Leiste einer im Kopf widersprechen —
+   auch nicht, wenn die Trasse auf dem geraden Weg fehlt.
+
+   Eine Karte, die das Werkzeug verbirgt (die Trasse auf dem geraden Weg),
+   nimmt ihren Abschnitt mit: der hat dann keine Zeile. Eine, die nur
+   weggeschaltet ist (Klasse k-aus), behält ihre.
 
    Unter 1000 px Fensterbreite ist die Leiste eine Schublade hinter dem Knopf
    „Abschnitte" in der Kopfzeile; der Mappe-Chip dort öffnet sie bei der Mappe.
@@ -10285,38 +10320,58 @@ try{
   const spalten = document.querySelector(".spalten");
   if(!nav || !inhalt || !app || !spalten) return;
 
-  /* Karten ohne Nummer im Kopf bekommen hier ihren Namen; alle anderen
-     heißen, wie ihr Kopf sie nennt. */
+  /* ---------- Die Abschnitte ----------
+     Welche Karten ein Abschnitt zeigt. Wer etwas anders haben will, ändert
+     nur diese Tabelle. Die Reihenfolge der Zeilen ist die in der Leiste,
+     die Reihenfolge in einer Liste die auf der Seite (oben zuerst).
+
+       Abschnitt            Eingabespalte (links)    daneben (rechts)
+       Bauwerk              Bauwerk, Aufbau          Ansicht, Prüfungen
+       Enden & Teilung      Enden, Teilung           Ansicht, Prüfungen
+       Fußpunkt             Fußpunkt                 Ansicht, Prüfungen
+       Trasse               Trasse                   Trassenbild, Ansicht
+       Prüfungen & Zahlen   —                        Prüfungen, Zahlen
+       Export nach Allplan  —                        Export
+       Nachschlagen         —                        Nachschlagen
+
+     Ein Abschnitt ohne Eingabekarte ist ein Ergebnis: er steht allein und
+     über die ganze Breite (k-ergebnis). Die Kennung eines Abschnitts ist die
+     seiner ersten Karte; fehlt diese Karte (die Trasse auf dem geraden Weg),
+     fehlt der Abschnitt. Fehlt nur die erste Karte daneben (noch kein
+     Trassenbild), steht daneben, was zu jeder Eingabe steht (DANEBEN_SONST).
+     Die Nummern in der Leiste zählen die Eingaben, wie sie gerade da sind. */
+  const ABSCHNITTE = [
+    {name: "Bauwerk",             links: ["karte-eingabe", "karte-aufbau"], rechts: ["karte-ansicht", "karte-pruefungen"]},
+    {name: "Enden & Teilung",     links: ["karte-enden", "karte-sonder"],   rechts: ["karte-ansicht", "karte-pruefungen"]},
+    {name: "Fußpunkt",            links: ["karte-fuss"],                    rechts: ["karte-ansicht", "karte-pruefungen"]},
+    {name: "Trasse",              links: ["karte-trasse"],                  rechts: ["trassenbild", "karte-ansicht"]},
+    {name: "Prüfungen & Zahlen",  links: [],                                rechts: ["karte-pruefungen", "karte-listen"]},
+    {name: "Export nach Allplan", links: [],                                rechts: ["karte-export"]},
+    {name: "Nachschlagen",        links: [],                                rechts: ["karte-nachschlagen"]}
+  ];
+  const DANEBEN_SONST = ["karte-ansicht", "karte-pruefungen"];
+  ABSCHNITTE.forEach(a => { a.id = a.links[0] || a.rechts[0]; a.ergebnis = !a.links.length; });
+  const abschnitt = id => ABSCHNITTE.find(a => a.id === id) || null;
+
+  /* Mit „Alle Karten zeigen" bleiben die Eingaben ihre Abschnitte, im
+     Ergebnis bekommt jede Karte ihre Zeile, so wie sie untereinander stehen.
+     Karten ohne Namen im Kopf heißen dort so: */
   const NAMEN = {"karte-ansicht":"Ansicht", "trassenbild":"Trassenbild", "karte-listen":"Zahlen",
                  "karte-nachschlagen":"Nachschlagen"};
-  /* Umgeschaltet hat das Ergebnis genau drei Zeilen: Prüfungen und Zahlen
-     sind eine, dazu Export und Nachschlagen. Die Ansicht und das Trassenbild
-     haben keine eigene Zeile — sie gehören zu den Eingaben und stehen rechts,
-     solange eine Eingabekarte gewählt ist. Die Zahlen gehen in der Zeile der
-     Prüfungen auf. Mit „Alle Karten zeigen" bleibt jede Karte eine Zeile. */
-  const OHNE_ZEILE = ["karte-ansicht", "trassenbild", "karte-listen"];
-  const NAMEN_UMGESCHALTET = {"karte-pruefungen":"Prüfungen & Zahlen"};
   /* Zwei Arten von unsichtbar: das Werkzeug verbirgt eine Karte (hidden oder
      display:none am Element) — dann gehört sie nicht in die Leiste. Die
      Leiste schaltet sie weg (k-aus) — dann gehört sie gerade hinein. */
   const da = el => !!el && !el.hidden && el.style.display !== "none";
   const sichtbar = el => da(el) && (el.classList.contains("k-aus") || el.getClientRects().length > 0);
-
-  function karten(){
-    return [...spalten.querySelectorAll(":scope > section > *")].filter(el => el.id && sichtbar(el));
-  }
-  function kopfText(el){
-    if(!alle && NAMEN_UMGESCHALTET[el.id]) return {nr:"", name:NAMEN_UMGESCHALTET[el.id]};
-    if(NAMEN[el.id]) return {nr:"", name:NAMEN[el.id]};
+  function kopfName(el){
+    if(NAMEN[el.id]) return NAMEN[el.id];
     const h = el.querySelector(":scope > .karte-kopf h2, :scope > summary.karte-kopf h2");
-    const t = h ? h.textContent.trim() : el.id;
-    const m = t.match(/^(\d+)\s*·\s*(.+)$/);
-    return m ? {nr:m[1], name:m[2]} : {nr:"", name:t};
+    return h ? h.textContent.trim() : el.id;
   }
   const zahl = v => Math.round(v).toLocaleString("de-DE");
 
-  /* Der Stand rechts in der Zeile. Für die meisten Karten ist es die
-     Nebenangabe ihres Kopfes; für ein paar steht Passenderes bereit. */
+  /* Der Stand einer Karte. Für die meisten ist es die Nebenangabe ihres
+     Kopfes; für ein paar steht Passenderes bereit. */
   function stand(el){
     const neben = el.querySelector(":scope > .karte-kopf .neben, :scope > summary.karte-kopf .neben");
     const L = typeof letzte !== "undefined" ? letzte : null;
@@ -10344,8 +10399,16 @@ try{
         return neben ? neben.textContent : "";
     }
   }
+  /* Der Stand einer Zeile: bei einer Eingabe der Stand ihrer Karten
+     hintereinander, was davon etwas sagt (Bauwerk: „Gel 4 · 12.000 mm",
+     Enden & Teilung: „5 Felder", davor eine Abweichung an den Enden);
+     sonst der Stand der ersten Karte. */
+  function standZeile(z){
+    if(z.eingabe) return z.karten.map(hol).filter(da).map(stand).filter(s => typeof s === "string" && s).join(" · ");
+    return stand(hol(z.id));
+  }
 
-  /* Sinnbilder für die Karten ohne Nummer, als Linien in Textfarbe. */
+  /* Sinnbilder für die Zeilen ohne Nummer, als Linien in Textfarbe. */
   const SINN = {
     "karte-ansicht":     '<path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="2.5"/>',
     "trassenbild":       '<path d="M3 19c4 0 5-14 9-14s5 14 9 14"/>',
@@ -10354,7 +10417,25 @@ try{
     "karte-export":      '<path d="M12 3v12M7 10l5 5 5-5M4 20h16"/>',
     "karte-nachschlagen":'<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2V5z"/><path d="M8 7h7"/>'
   };
-  const GRUPPEN = ["Eingaben", "Ergebnis"];
+
+  /* Die Zeilen, wie sie gerade gelten: je Abschnitt, dessen erste Karte da
+     ist, eine — bei „Alle Karten" im Ergebnis je Karte eine. */
+  const [LINKS_SP, RECHTS_SP] = spalten.querySelectorAll(":scope > section");
+  let alle = false;          // „Alle Karten zeigen"
+  try{ alle = localStorage.getItem("karten-alle") === "ja"; }catch(e){}
+  function zeilenSoll(){
+    const z = [];
+    let nr = 0;
+    ABSCHNITTE.forEach(a => {
+      if(!sichtbar(hol(a.id))) return;
+      if(!a.ergebnis) z.push({id:a.id, nr:String(++nr), name:a.name, karten:a.links, gruppe:"Eingaben", eingabe:true});
+      else if(!alle) z.push({id:a.id, nr:"", name:a.name, karten:a.rechts, gruppe:"Ergebnis"});
+    });
+    if(alle && RECHTS_SP)
+      [...RECHTS_SP.children].filter(el => el.id && sichtbar(el))
+        .forEach(el => z.push({id:el.id, nr:"", name:kopfName(el), karten:[el.id], gruppe:"Ergebnis"}));
+    return z;
+  }
 
   /* Die Zeilen bleiben stehen und werden nur nachgetragen: neu gebaut würde
      der Tastaturfokus bei jeder Rechnung von einem Link auf die Seite
@@ -10362,10 +10443,11 @@ try{
      nur, was nicht mehr da ist. Name und Stand gehen als Text hinein — der
      Stand kann Achsnamen aus einer geladenen Datei enthalten. */
   let aktivId = null;
+  let zeilen = [];
   const setzText = (el, t) => { if(el.textContent !== t) el.textContent = t; };
-  function zeileNeu(el){
+  function zeileNeu(id){
     const a = document.createElement("a");
-    a.href = "#" + el.id; a.dataset.ziel = el.id;
+    a.href = "#" + id; a.dataset.ziel = id;
     a.innerHTML = '<span class="nr"></span><span class="name"></span><span class="meta"></span>';
     return a;
   }
@@ -10373,28 +10455,25 @@ try{
     const alt = new Map([...nav.querySelectorAll("a[data-ziel]")].map(a => [a.dataset.ziel, a]));
     const altG = new Map([...nav.querySelectorAll("div.gruppe")].map(g => [g.dataset.gruppe, g]));
     const soll = [];
-    let abschnitt = null, gruppe = 0;
-    karten().filter(el => alle || !OHNE_ZEILE.includes(el.id)).forEach(el => {
-      // Eine Überschrift je Spalte der Seite: links die Eingaben, rechts das Ergebnis.
-      if(el.parentElement !== abschnitt){
-        abschnitt = el.parentElement;
-        const titel = GRUPPEN[gruppe++] || "";
-        if(titel){
-          let g = altG.get(titel);
-          if(!g){ g = document.createElement("div"); g.className = "gruppe"; g.dataset.gruppe = titel; g.textContent = titel; }
-          soll.push(g);
-        }
+    let gruppe = null;
+    zeilen = zeilenSoll();
+    zeilen.forEach(z => {
+      // Eine Überschrift je Gruppe: die Eingaben, dann das Ergebnis.
+      if(z.gruppe !== gruppe){
+        gruppe = z.gruppe;
+        let g = altG.get(gruppe);
+        if(!g){ g = document.createElement("div"); g.className = "gruppe"; g.dataset.gruppe = gruppe; g.textContent = gruppe; }
+        soll.push(g);
       }
-      const {nr, name} = kopfText(el);
-      const a = alt.get(el.id) || zeileNeu(el);
+      const a = alt.get(z.id) || zeileNeu(z.id);
       const nrEl = a.querySelector(".nr");
-      if(nr){ delete nrEl.dataset.sinn; setzText(nrEl, nr); }
-      else if(nrEl.dataset.sinn !== el.id){
-        nrEl.dataset.sinn = el.id;
-        nrEl.innerHTML = SINN[el.id] ? `<svg viewBox="0 0 24 24" aria-hidden="true">${SINN[el.id]}</svg>` : "";
+      if(z.nr){ delete nrEl.dataset.sinn; setzText(nrEl, z.nr); }
+      else if(nrEl.dataset.sinn !== z.id){
+        nrEl.dataset.sinn = z.id;
+        nrEl.innerHTML = SINN[z.id] ? `<svg viewBox="0 0 24 24" aria-hidden="true">${SINN[z.id]}</svg>` : "";
       }
-      setzText(a.querySelector(".name"), name);
-      const meta = stand(el), metaEl = a.querySelector(".meta");
+      setzText(a.querySelector(".name"), z.name);
+      const meta = standZeile(z), metaEl = a.querySelector(".meta");
       const text = typeof meta === "string" ? meta : meta.text;
       const punkt = typeof meta === "string" ? "" : meta.punkt;
       if(metaEl.dataset.punkt !== punkt || metaEl.textContent !== text){
@@ -10429,122 +10508,87 @@ try{
   }
 
   /* ---------- Umschalten ----------
-     Was rechts zu sehen ist, je nachdem, was in der Leiste gewählt wurde.
-     Die Reihenfolge in der Liste ist die Reihenfolge auf der Seite. Wer
-     etwas anders haben will, ändert nur diese Tabelle.
-
-     Gewählt …                       rechts zu sehen
-       eine Eingabekarte (1 bis 5)   Ansicht, Prüfungen — was eine Eingabe bewirkt
-       6 · Trasse                    Trassenbild, Ansicht — gibt es noch kein
-                                     Trassenbild, wie bei den anderen Eingaben
-       Prüfungen & Zahlen            Prüfungen, Zahlen
-       Export nach Allplan           nur Export
-       Nachschlagen                  nur Nachschlagen
-     Die drei Ergebniszeilen (ERGEBNIS) zeigen nur ihren Inhalt, ohne
-     Eingabe links und ohne Ansicht, über die ganze Breite.
-     Die Zeile „trassenbild" hat keinen Eintrag in der Leiste; sie gilt nur,
-     wenn ein Sprung das Trassenbild braucht und die Eingabe links es nicht
-     zeigt. Fehlt die gewählte Karte selbst (die erste ihrer Zeile), gilt die
-     Zeile „eingabe". Ist eine Eingabe gewählt, steht links genau ihre Karte;
-     zu Beginn die erste. */
-  const RECHTS = {
-    "eingabe":            ["karte-ansicht", "karte-pruefungen"],
-    "karte-trasse":       ["trassenbild", "karte-ansicht"],
-    "trassenbild":        ["trassenbild", "karte-ansicht"],
-    "karte-pruefungen":   ["karte-pruefungen", "karte-listen"],
-    "karte-export":       ["karte-export"],
-    "karte-nachschlagen": ["karte-nachschlagen"]
-  };
-  /* Karten ohne eigene Zeile, aber in der Zeile einer anderen: dorthin. */
-  const ZEILE_VON = {"karte-listen": "karte-pruefungen"};
-  /* Die Zeilen, die allein und über die ganze Breite stehen. */
-  const ERGEBNIS = ["karte-pruefungen", "karte-export", "karte-nachschlagen"];
-  const [LINKS_SP, RECHTS_SP] = spalten.querySelectorAll(":scope > section");
-  let links = null;          // die Eingabekarte (gewählt, wenn kein Ergebnis gewählt ist)
-  let rechtsWahl = null;     // ein Ergebnis aus ERGEBNIS, „trassenbild" oder null = was zur Eingabe gehört
-  let alle = false;          // „Alle Karten zeigen"
-  try{ alle = localStorage.getItem("karten-alle") === "ja"; }catch(e){}
-
-  /* Ist gerade ein Ergebnis gewählt (und nicht die Eingabe links)? */
-  const ergebnisGewaehlt = () => !alle && ERGEBNIS.includes(rechtsWahl) && da(hol(rechtsWahl));
-
-  function rechtsSoll(){
-    const zeile = RECHTS[rechtsWahl] || RECHTS[links] || RECHTS.eingabe;
-    return da(hol(zeile[0])) ? zeile.filter(id => da(hol(id))) : RECHTS.eingabe;
+     Gewählt ist immer genau ein Abschnitt (wahl). Fehlt er — die Trasse auf
+     dem geraden Weg —, gilt die zuletzt gewählte Eingabe, sonst die erste. */
+  let wahl = null;           // Kennung des gewählten Abschnitts
+  let eingabe = null;        // Kennung der zuletzt gewählten Eingabe
+  const verfuegbar = () => ABSCHNITTE.filter(a => da(hol(a.id)));
+  function gewaehlt(){
+    const v = verfuegbar();
+    return v.find(a => a.id === wahl) || v.find(a => a.id === eingabe) || v.find(a => !a.ergebnis) || v[0] || null;
+  }
+  /* Was ein Abschnitt zeigt, in der Reihenfolge auf der Seite. */
+  function zeigt(a){
+    const links = a.links.filter(id => da(hol(id)));
+    const rechts = (da(hol(a.rechts[0])) ? a.rechts : DANEBEN_SONST).filter(id => da(hol(id)));
+    return {links, rechts};
   }
   const wegSetzen = (el, weg) => { if(el.classList.contains("k-aus") !== weg) el.classList.toggle("k-aus", weg); };
   function anwenden(){
     if(!LINKS_SP || !RECHTS_SP) return;
     if(spalten.classList.contains("k-umschalten") === alle) spalten.classList.toggle("k-umschalten", !alle);
-    const eingaben = [...LINKS_SP.children].filter(el => el.id && da(el));
-    if(!eingaben.some(el => el.id === links)) links = eingaben.length ? eingaben[0].id : null;
-    const ergebnis = ergebnisGewaehlt();
+    const a = gewaehlt();
+    // Zu Beginn, oder wenn der gewählte Abschnitt wegfiel: wie gewählt, also aufgeklappt.
+    if(a && a.id !== wahl && !alle) aufklappen(a);
+    if(a){ wahl = a.id; if(!a.ergebnis) eingabe = a.id; }
+    const ergebnis = !alle && !!a && a.ergebnis;
     if(spalten.classList.contains("k-ergebnis") !== ergebnis) spalten.classList.toggle("k-ergebnis", ergebnis);
-    const rechts = rechtsSoll();
-    [...LINKS_SP.children].forEach(el => { if(el.id) wegSetzen(el, !alle && (ergebnis || el.id !== links)); });
-    [...RECHTS_SP.children].forEach(el => {
-      if(!el.id) return;
-      const i = rechts.indexOf(el.id);
-      wegSetzen(el, !alle && i < 0);
-      const o = (alle || i < 0) ? "" : String(i);
-      if(el.style.order !== o) el.style.order = o;
+    const soll = a ? zeigt(a) : {links: [], rechts: []};
+    [[LINKS_SP, soll.links], [RECHTS_SP, soll.rechts]].forEach(([sp, liste]) => {
+      [...sp.children].forEach(el => {
+        if(!el.id) return;
+        const i = liste.indexOf(el.id);
+        wegSetzen(el, !alle && i < 0);
+        const o = (alle || i < 0) ? "" : String(i);
+        if(el.style.order !== o) el.style.order = o;
+      });
     });
     fuellen();
   }
 
-  /* Eine Karte, die gerade erst zu sehen ist, steht offen da — eine
-     zugeklappte einzelne Karte sähe aus, als wäre nichts darin. Nachschlagen
-     klappt beide Teile auf. Nur beim Wählen, nicht bei jeder Rechnung: wer
-     danach zuklappt, dem klappt es nicht wieder auf. */
-  function aufklappen(el){
-    if(!el) return;
-    if(el.tagName === "DETAILS" && !el.open) el.open = true;
-    if(el.id === "karte-nachschlagen") el.querySelectorAll(":scope > details").forEach(d => { if(!d.open) d.open = true; });
+  /* Ein Abschnitt, der gerade erst zu sehen ist, steht offen da — eine
+     zugeklappte Karte sähe aus, als wäre nichts darin. Aufgeklappt werden
+     alle Eingabekarten des Abschnitts, beim Ergebnis dessen Karten;
+     Nachschlagen klappt beide Teile auf. Nur beim Wählen, nicht bei jeder
+     Rechnung: wer danach zuklappt, dem klappt es nicht wieder auf. */
+  function aufklappen(a){
+    (a.ergebnis ? a.rechts : a.links).map(hol).forEach(el => {
+      if(!el) return;
+      if(el.tagName === "DETAILS" && !el.open) el.open = true;
+      if(el.id === "karte-nachschlagen") el.querySelectorAll(":scope > details").forEach(d => { if(!d.open) d.open = true; });
+    });
   }
-  function waehlen(el){
-    if(!el) return;
-    if(el.parentElement === LINKS_SP){ links = el.id; rechtsWahl = null; }
-    else rechtsWahl = el.id;
-    aufklappen(el);
+  function waehlen(a){
+    if(!a) return;
+    wahl = a.id;
+    if(!a.ergebnis) eingabe = a.id;
+    aufklappen(a);
     anwenden();
     zeilenMarkieren();
   }
   /* Für alles, was irgendwohin springt: liegt das Ziel in einer
-     weggeschalteten Karte, wird die Zeile gewählt, zu der sie gehört — eine
-     Eingabekarte als Eingabe (mit Ansicht und Prüfungen daneben), eine
-     Ergebniskarte als ihr Ergebnis. Wie beim Klick in der Leiste ist danach
-     genau diese eine Zeile gewählt. Steht das Ziel schon im Bild, bleibt
-     alles, wie es ist. Danach ist es sofort zu sehen; rollen und den Fokus
-     setzen kann der Aufrufer gleich anschließend. */
+     weggeschalteten Karte, wird der Abschnitt gewählt, der diese Karte
+     zeigt — die zuletzt gewählte Eingabe, wenn sie es tut (die Ansicht
+     gehört zu jeder), sonst der erste in der Tabelle. Wie beim Klick in der
+     Leiste ist danach genau diese eine Zeile gewählt. Steht das Ziel schon
+     im Bild, bleibt alles, wie es ist. Danach ist es sofort zu sehen; rollen
+     und den Fokus setzen kann der Aufrufer gleich anschließend. */
   function karteHolen(el){
     if(alle || !el || !el.closest) return;
     const karte = el.closest(".spalten > section > *");
     if(!karte || !karte.classList.contains("k-aus")) return;
-    if(karte.parentElement === LINKS_SP){ links = karte.id; rechtsWahl = null; }
-    else rechtsHolen(karte.id);
-    if(karte.parentElement === LINKS_SP || karte.id === "karte-nachschlagen") aufklappen(karte);
-    anwenden();
-    zeilenMarkieren();
-  }
-  /* Rechts: eine Karte mit eigener Zeile wird deren Wahl, die Zahlen die
-     Zeile „Prüfungen & Zahlen". Ansicht und Trassenbild haben keine Zeile —
-     sie gehören zur Eingabe: gewählt ist wieder die zuletzt gezeigte
-     Eingabekarte; zeigt deren Paarung das Ziel nicht (das Trassenbild neben
-     einer anderen Eingabe als 6), kommt die Paarung der Trasse: Trassenbild
-     und Ansicht. */
-  function rechtsHolen(id){
-    const zeile = ZEILE_VON[id] || id;
-    if(RECHTS[zeile] && !OHNE_ZEILE.includes(zeile)){ rechtsWahl = zeile; return; }
-    rechtsWahl = null;
-    if(!rechtsSoll().includes(id) && RECHTS[id]) rechtsWahl = id;
+    const zeigtSie = a => { const s = zeigt(a); return s.links.includes(karte.id) || s.rechts.includes(karte.id); };
+    const kandidaten = verfuegbar().filter(zeigtSie);
+    const a = kandidaten.find(x => x.id === eingabe) || kandidaten[0];
+    if(a) waehlen(a);
   }
   window.karteHolen = karteHolen;
   /* Gelbe Kästen an Knöpfen: steht der Knopf in einer weggeschalteten Karte
      (etwa der Export, wenn „IFC 4 schreiben" in der Mappe dessen Knopf
-     drückt und der etwas zu melden hat), wird die Zeile dieser Karte gewählt,
-     damit der Kasten zu sehen ist. Steht der Knopf in einer Karte, die zu
-     sehen ist, oder in der Mappe, bleibt alles stehen — umgeschaltet wird
-     nur aus einer weggeschalteten Karte heraus (siehe karteHolen). */
+     drückt und der etwas zu melden hat), wird der Abschnitt dieser Karte
+     gewählt, damit der Kasten zu sehen ist. Steht der Knopf in einer Karte,
+     die zu sehen ist, oder in der Mappe, bleibt alles stehen — umgeschaltet
+     wird nur aus einer weggeschalteten Karte heraus (siehe karteHolen). */
   if(typeof fehltMelden === "function"){
     const meldenVorher = fehltMelden;
     fehltMelden = function(knopf, m){
@@ -10555,15 +10599,14 @@ try{
   }
 
   /* ---------- Markieren ----------
-     Immer genau eine Zeile ist „aktiv". Umgeschaltet: das gewählte Ergebnis,
-     sonst die Eingabekarte links. Alle Karten: wie bisher die Karte, zu der
-     gesprungen oder gerollt wurde. */
+     Immer genau eine Zeile ist „aktiv". Umgeschaltet: der gewählte
+     Abschnitt. Alle Karten: wie bisher die Zeile, zu der gesprungen oder
+     gerollt wurde. */
   function zeilenMarkieren(){
-    const gewaehlt = alle ? null : (ergebnisGewaehlt() ? rechtsWahl : links);
-    const zeilen = [...nav.querySelectorAll("a[data-ziel]")];
-    const treffer = alle ? zeilen.find(a => a.dataset.ziel === aktivId) : zeilen.find(a => a.dataset.ziel === gewaehlt);
-    const markiert = treffer || zeilen[0];
-    zeilen.forEach(a => {
+    const ziel = alle ? aktivId : wahl;
+    const alleZeilen = [...nav.querySelectorAll("a[data-ziel]")];
+    const markiert = alleZeilen.find(a => a.dataset.ziel === ziel) || alleZeilen[0];
+    alleZeilen.forEach(a => {
       const aktiv = a === markiert;
       if(a.classList.contains("aktiv") !== aktiv) a.classList.toggle("aktiv", aktiv);
       const aktuell = aktiv ? "true" : null;
@@ -10573,35 +10616,121 @@ try{
     });
   }
 
-  /* ---------- Den Platz nutzen ----------
-     Steht wenig da, soll die Seite nicht leer wirken: endet die rechte
-     Spalte über dem Fensterrand (oder über der linken), wächst die Ansicht
-     in der Höhe, bis sie reicht — höchstens auf vier Fünftel der Höhe des
-     Inhalts. Die Zeichnung selbst wird nicht größer (ihre Breite bestimmt
-     sie), sie steht mittig auf dem größeren Blatt, mit Platz zum Zoomen.
-     Gemessen wird die natürliche Höhe, also ohne das, was schon dazukam —
-     so kommt jede Messung zum selben Wert und schaukelt nicht. Auf einer
-     Spalte untereinander (schmale Fenster) bleibt die Ansicht, wie sie ist. */
+  /* ---------- Die rechte Spalte passt ins Fenster ----------
+     Bei einer Eingabe soll die rechte Spalte (Ansicht und Prüfungen, beim
+     Trassenbild dieses und die Ansicht) ganz ins Fenster unter dem
+     Statusband passen. Dann bleibt sie beim Rollen dort stehen (Klasse
+     k-kleben) — wer unten im Aufbau etwas ändert, sieht die Ansicht dazu —
+     und rollt selbst nie.
+
+     Platz ist, was zwischen Band und Fensterrand bleibt. Gerechnet wird mit
+     der Lage des Bands, nicht nur mit seiner Höhe: auf mittleren Breiten
+     klebt es unter der Kopfzeile, nicht am oberen Rand.
+
+     Steht wenig da, wachsen die Flächen der Zeichnungen (beim Trassenbild
+     beide zu gleichen Teilen), höchstens auf vier Fünftel der Höhe des
+     Inhalts; die Zeichnung steht mittig auf dem größeren Blatt. Ist es zu
+     eng, wird in dieser Reihenfolge Platz gemacht:
+       1. die Liste der Prüfungen rollt für sich (Rot und Gelb stehen oben),
+          zu sehen bleiben mindestens PRUEF_MIN Pixel;
+       2. die Zeichnungen werden schmaler, bis auf BILD_MIN ihrer eingepassten
+          Größe — kleiner wäre sie nicht mehr zu lesen.
+     Reicht auch das nicht (sehr niedriges Fenster), klebt die Spalte nicht,
+     und die Seite rollt wie sonst — dann mit voller Liste und Zeichnung.
+
+     Gemessen wird die natürliche Höhe, also ohne das, was schon dazukam oder
+     wegfiel — so kommt jede Messung zum selben Wert und schaukelt nicht. Bei
+     einem Ergebnis, mit „Alle Karten" und auf einer Spalte untereinander
+     (schmale Fenster) bleibt alles, wie es ist; gedruckt sowieso. */
+  const FLAECHEN = ["zeichnung", "zeichnung-trasse"];
+  const PRUEF_MIN = 130;     // gut drei Einträge
+  const BILD_MIN = 0.6;      // Anteil der eingepassten Zeichnungshöhe
   function fuellen(){
-    const ansicht = hol("karte-ansicht"), fl = hol("zeichnung");
-    let soll = 0;
-    if(!alle && ansicht && fl && da(ansicht) && !ansicht.classList.contains("k-aus") &&
-       Math.abs(LINKS_SP.getBoundingClientRect().top - RECHTS_SP.getBoundingClientRect().top) < 2){
-      const natur = [...fl.children].reduce((s, e) => s + e.getBoundingClientRect().height, 0) + 18;  // + Polster 8/10
-      const zusatz = Math.max(0, fl.getBoundingClientRect().height - natur);
-      const oben = inhalt.getBoundingClientRect().top - inhalt.scrollTop;
-      const unten = sp => Math.max(0, ...[...sp.children].filter(e => e.getClientRects().length)
-                                                         .map(e => e.getBoundingClientRect().bottom - oben));
-      const rechts = unten(RECHTS_SP) - zusatz;
-      const ziel = Math.max(inhalt.clientHeight - 28, unten(LINKS_SP));   // 28: Polster, Rand und Abstand unter den Spalten
-      const mehr = ziel - rechts;
-      if(mehr > 12) soll = Math.round(Math.min(natur + mehr, Math.max(natur, inhalt.clientHeight * 0.8)));
+    const ir = inhalt.getBoundingClientRect();
+    const rL = LINKS_SP.getBoundingClientRect(), rR = RECHTS_SP.getBoundingClientRect();
+    const liste = hol("pruefungen");
+    const flaechen = FLAECHEN.map(hol).filter(f => f && RECHTS_SP.contains(f) && f.getClientRects().length);
+    const hoehe = new Map(), breite = new Map();
+    let kleben = false, listeMax = 0;
+    if(!alle && !spalten.classList.contains("k-ergebnis") && flaechen.length &&
+       rL.width && rR.left >= rL.right - 1){                       // zwei Spalten nebeneinander
+      const band = hol("band");
+      let bandUnten = 0;                                           // Unterkante des Bands, im Inhalt gemessen
+      if(band && band.getClientRects().length){
+        const rb = band.getBoundingClientRect(), cs = getComputedStyle(band);
+        bandUnten = rb.bottom - ir.top;
+        if(cs.position === "sticky") bandUnten = Math.max(bandUnten, (parseFloat(cs.top) || 0) + rb.height);
+      }
+      const klebenOben = bandUnten + 12;
+      const ruheOben = rL.top - ir.top + inhalt.scrollTop;         // Spaltenanfang, nicht gerollt
+      /* Unten 12 Abstand zum Fensterrand; klebend 28, sonst schöbe das Ende
+         der Spalten die klebende Spalte zuletzt unter das Band. */
+      const platz = Math.min(inhalt.clientHeight - 12 - ruheOben, inhalt.clientHeight - 28 - klebenOben);
+      // Die rechte Spalte von der obersten bis zur untersten Karte
+      const karten = [...RECHTS_SP.children].filter(e => e.id && e.getClientRects().length);
+      const kr = karten.map(e => e.getBoundingClientRect());
+      let bedarf = Math.max(...kr.map(r => r.bottom)) - Math.min(...kr.map(r => r.top));
+      // … ohne das, was die Flächen und die Liste gerade dazubekamen oder abgaben
+      const fl = flaechen.map(f => {
+        const cs = getComputedStyle(f);
+        const svg = f.querySelector(":scope > svg");
+        let rest = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom), bild = 0;
+        [...f.children].forEach(c => { if(c !== svg) rest += c.getBoundingClientRect().height; });
+        if(svg){
+          const vb = (svg.dataset.blatt || svg.getAttribute("viewBox") || "").split(/[\s,]+/).map(Number);
+          const innen = f.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+          if(vb[2] > 0 && vb[3] > 0) bild = innen * vb[3] / vb[2];
+        }
+        bedarf += rest + bild - f.getBoundingClientRect().height;
+        return {f, rest, bild};
+      });
+      let listeNatur = 0;
+      if(liste && RECHTS_SP.contains(liste) && liste.getClientRects().length){
+        const h = liste.getBoundingClientRect().height;
+        listeNatur = liste.scrollHeight + (h - liste.clientHeight);
+        bedarf += listeNatur - h;
+      }
+      let ueber = bedarf - platz;
+      if(ueber <= 0){
+        kleben = true;
+        const mehr = -ueber;
+        if(mehr > 12) fl.forEach(x => {
+          const natur = x.rest + x.bild;
+          hoehe.set(x.f, Math.min(natur + mehr / fl.length, Math.max(natur, inhalt.clientHeight * 0.8)));
+        });
+      } else {
+        // 1. Die Liste rollt für sich
+        const kuerzer = Math.min(ueber, Math.max(0, listeNatur - PRUEF_MIN));
+        if(kuerzer > 0){ listeMax = Math.floor(listeNatur - kuerzer); ueber -= kuerzer; }
+        // 2. Die Zeichnungen werden schmaler, alle im selben Verhältnis
+        const spiel = fl.reduce((s, x) => s + x.bild * (1 - BILD_MIN), 0);
+        if(ueber > 0 && spiel > 0){
+          const anteil = Math.min(1, ueber / spiel);
+          fl.forEach(x => { if(x.bild) breite.set(x.f, 100 * (1 - (1 - BILD_MIN) * anteil)); });
+          ueber -= Math.min(ueber, spiel);
+        }
+        kleben = ueber <= 0.5;
+        // Passt es trotzdem nicht, rollt die Seite — dann ohne Abstriche.
+        if(!kleben){ listeMax = 0; breite.clear(); }
+      }
+      if(kleben){
+        const o = Math.round(klebenOben) + "px";
+        if(spalten.style.getPropertyValue("--kleben-oben") !== o) spalten.style.setProperty("--kleben-oben", o);
+      }
     }
-    const alt = parseFloat(spalten.style.getPropertyValue("--ansicht-hoehe")) || 0;
-    if(Math.abs(alt - soll) > 2){
-      if(soll) spalten.style.setProperty("--ansicht-hoehe", soll + "px");
-      else spalten.style.removeProperty("--ansicht-hoehe");
-    }
+    if(RECHTS_SP.classList.contains("k-kleben") !== kleben) RECHTS_SP.classList.toggle("k-kleben", kleben);
+    // Nur schreiben, was sich spürbar ändert — jede Änderung am Stil löst ein neues Nachziehen aus.
+    const setzen = (el, name, wert, einheit) => {
+      const alt = el.style.getPropertyValue(name);
+      if(!wert){ if(alt) el.style.removeProperty(name); return; }
+      if(!alt || Math.abs(parseFloat(alt) - wert) > (einheit === "%" ? 0.3 : 2))
+        el.style.setProperty(name, (einheit === "%" ? wert.toFixed(1) : Math.round(wert)) + einheit);
+    };
+    FLAECHEN.map(hol).filter(Boolean).forEach(f => {
+      setzen(f, "--fl-hoehe", hoehe.get(f) || 0, "px");
+      setzen(f, "--fl-svg-b", breite.get(f) || 0, "%");
+    });
+    if(liste) setzen(liste, "--liste-max", listeMax, "px");
   }
   window.addEventListener("resize", () => nachziehen());
 
@@ -10618,15 +10747,17 @@ try{
     const a = ev.target.closest("a[data-ziel]");
     if(!a) return;
     ev.preventDefault();
-    const ziel = hol(a.dataset.ziel);
-    if(!ziel) return;
     if(!alle){
-      // Umgeschaltet: wählen und oben anfangen — die Karte steht dann ganz oben in ihrer Spalte.
-      waehlen(ziel);
+      // Umgeschaltet: wählen und oben anfangen — die Karten stehen dann ganz oben in ihrer Spalte.
+      const ab = abschnitt(a.dataset.ziel);
+      if(!ab) return;
+      waehlen(ab);
       inhalt.scrollTo({top:0, behavior:"auto"});
       menue(false);
       return;
     }
+    const ziel = hol(a.dataset.ziel);
+    if(!ziel) return;
     if(ziel.tagName === "DETAILS" && !ziel.open) ziel.open = true;
     ziel.scrollIntoView({block:"start"});
     markieren(a.dataset.ziel);
@@ -10638,7 +10769,7 @@ try{
   /* ---------- Der Schalter „Alle Karten zeigen" ---------- */
   const alleKnopf = hol("alleschalter");
   function alleSetzen(an){
-    const vorher = ergebnisGewaehlt() ? rechtsWahl : links;
+    const vorher = wahl;
     alle = !!an;
     try{ localStorage.setItem("karten-alle", alle ? "ja" : "nein"); }catch(e){}
     if(alleKnopf) alleKnopf.setAttribute("aria-checked", String(alle));
@@ -10652,7 +10783,8 @@ try{
     alleKnopf.addEventListener("click", () => alleSetzen(!alle));
   }
 
-  /* ---------- Folgen ---------- die Karte, die dem oberen Rand am nächsten liegt.
+  /* ---------- Folgen ---------- die Zeile, deren Karte dem oberen Rand am
+     nächsten liegt (bei einem Abschnitt mit zwei Karten die nähere).
      Nur bei „Alle Karten": umgeschaltet steht die Markierung für die Wahl. */
   function folgen(){
     if(!alle) return;
@@ -10662,12 +10794,10 @@ try{
     }
     const oben = inhalt.getBoundingClientRect().top + 90;
     let best = null, abstand = Infinity;
-    nav.querySelectorAll("a[data-ziel]").forEach(a => {
-      const el = hol(a.dataset.ziel);
-      if(!el) return;
+    zeilen.forEach(z => z.karten.map(hol).filter(el => el && el.getClientRects().length).forEach(el => {
       const d = Math.abs(el.getBoundingClientRect().top - oben);
-      if(d < abstand){ abstand = d; best = a.dataset.ziel; }
-    });
+      if(d < abstand){ abstand = d; best = z.id; }
+    }));
     if(best && best !== aktivId) markieren(best);
   }
   inhalt.addEventListener("scroll", folgen, {passive:true});
