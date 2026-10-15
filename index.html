@@ -300,16 +300,13 @@ nav.abschnitte a.aktiv .meta{color:var(--blau);font-weight:400}
 nav.abschnitte a[hidden]{display:none}
 .meta .punkt{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;vertical-align:1px;background:var(--kante-stark)}
 .meta .punkt.ok{background:var(--gruen)} .meta .punkt.warn{background:var(--ocker)} .meta .punkt.fehler{background:var(--rot)}
-/* Rechts mit zu sehen, aber nicht selbst gewählt: nur die Plakette ist blau
-   umrandet. „aktiv" ist, was zuletzt angeklickt wurde — links die
-   Eingabekarte, rechts der gewählte Ergebnis-Abschnitt. */
-nav.abschnitte a.zu-sehen .nr{border-color:var(--blau);color:var(--blau)}
-nav.abschnitte a.zu-sehen .name{color:var(--blau)}
 
 /* ---------- Umschalten statt alles zugleich ----------
-   Die Leiste schaltet um, welche Karten zu sehen sind: links genau eine
-   Eingabekarte, rechts ein bis zwei passende (Zuordnung im Skript „Die
-   Leiste", Tabelle RECHTS). Verborgen wird mit einer eigenen Klasse und
+   Die Leiste schaltet um, welche Karten zu sehen sind. In der Leiste ist
+   immer genau ein Abschnitt gewählt. Eine Eingabe: links ihre Karte, rechts
+   ein bis zwei passende (Zuordnung im Skript „Die Leiste", Tabelle RECHTS).
+   Ein Ergebnis: nur dessen Karten, über die ganze Breite (k-ergebnis, die
+   linke Spalte fällt weg). Verborgen wird mit einer eigenen Klasse und
    display:none — nicht mit hidden, das benutzt das Werkzeug selbst (Trasse
    auf dem geraden Weg). So läuft auch die Tabulatortaste nicht in eine
    verborgene Karte. Nur am Bildschirm: gedruckt wird immer alles.
@@ -326,6 +323,19 @@ nav.abschnitte a.zu-sehen .name{color:var(--blau)}
   .spalten.k-umschalten #karte-ansicht .bp-flaeche{
     min-height:var(--ansicht-hoehe,0px);display:flex;flex-direction:column;justify-content:center}
   .spalten.k-umschalten #karte-ansicht .bp-flaeche > *{flex:none}
+  /* Ein Ergebnis gewählt: keine Eingabe links, das Ergebnis nimmt die ganze
+     Breite. */
+  .spalten.k-umschalten.k-ergebnis{grid-template-columns:minmax(0,1fr)}
+  .spalten.k-umschalten.k-ergebnis > section:first-child{display:none}
+}
+/* Der Export allein auf breitem Fenster: rechts neben den Knöpfen steht die
+   Kachel „Dieses Geländer", statt darunter — sonst wäre die Seite zu lang
+   und rechts neben dem Text leer. */
+@media screen and (min-width:1100px){
+  .spalten.k-umschalten.k-ergebnis #karte-export:not(.k-aus){display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,36%);align-items:start}
+  .spalten.k-umschalten.k-ergebnis #karte-export > *{grid-column:1}
+  .spalten.k-umschalten.k-ergebnis #karte-export > .karte-kopf{grid-column:1 / -1}
+  .spalten.k-umschalten.k-ergebnis #karte-export > #feld-kachel{grid-column:2;grid-row:2 / span 30;padding-top:12px}
 }
 
 /* Der Fuß der Leiste: das Farbschema. */
@@ -1665,7 +1675,7 @@ button, summary, label, select, a, .reiter{cursor:pointer}
             <button type="button" class="minitat" id="btn-zur-trasse">Auf einer Trasse</button>
           </div>
           <p class="hilfe" style="margin:0 0 10px">Für ein Geländer, das <b>gerade und waagerecht</b>
-          liegt. Länge, Höhe und Teilung kommen aus dem Formular links. Liegt das Geländer auf einer
+          liegt. Länge, Höhe und Teilung kommen aus den Eingaben. Liegt das Geländer auf einer
           Kurve, in einer Steigung oder im Quergefälle, gehört es ebenfalls auf eine Trasse —
           diese Knöpfe schreiben es immer gerade. <b>Einzige Ausnahme: die Schrägansicht</b>
           weiter unten nimmt eine Längsneigung der Kappe mit, weil sie eine Zeichnung ist und
@@ -1823,7 +1833,7 @@ button, summary, label, select, a, .reiter{cursor:pointer}
 
         <div class="tafel" id="tafel-trasse" role="tabpanel" hidden>
             <p class="hilfe" style="margin:0 0 10px">Für gekrümmte, schräge oder geneigte Bauwerke.
-            <b>Die Trasse wird links in der Karte <i>Trasse</i> geladen und eingestellt</b> — Achse,
+            <b>Die Trasse wird in der Karte <i>6 · Trasse</i> geladen und eingestellt</b> (in der Leiste unter <i>Eingaben</i>) — Achse,
             Nullpunkt, Stationsbereich, Querversatz und Quergefälle stehen dort, weil sie Eingaben
             sind und die Länge oben bestimmen. Hier steht nur noch der Export.</p>
 
@@ -1919,8 +1929,8 @@ button, summary, label, select, a, .reiter{cursor:pointer}
                         title="Grundriss des Geländers auf der Trasse, in Metern mit Landeskoordinate — wie die Führungskurve">DXF Draufsicht</button>
               </div>
             </div>
-            <p class="hilfe" style="margin:6px 0 0"><b>Teilung, Sonderfelder und Ohr kommen aus dem
-            Formular links</b> und gelten hier genauso: <i>Anzahl vorgeben</i> setzt die Pfostenzahl,
+            <p class="hilfe" style="margin:6px 0 0"><b>Teilung, Sonderfelder und Ohr kommen aus den
+            Eingaben</b> und gelten hier genauso: <i>Anzahl vorgeben</i> setzt die Pfostenzahl,
             die Karte <i>Sonderfelder</i> setzt einzelne Felder anders, das Ohr steht je Ende um sein
             eigenes Maß über. Was davon wirkt, zeigt das Bild <i>Trasse</i> über den Prüfungen — Grundriss und
             Höhenverlauf mit jedem Pfosten.</p>
@@ -10241,12 +10251,14 @@ try{
    Vorgabewert, Urteil der Prüfungen, Körperzahl).
 
    UMSCHALTEN, ABER NIE OHNE BILD. Alle Karten zugleich waren zu viel für
-   ein Fenster. Ein Klick in der Leiste schaltet darum um: links steht genau
-   eine Eingabekarte, rechts stehen die ein bis zwei Karten, die man dabei
-   braucht — wer am Geländer etwas ändert, sieht immer die Ansicht und die
-   Prüfungen dazu. Welche das sind, steht in EINER Tabelle (RECHTS unten).
-   Ein Klick auf eine Ergebniszeile ändert nur die rechte Spalte, die
-   Eingabekarte links bleibt. Der Schalter „Alle Karten zeigen" unten in der
+   ein Fenster. Ein Klick in der Leiste schaltet darum um, und gewählt ist
+   immer genau EINE Zeile. Eine Eingabe: links steht ihre Karte, rechts
+   stehen die ein bis zwei Karten, die man dabei braucht — wer am Geländer
+   etwas ändert, sieht immer die Ansicht und die Prüfungen dazu. Welche das
+   sind, steht in EINER Tabelle (RECHTS unten). Unter „Ergebnis" stehen genau
+   drei Zeilen — Prüfungen & Zahlen, Export, Nachschlagen —; jede zeigt nur
+   ihren Inhalt, ohne Eingabe und ohne Ansicht, über die ganze Breite.
+   Der Schalter „Alle Karten zeigen" unten in der
    Leiste stellt die alte Seite mit allen Karten wieder her; dann rollt ein
    Klick nur hin, und beim Rollen folgt die Markierung.
 
@@ -10260,7 +10272,8 @@ try{
    Nebenangabe. So passen Leiste und Karten immer zusammen, und zuKarte()
    findet mit derselben Nummer dieselbe Karte. Eine Karte, die das Werkzeug
    verbirgt (die Trasse auf dem geraden Weg), hat auch keine Zeile; eine,
-   die nur weggeschaltet ist (Klasse k-aus), behält ihre.
+   die nur weggeschaltet ist (Klasse k-aus), behält ihre. Ausgenommen sind
+   umgeschaltet Ansicht, Trassenbild und Zahlen (OHNE_ZEILE unten).
 
    Unter 1000 px Fensterbreite ist die Leiste eine Schublade hinter dem Knopf
    „Abschnitte" in der Kopfzeile; der Mappe-Chip dort öffnet sie bei der Mappe.
@@ -10276,6 +10289,13 @@ try{
      heißen, wie ihr Kopf sie nennt. */
   const NAMEN = {"karte-ansicht":"Ansicht", "trassenbild":"Trassenbild", "karte-listen":"Zahlen",
                  "karte-nachschlagen":"Nachschlagen"};
+  /* Umgeschaltet hat das Ergebnis genau drei Zeilen: Prüfungen und Zahlen
+     sind eine, dazu Export und Nachschlagen. Die Ansicht und das Trassenbild
+     haben keine eigene Zeile — sie gehören zu den Eingaben und stehen rechts,
+     solange eine Eingabekarte gewählt ist. Die Zahlen gehen in der Zeile der
+     Prüfungen auf. Mit „Alle Karten zeigen" bleibt jede Karte eine Zeile. */
+  const OHNE_ZEILE = ["karte-ansicht", "trassenbild", "karte-listen"];
+  const NAMEN_UMGESCHALTET = {"karte-pruefungen":"Prüfungen & Zahlen"};
   /* Zwei Arten von unsichtbar: das Werkzeug verbirgt eine Karte (hidden oder
      display:none am Element) — dann gehört sie nicht in die Leiste. Die
      Leiste schaltet sie weg (k-aus) — dann gehört sie gerade hinein. */
@@ -10286,6 +10306,7 @@ try{
     return [...spalten.querySelectorAll(":scope > section > *")].filter(el => el.id && sichtbar(el));
   }
   function kopfText(el){
+    if(!alle && NAMEN_UMGESCHALTET[el.id]) return {nr:"", name:NAMEN_UMGESCHALTET[el.id]};
     if(NAMEN[el.id]) return {nr:"", name:NAMEN[el.id]};
     const h = el.querySelector(":scope > .karte-kopf h2, :scope > summary.karte-kopf h2");
     const t = h ? h.textContent.trim() : el.id;
@@ -10353,7 +10374,7 @@ try{
     const altG = new Map([...nav.querySelectorAll("div.gruppe")].map(g => [g.dataset.gruppe, g]));
     const soll = [];
     let abschnitt = null, gruppe = 0;
-    karten().forEach(el => {
+    karten().filter(el => alle || !OHNE_ZEILE.includes(el.id)).forEach(el => {
       // Eine Überschrift je Spalte der Seite: links die Eingaben, rechts das Ergebnis.
       if(el.parentElement !== abschnitt){
         abschnitt = el.parentElement;
@@ -10416,31 +10437,36 @@ try{
        eine Eingabekarte (1 bis 5)   Ansicht, Prüfungen — was eine Eingabe bewirkt
        6 · Trasse                    Trassenbild, Ansicht — gibt es noch kein
                                      Trassenbild, wie bei den anderen Eingaben
-       Ansicht                       Ansicht, Zahlen
-       Trassenbild                   Trassenbild, Ansicht
-       Prüfungen                     Ansicht, Prüfungen
-       Zahlen                        Ansicht, Zahlen
-       Export nach Allplan           Export, Prüfungen — ob es gültig ist, was
-                                     man gleich schreibt
+       Prüfungen & Zahlen            Prüfungen, Zahlen
+       Export nach Allplan           nur Export
        Nachschlagen                  nur Nachschlagen
-     Fehlt die gewählte Karte selbst (die erste ihrer Zeile), gilt die
-     Zeile „eingabe". Links steht immer genau eine Eingabekarte: die zuletzt
-     gewählte, zu Beginn die erste. */
+     Die drei Ergebniszeilen (ERGEBNIS) zeigen nur ihren Inhalt, ohne
+     Eingabe links und ohne Ansicht, über die ganze Breite.
+     Die Zeile „trassenbild" hat keinen Eintrag in der Leiste; sie gilt nur,
+     wenn ein Sprung das Trassenbild braucht und die Eingabe links es nicht
+     zeigt. Fehlt die gewählte Karte selbst (die erste ihrer Zeile), gilt die
+     Zeile „eingabe". Ist eine Eingabe gewählt, steht links genau ihre Karte;
+     zu Beginn die erste. */
   const RECHTS = {
     "eingabe":            ["karte-ansicht", "karte-pruefungen"],
     "karte-trasse":       ["trassenbild", "karte-ansicht"],
-    "karte-ansicht":      ["karte-ansicht", "karte-listen"],
     "trassenbild":        ["trassenbild", "karte-ansicht"],
-    "karte-pruefungen":   ["karte-ansicht", "karte-pruefungen"],
-    "karte-listen":       ["karte-ansicht", "karte-listen"],
-    "karte-export":       ["karte-export", "karte-pruefungen"],
+    "karte-pruefungen":   ["karte-pruefungen", "karte-listen"],
+    "karte-export":       ["karte-export"],
     "karte-nachschlagen": ["karte-nachschlagen"]
   };
+  /* Karten ohne eigene Zeile, aber in der Zeile einer anderen: dorthin. */
+  const ZEILE_VON = {"karte-listen": "karte-pruefungen"};
+  /* Die Zeilen, die allein und über die ganze Breite stehen. */
+  const ERGEBNIS = ["karte-pruefungen", "karte-export", "karte-nachschlagen"];
   const [LINKS_SP, RECHTS_SP] = spalten.querySelectorAll(":scope > section");
-  let links = null;          // die Eingabekarte links
-  let rechtsWahl = null;     // die zuletzt gewählte Ergebniszeile; null = was zur Eingabe gehört
+  let links = null;          // die Eingabekarte (gewählt, wenn kein Ergebnis gewählt ist)
+  let rechtsWahl = null;     // ein Ergebnis aus ERGEBNIS, „trassenbild" oder null = was zur Eingabe gehört
   let alle = false;          // „Alle Karten zeigen"
   try{ alle = localStorage.getItem("karten-alle") === "ja"; }catch(e){}
+
+  /* Ist gerade ein Ergebnis gewählt (und nicht die Eingabe links)? */
+  const ergebnisGewaehlt = () => !alle && ERGEBNIS.includes(rechtsWahl) && da(hol(rechtsWahl));
 
   function rechtsSoll(){
     const zeile = RECHTS[rechtsWahl] || RECHTS[links] || RECHTS.eingabe;
@@ -10452,8 +10478,10 @@ try{
     if(spalten.classList.contains("k-umschalten") === alle) spalten.classList.toggle("k-umschalten", !alle);
     const eingaben = [...LINKS_SP.children].filter(el => el.id && da(el));
     if(!eingaben.some(el => el.id === links)) links = eingaben.length ? eingaben[0].id : null;
+    const ergebnis = ergebnisGewaehlt();
+    if(spalten.classList.contains("k-ergebnis") !== ergebnis) spalten.classList.toggle("k-ergebnis", ergebnis);
     const rechts = rechtsSoll();
-    [...LINKS_SP.children].forEach(el => { if(el.id) wegSetzen(el, !alle && el.id !== links); });
+    [...LINKS_SP.children].forEach(el => { if(el.id) wegSetzen(el, !alle && (ergebnis || el.id !== links)); });
     [...RECHTS_SP.children].forEach(el => {
       if(!el.id) return;
       const i = rechts.indexOf(el.id);
@@ -10482,26 +10510,41 @@ try{
     zeilenMarkieren();
   }
   /* Für alles, was irgendwohin springt: liegt das Ziel in einer
-     weggeschalteten Karte, kommt diese nach vorn. Links wird sie die
-     Eingabekarte, rechts ihre Zeile in der Tabelle — die jeweils andere
-     Spalte bleibt, wie sie war, damit die Meldung, von der man kam, nicht
-     verschwindet. Danach ist sie sofort im Bild; rollen und den Fokus setzen
-     kann der Aufrufer gleich anschließend. */
+     weggeschalteten Karte, wird die Zeile gewählt, zu der sie gehört — eine
+     Eingabekarte als Eingabe (mit Ansicht und Prüfungen daneben), eine
+     Ergebniskarte als ihr Ergebnis. Wie beim Klick in der Leiste ist danach
+     genau diese eine Zeile gewählt. Steht das Ziel schon im Bild, bleibt
+     alles, wie es ist. Danach ist es sofort zu sehen; rollen und den Fokus
+     setzen kann der Aufrufer gleich anschließend. */
   function karteHolen(el){
     if(alle || !el || !el.closest) return;
     const karte = el.closest(".spalten > section > *");
     if(!karte || !karte.classList.contains("k-aus")) return;
-    if(karte.parentElement === LINKS_SP) links = karte.id;
-    else rechtsWahl = karte.id;
+    if(karte.parentElement === LINKS_SP){ links = karte.id; rechtsWahl = null; }
+    else rechtsHolen(karte.id);
     if(karte.parentElement === LINKS_SP || karte.id === "karte-nachschlagen") aufklappen(karte);
     anwenden();
     zeilenMarkieren();
   }
+  /* Rechts: eine Karte mit eigener Zeile wird deren Wahl, die Zahlen die
+     Zeile „Prüfungen & Zahlen". Ansicht und Trassenbild haben keine Zeile —
+     sie gehören zur Eingabe: gewählt ist wieder die zuletzt gezeigte
+     Eingabekarte; zeigt deren Paarung das Ziel nicht (das Trassenbild neben
+     einer anderen Eingabe als 6), kommt die Paarung der Trasse: Trassenbild
+     und Ansicht. */
+  function rechtsHolen(id){
+    const zeile = ZEILE_VON[id] || id;
+    if(RECHTS[zeile] && !OHNE_ZEILE.includes(zeile)){ rechtsWahl = zeile; return; }
+    rechtsWahl = null;
+    if(!rechtsSoll().includes(id) && RECHTS[id]) rechtsWahl = id;
+  }
   window.karteHolen = karteHolen;
   /* Gelbe Kästen an Knöpfen: steht der Knopf in einer weggeschalteten Karte
      (etwa der Export, wenn „IFC 4 schreiben" in der Mappe dessen Knopf
-     drückt und der etwas zu melden hat), kommt die Karte mit dem Kasten nach
-     vorn. Meldet der Knopf in der Mappe an sich selbst, bleibt alles stehen. */
+     drückt und der etwas zu melden hat), wird die Zeile dieser Karte gewählt,
+     damit der Kasten zu sehen ist. Steht der Knopf in einer Karte, die zu
+     sehen ist, oder in der Mappe, bleibt alles stehen — umgeschaltet wird
+     nur aus einer weggeschalteten Karte heraus (siehe karteHolen). */
   if(typeof fehltMelden === "function"){
     const meldenVorher = fehltMelden;
     fehltMelden = function(knopf, m){
@@ -10512,20 +10555,18 @@ try{
   }
 
   /* ---------- Markieren ----------
-     Umgeschaltet: „aktiv" ist links die Eingabekarte und rechts die gewählte
-     Ergebniszeile; was rechts außerdem zu sehen ist, ist „zu sehen".
-     Alle Karten: wie bisher die Karte, zu der gesprungen oder gerollt wurde. */
+     Immer genau eine Zeile ist „aktiv". Umgeschaltet: das gewählte Ergebnis,
+     sonst die Eingabekarte links. Alle Karten: wie bisher die Karte, zu der
+     gesprungen oder gerollt wurde. */
   function zeilenMarkieren(){
-    const rechts = alle ? [] : rechtsSoll();
-    const erster = nav.querySelector("a[data-ziel]");
-    nav.querySelectorAll("a[data-ziel]").forEach(a => {
-      const id = a.dataset.ziel;
-      const aktiv = alle ? (aktivId ? id === aktivId : a === erster)
-                         : (id === links || (id === rechtsWahl && rechts.includes(id)));
-      const zuSehen = !alle && !aktiv && rechts.includes(id);
+    const gewaehlt = alle ? null : (ergebnisGewaehlt() ? rechtsWahl : links);
+    const zeilen = [...nav.querySelectorAll("a[data-ziel]")];
+    const treffer = alle ? zeilen.find(a => a.dataset.ziel === aktivId) : zeilen.find(a => a.dataset.ziel === gewaehlt);
+    const markiert = treffer || zeilen[0];
+    zeilen.forEach(a => {
+      const aktiv = a === markiert;
       if(a.classList.contains("aktiv") !== aktiv) a.classList.toggle("aktiv", aktiv);
-      if(a.classList.contains("zu-sehen") !== zuSehen) a.classList.toggle("zu-sehen", zuSehen);
-      const aktuell = aktiv || zuSehen ? "true" : null;
+      const aktuell = aktiv ? "true" : null;
       if(a.getAttribute("aria-current") !== aktuell){
         if(aktuell) a.setAttribute("aria-current", aktuell); else a.removeAttribute("aria-current");
       }
@@ -10597,10 +10638,11 @@ try{
   /* ---------- Der Schalter „Alle Karten zeigen" ---------- */
   const alleKnopf = hol("alleschalter");
   function alleSetzen(an){
+    const vorher = ergebnisGewaehlt() ? rechtsWahl : links;
     alle = !!an;
     try{ localStorage.setItem("karten-alle", alle ? "ja" : "nein"); }catch(e){}
     if(alleKnopf) alleKnopf.setAttribute("aria-checked", String(alle));
-    aktivId = alle ? links : null;
+    aktivId = alle ? vorher : null;
     anwenden();
     bauen();
     if(!alle) inhalt.scrollTo({top:0, behavior:"auto"});
