@@ -336,6 +336,36 @@ nav.abschnitte a[hidden]{display:none}
      Breite. */
   .spalten.k-umschalten.k-ergebnis{grid-template-columns:minmax(0,1fr)}
   .spalten.k-umschalten.k-ergebnis > section:first-child{display:none}
+  /* Passen die Eingabekarten nicht unter das Band, rollt die Eingabespalte
+     in sich — beide Karten gemeinsam —, und Seite, Band und rechte Spalte
+     stehen (Höhe und Klasse k-rollt aus fuellen()). Links und unten ein paar
+     Pixel Luft, damit Schatten und Fokusrahmen der Karten nicht
+     abgeschnitten werden. */
+  .spalten.k-umschalten:not(.k-ergebnis) > section:first-child.k-rollt{
+    max-height:var(--links-max,none);overflow-y:auto;scrollbar-width:thin;overscroll-behavior:contain;
+    scroll-padding-block:12px;margin-left:-3px;padding:0 0 4px 3px}
+  /* Dichter in den Eingabekarten, damit Bauwerk und Aufbau, Enden und
+     Teilung untereinander ins Fenster passen. Die Hilfetexte rücken mit
+     -6 px an ihr Feld, wie sonst mit -9 px an 13 px Feldabstand: es bleiben
+     4 px dazwischen. Eingabefelder 32 statt 36 px hoch, die Knöpfe der
+     Wahlbahnen bleiben 30 px. */
+  .k-umschalten:not(.k-ergebnis) > section:first-child .karte-kopf{padding:8px 14px}
+  .k-umschalten:not(.k-ergebnis) > section:first-child .karte-kopf .zuruecksetzen{padding:3px 9px}
+  .k-umschalten:not(.k-ergebnis) > section:first-child .karte-koerper{padding:12px 14px 13px}
+  .k-umschalten:not(.k-ergebnis) > section:first-child label{margin-bottom:4px}
+  .k-umschalten:not(.k-ergebnis) > section:first-child .k-feldkopf{margin-bottom:4px}
+  .k-umschalten:not(.k-ergebnis) > section:first-child .k-feldkopf > label{margin-bottom:0}
+  .k-umschalten:not(.k-ergebnis) > section:first-child :is(input[type=number],input[type=text],select){height:32px}
+  .k-umschalten:not(.k-ergebnis) > section:first-child .feld{margin-bottom:10px}
+  .k-umschalten:not(.k-ergebnis) > section:first-child .feld:last-child{margin-bottom:0}
+  .k-umschalten:not(.k-ergebnis) > section:first-child .k-zwei{margin-bottom:10px}
+  .k-umschalten:not(.k-ergebnis) > section:first-child .k-zwei > .feld,
+  .k-umschalten:not(.k-ergebnis) > section:first-child .k-zwei:last-child{margin-bottom:0}
+  .k-umschalten:not(.k-ergebnis) > section:first-child .hilfe{font-size:11.5px;line-height:1.42;margin:-6px 0 12px}
+  .k-umschalten:not(.k-ergebnis) > section:first-child .k-quelle{margin:-6px 0 10px}
+  .k-umschalten:not(.k-ergebnis) > section:first-child .typwahl{margin-bottom:10px}
+  .k-umschalten:not(.k-ergebnis) > section:first-child .k-teil{padding-top:11px}
+  .k-umschalten:not(.k-ergebnis) > section:first-child .feld.k-quer > :is(label,.k-feldkopf){margin:0}
 }
 /* Der Export allein auf breitem Fenster: rechts neben den Knöpfen steht die
    Kachel „Dieses Geländer", statt darunter — sonst wäre die Seite zu lang
@@ -442,6 +472,57 @@ nav.abschnitte a[hidden]{display:none}
 .k-zwei:last-child{margin-bottom:0}
 .k-zwei.k-drei{grid-template-columns:1fr 1fr 1fr}
 @media(max-width:900px){.k-zwei, .k-zwei.k-drei{grid-template-columns:1fr}}
+/* Eine Reihe aus zwei oder drei kurzen Feldern (L, h und bei der Ril die
+   Absturzhöhe; Füllstabbreite und Rahmenunterkante): so viele Spalten, wie
+   Felder zu sehen sind — ein verborgenes Feld lässt keine Lücke. */
+.k-zwei.k-reihe{grid-template-columns:repeat(auto-fit,minmax(92px,1fr))}
+/* Ein Paar, dessen Felder alle verborgen sind (der Eckradius außer bei
+   Gel 7, die Rohre), hält auch keinen Abstand mehr frei. */
+.k-zwei:not(:has(> .feld:not([style*="display: none"]))){display:none}
+
+/* ---------- Kurze Wahl neben ihrem Namen ----------
+   Regelwerk, Holme, Teilung: die Bahn steht rechts neben dem Namen statt
+   darunter. Passen Name und Bahn nicht in eine Zeile, bricht die Bahn in
+   die nächste um und steht wie sonst darunter. Was sonst noch im Feld
+   steht (eine Meldung), nimmt eine eigene Zeile. Skript „Flache
+   Eingabekarten". */
+.feld.k-quer{display:flex;flex-wrap:wrap;align-items:center;column-gap:12px;row-gap:5px}
+.feld.k-quer > :is(label,.k-feldkopf){margin:0;flex:0 1 auto;min-width:0}
+.feld.k-quer > .segment{flex:1 0 auto}
+.feld.k-quer > .segment button{padding-inline:8px}
+.feld.k-quer > :not(label):not(.k-feldkopf):not(.segment){flex:0 0 100%;min-width:0}
+
+/* ---------- Hilfetexte zum Aufklappen ----------
+   Die grauen Erklärsätze unter den Eingaben stehen am Bildschirm
+   zugeklappt. Ein kleines „?" neben dem Namen des Feldes klappt sie auf und
+   wieder zu; wo kein Feld davor steht, eine Zeile „Erklärung". Im Dokument
+   bleiben sie ganz, und gedruckt wird alles. Meldungen — gelbe und rote
+   Kästen, die Zeile unter L, der Stand einer geladenen Datei — sind keine
+   Hilfetexte und klappen nie. Skript „Flache Eingabekarten". */
+/* Name und „?" stehen in einer Zeile; bricht der Name um, folgt das
+   Zeichen dem letzten Wort. */
+.k-feldkopf{margin-bottom:5px;font-size:12.5px}
+.k-feldkopf > label{display:inline;margin:0}
+.k-feldkopf > .k-frage{margin-left:5px;vertical-align:middle}
+.k-frage{
+  flex:none;position:relative;display:inline-grid;place-items:center;width:18px;height:18px;margin-top:0;padding:0;
+  border:1px solid var(--kante-stark);border-radius:50%;background:var(--karte);color:var(--ink-weich);
+  font:600 11px/1 var(--s);cursor:pointer;
+}
+.k-frage::after{content:"";position:absolute;inset:-7px}     /* Trefferfläche gut 30 px */
+.k-frage:hover,.k-frage-zeile:hover .k-frage{color:var(--blau);border-color:var(--blau)}
+.k-frage[aria-expanded=true],.k-frage-zeile[aria-expanded=true] .k-frage{background:var(--blau-hell);color:var(--blau);border-color:var(--blau)}
+.k-frage-zeile{
+  display:flex;align-items:center;gap:6px;min-height:28px;margin:-4px 0 6px;padding:0;
+  background:none;border:0;font:12px var(--s);color:var(--ink-weich);cursor:pointer;
+}
+.k-frage-zeile:hover{color:var(--ink)}
+.k-frage-zeile .k-frage::after{content:none}
+.k-typkopf{display:flex;gap:10px;align-items:baseline;justify-content:space-between}
+.k-typkopf > label{display:block}
+.k-typkopf > .typname{margin:0;min-width:0;font-size:12.5px;text-align:right}
+@media screen{.hilfe.k-zu{display:none}}
+@media print{.k-frage,.k-frage-zeile{display:none}}
 
 /* ---------- Urteil über den Prüfungen ----------
    Die Fahne aus dem Statusband, als erste Zeile der Karte, die sie begründet.
@@ -10273,6 +10354,138 @@ try{
 })();
 </script>
 <script>
+/* ---------- Flache Eingabekarten ----------
+   Seit 15.10.2026. Bauwerk und Aufbau, Enden und Teilung stehen
+   untereinander neben der Ansicht und sollen dort ins Fenster passen, ohne
+   dass die Seite rollt. Dafür, ohne an Rechnung, Kennungen oder Exporten
+   etwas zu ändern:
+
+     1. Die Hilfetexte unter den Feldern (p.hilfe in der Eingabespalte)
+        stehen am Bildschirm zugeklappt. Ein „?" neben dem Namen des Feldes
+        klappt den Text auf und wieder zu — mit der Maus, der Eingabe- oder
+        der Leertaste; aria-expanded sagt den Stand. Steht vor einem Text
+        kein Feld (die Einleitung einer Karte), steht an seiner Stelle eine
+        Zeile „Erklärung" mit demselben Zeichen. Die Texte bleiben im
+        Dokument und werden ganz gedruckt (Stilblock). Nicht eingeklappt
+        wird, was einen Stand meldet: gelbe und rote Kästen, die Zeile unter
+        L, der Stand einer geladenen Datei, die Liste der Sonderfelder.
+     2. L, h und — nur bei der Ril zu sehen — die Absturzhöhe stehen in
+        einer Reihe, e₁ und e₂ als Paar darunter. Die Füllstabbreite nimmt
+        die ganze Breite, wenn die Rahmenunterkante neben ihr fehlt.
+     3. Kurze Wahlbahnen stehen neben ihrem Namen (k-quer im Stilblock);
+        passt das nicht in eine Zeile, bricht die Bahn um wie bisher.
+     4. Der Typname steht in der Zeile über der Typwahl.
+
+   Reicht das nicht (kleine Fenster, die lange Trasse), rollt die
+   Eingabespalte in sich — fuellen() im Skript „Die Leiste". Fällt dieser
+   Block aus, stehen die Karten wie vorher da. */
+(function(){
+try{
+  const hol = id => document.getElementById(id);
+  const LINKS = document.querySelector(".spalten > section");
+  if(!LINKS) return;
+  const feldVon = id => { const e = hol(id); return e ? e.closest(".feld") : null; };
+
+  /* ---------- 2. L | h | Absturzhöhe ----------
+     Das Paar aus h und Absturzhöhe legt die Anordnung „Bauwerk" an; es
+     rückt an die Stelle von L und nimmt L vorn auf. Die Zeile unter L
+     (woher L kommt) und der Hilfetext der Absturzhöhe folgen der Reihe. */
+  const feldL = feldVon("L"), feldH = feldVon("h");
+  const reihe = feldH && feldH.parentElement.classList.contains("k-zwei") ? feldH.parentElement : null;
+  if(feldL && reihe && !reihe.contains(feldL)){
+    const quelle = hol("quelle-L"), hAbsturz = hol("hilfe-absturz");
+    feldL.before(reihe);
+    reihe.prepend(feldL);
+    reihe.classList.add("k-reihe");
+    if(quelle) reihe.after(quelle);
+    if(hAbsturz) (quelle || reihe).after(hAbsturz);
+  }
+  const paarB = hol("feld-b") && hol("feld-b").parentElement;
+  if(paarB && paarB.classList.contains("k-zwei")) paarB.classList.add("k-reihe");
+
+  /* ---------- 3. Kurze Wahl neben dem Namen ---------- */
+  ["bauwegwahl", "werkwahl", "holmwahl", "handlaufwahl", "teilwahl"].forEach(id => {
+    const f = feldVon(id);
+    if(f) f.classList.add("k-quer");
+  });
+
+  /* ---------- 4. Typname neben „Geländertyp" ---------- */
+  const typLabel = hol("typ-label"), typName = hol("typname");
+  if(typLabel && typName){
+    const kopf = document.createElement("div");
+    kopf.className = "k-feldkopf k-typkopf";
+    typLabel.before(kopf);
+    kopf.append(typLabel, typName);
+  }
+
+  /* ---------- 1. Hilfetexte zum Aufklappen ---------- */
+  const name = el => (el.textContent || "").replace(/\s+/g, " ").trim();
+  /* Zu welchem Namen gehört ein Hilfetext: hilfe-x zum Feld feld-x, sonst
+     zum Feld, Paar oder Namen unmittelbar davor (andere Hilfetexte und die
+     Zeile unter L übersprungen). Ohne Feld davor: keiner. */
+  function anker(p){
+    if(p.id && p.id.startsWith("hilfe-")){
+      const f = hol("feld-" + p.id.slice(6));
+      if(f && f.classList.contains("feld")) return f.querySelector("label");
+    }
+    let v = p.previousElementSibling;
+    while(v && v.matches(".hilfe, .k-quelle, .k-frage-zeile")) v = v.previousElementSibling;
+    if(!v) return null;
+    if(v.tagName === "LABEL") return v;
+    if(v.matches(".feld, .k-zwei, .k-feldkopf")) return v.querySelector("label");
+    return null;
+  }
+  let nr = 0;
+  function schalten(knopf, p, auf){
+    p.classList.toggle("k-zu", !auf);
+    knopf.setAttribute("aria-expanded", String(auf));
+    // Aufgeklappt in einer rollenden Spalte: den Text ins Bild holen, sobald die Höhe neu steht.
+    if(auf) setTimeout(() => { if(p.getClientRects().length && p.closest(".k-rollt")) p.scrollIntoView({block:"nearest"}); }, 80);
+  }
+  function einklappen(p){
+    if(!p.id) p.id = "k-hilfe-" + (++nr);
+    const label = anker(p);
+    let knopf;
+    if(label && !(label.parentElement.classList.contains("k-feldkopf") && label.parentElement.querySelector(".k-frage"))){
+      knopf = document.createElement("button");
+      knopf.className = "k-frage";
+      knopf.textContent = "?";
+      knopf.setAttribute("aria-label", "Erklärung zu „" + name(label) + "“");
+      let kopf = label.parentElement;
+      if(!kopf.classList.contains("k-feldkopf")){
+        kopf = document.createElement("div");
+        kopf.className = "k-feldkopf";
+        label.before(kopf);
+        kopf.appendChild(label);
+        // Ein eigener Abstand des Namens (die Sonderfelder) gilt jetzt für die ganze Zeile.
+        if(label.style.marginBottom){ kopf.style.marginBottom = label.style.marginBottom; label.style.marginBottom = ""; }
+      }
+      kopf.appendChild(knopf);
+    } else {
+      knopf = document.createElement("button");
+      knopf.className = "k-frage-zeile";
+      knopf.innerHTML = '<span class="k-frage" aria-hidden="true">?</span>Erklärung';
+      p.before(knopf);
+    }
+    knopf.type = "button";
+    knopf.title = "Erklärung zeigen oder verbergen";
+    knopf.setAttribute("aria-controls", p.id);
+    knopf.addEventListener("click", () => schalten(knopf, p, p.classList.contains("k-zu")));
+    schalten(knopf, p, false);
+  }
+  LINKS.querySelectorAll("p.hilfe").forEach(p => {
+    if(p.matches("#tcl-info, #fuss-neben") || p.closest("#sonder-liste")) return;      // ein Stand, keine Erklärung
+    const klappe = p.closest("details");
+    if(klappe && !klappe.classList.contains("karte")) return;                         // schon in einer eigenen Klappe
+    einklappen(p);
+  });
+}catch(e){
+  // Lieber offene Hilfetexte als ein Werkzeug, das nicht startet.
+  if(window.console) console.warn("Flache Eingabekarten nicht angewandt:", e);
+}
+})();
+</script>
+<script>
 /* ---------- Die Leiste ----------
    Seit 15.10.2026, aus dem Konzeptblatt „Leiste links". Die Leiste ist ein
    Inhaltsverzeichnis mit Stand: je Abschnitt eine Zeile mit Nummer (bei den
@@ -10572,15 +10785,28 @@ try{
      gehört zu jeder), sonst der erste in der Tabelle. Wie beim Klick in der
      Leiste ist danach genau diese eine Zeile gewählt. Steht das Ziel schon
      im Bild, bleibt alles, wie es ist. Danach ist es sofort zu sehen; rollen
-     und den Fokus setzen kann der Aufrufer gleich anschließend. */
+     und den Fokus setzen kann der Aufrufer gleich anschließend.
+     Liegt das Ziel in der Eingabespalte und rollt die in sich (k-rollt,
+     siehe fuellen), rollt sie es gleich hier ins Bild — sofort, nicht weich:
+     ein weiches scrollIntoView() des Aufrufers erreicht nicht in jedem
+     Browser auch den inneren Rollbereich. Ein Feld kommt in die Mitte, eine
+     ganze Karte mit ihrem Kopf nach oben. */
   function karteHolen(el){
     if(alle || !el || !el.closest) return;
     const karte = el.closest(".spalten > section > *");
-    if(!karte || !karte.classList.contains("k-aus")) return;
-    const zeigtSie = a => { const s = zeigt(a); return s.links.includes(karte.id) || s.rechts.includes(karte.id); };
-    const kandidaten = verfuegbar().filter(zeigtSie);
-    const a = kandidaten.find(x => x.id === eingabe) || kandidaten[0];
-    if(a) waehlen(a);
+    if(karte && karte.classList.contains("k-aus")){
+      const zeigtSie = a => { const s = zeigt(a); return s.links.includes(karte.id) || s.rechts.includes(karte.id); };
+      const kandidaten = verfuegbar().filter(zeigtSie);
+      const a = kandidaten.find(x => x.id === eingabe) || kandidaten[0];
+      if(a) waehlen(a);
+    }
+    const kp = el.closest(".k-rollt");
+    if(kp && kp !== el && el.getClientRects().length){
+      const r = el.getBoundingClientRect(), pr = kp.getBoundingClientRect();
+      const ganz = el === karte || r.height > pr.height - 24;
+      if(ganz) kp.scrollTop += r.top - pr.top;
+      else if(r.top < pr.top || r.bottom > pr.bottom) kp.scrollTop += (r.top + r.height / 2) - (pr.top + pr.height / 2);
+    }
   }
   window.karteHolen = karteHolen;
   /* Gelbe Kästen an Knöpfen: steht der Knopf in einer weggeschalteten Karte
@@ -10638,6 +10864,17 @@ try{
      Reicht auch das nicht (sehr niedriges Fenster), klebt die Spalte nicht,
      und die Seite rollt wie sonst — dann mit voller Liste und Zeichnung.
 
+     Passt die Spalte, rollt auch die Seite nicht: dann gilt dasselbe für
+     die Eingaben. Sind die Eingabekarten zusammen höher als der Platz bis
+     zum Fensterrand (kleine Fenster, die lange Trasse, aufgeklappte
+     Hilfetexte), rollt die Eingabespalte in sich: sie bekommt eine Höhe und
+     die Klasse k-rollt, die Karten darin rollen gemeinsam. Unter 1000 px
+     Breite, mit einer Spalte untereinander, oder wenn die rechte Spalte
+     nicht klebt, rollt die Seite wie bisher. Eine Spalte, die rollt, ist
+     mit der Tastatur erreichbar und trägt einen Namen für
+     Vorleseprogramme; Sprünge zu einem Feld darin rollen sie mit
+     (karteHolen).
+
      Gemessen wird die natürliche Höhe, also ohne das, was schon dazukam oder
      wegfiel — so kommt jede Messung zum selben Wert und schaukelt nicht. Bei
      einem Ergebnis, mit „Alle Karten" und auf einer Spalte untereinander
@@ -10645,8 +10882,16 @@ try{
   const FLAECHEN = ["zeichnung", "zeichnung-trasse"];
   const PRUEF_MIN = 130;     // gut drei Einträge
   const BILD_MIN = 0.6;      // Anteil der eingepassten Zeichnungshöhe
+  const LINKS_MIN = 200;     // niedriger rollt die Eingabespalte nicht, dann rollt die Seite
+  const schmalesFenster = window.matchMedia ? matchMedia("(max-width:1000px)") : {matches:false};
   function fuellen(){
     const ir = inhalt.getBoundingClientRect();
+    /* Was unter den Karten noch zur Seite gehört: Innenabstand, Rahmen und
+       Außenabstand der Spalten. Bleibt das im Fenster, rollt die Seite nicht. */
+    const sps = getComputedStyle(spalten);
+    const fussRand = (parseFloat(sps.paddingBottom) || 0) + (parseFloat(sps.borderBottomWidth) || 0) +
+                     (parseFloat(sps.marginBottom) || 0);
+    let linksMax = 0;                                              // Höhe der Eingabespalte, wenn sie rollt
     const rL = LINKS_SP.getBoundingClientRect(), rR = RECHTS_SP.getBoundingClientRect();
     const liste = hol("pruefungen");
     const flaechen = FLAECHEN.map(hol).filter(f => f && RECHTS_SP.contains(f) && f.getClientRects().length);
@@ -10663,9 +10908,10 @@ try{
       }
       const klebenOben = bandUnten + 12;
       const ruheOben = rL.top - ir.top + inhalt.scrollTop;         // Spaltenanfang, nicht gerollt
-      /* Unten 12 Abstand zum Fensterrand; klebend 28, sonst schöbe das Ende
-         der Spalten die klebende Spalte zuletzt unter das Band. */
-      const platz = Math.min(inhalt.clientHeight - 12 - ruheOben, inhalt.clientHeight - 28 - klebenOben);
+      /* Unten bleibt der Rand der Spalten im Fenster (fussRand); klebend
+         28, sonst schöbe das Ende der Spalten die klebende Spalte zuletzt
+         unter das Band. */
+      const platz = Math.min(inhalt.clientHeight - fussRand - ruheOben, inhalt.clientHeight - 28 - klebenOben);
       // Die rechte Spalte von der obersten bis zur untersten Karte
       const karten = [...RECHTS_SP.children].filter(e => e.id && e.getClientRects().length);
       const kr = karten.map(e => e.getBoundingClientRect());
@@ -10693,12 +10939,15 @@ try{
       let ueber = bedarf - platz;
       if(ueber <= 0){
         kleben = true;
-        const mehr = -ueber;
+        /* 3 px bleiben frei: setzen() schreibt erst ab 2 px Unterschied
+           neu, und schon 1 px zu viel ließe die Seite rollen. */
+        const mehr = -ueber - 3;
         if(mehr > 12) fl.forEach(x => {
           const natur = x.rest + x.bild;
           hoehe.set(x.f, Math.min(natur + mehr / fl.length, Math.max(natur, inhalt.clientHeight * 0.8)));
         });
       } else {
+        ueber += 2;                                                // wie oben: Luft für Rundungen
         // 1. Die Liste rollt für sich
         const kuerzer = Math.min(ueber, Math.max(0, listeNatur - PRUEF_MIN));
         if(kuerzer > 0){ listeMax = Math.floor(listeNatur - kuerzer); ueber -= kuerzer; }
@@ -10717,6 +10966,16 @@ try{
         const o = Math.round(klebenOben) + "px";
         if(spalten.style.getPropertyValue("--kleben-oben") !== o) spalten.style.setProperty("--kleben-oben", o);
       }
+      /* Die Eingabekarten: vom Kopf der ersten bis zum Fuß der letzten —
+         gemessen an den Karten selbst, so ist es dieselbe Zahl, ob die
+         Spalte gerade rollt oder nicht. */
+      const eingaben = [...LINKS_SP.children].filter(e => e.getClientRects().length);
+      if(kleben && !schmalesFenster.matches && eingaben.length){
+        const re = eingaben.map(e => e.getBoundingClientRect());
+        const natur = Math.max(...re.map(r => r.bottom)) - Math.min(...re.map(r => r.top));
+        const frei = inhalt.clientHeight - fussRand - ruheOben;       // bis zum Rand der Spalten
+        if(natur > frei + 0.5 && frei >= LINKS_MIN) linksMax = Math.floor(frei);
+      }
     }
     if(RECHTS_SP.classList.contains("k-kleben") !== kleben) RECHTS_SP.classList.toggle("k-kleben", kleben);
     // Nur schreiben, was sich spürbar ändert — jede Änderung am Stil löst ein neues Nachziehen aus.
@@ -10731,6 +10990,22 @@ try{
       setzen(f, "--fl-svg-b", breite.get(f) || 0, "%");
     });
     if(liste) setzen(liste, "--liste-max", listeMax, "px");
+    // Genau, ohne die Toleranz von setzen(): schon 1 px zu viel ließe die Seite rollen.
+    const lm = linksMax ? linksMax + "px" : "";                    // gilt nur am Bildschirm (Stilblock)
+    if(LINKS_SP.style.getPropertyValue("--links-max") !== lm){
+      if(lm) LINKS_SP.style.setProperty("--links-max", lm); else LINKS_SP.style.removeProperty("--links-max");
+    }
+    if(LINKS_SP.classList.contains("k-rollt") !== !!linksMax){
+      LINKS_SP.classList.toggle("k-rollt", !!linksMax);
+      if(linksMax){
+        LINKS_SP.tabIndex = 0;
+        LINKS_SP.setAttribute("role", "region");
+        LINKS_SP.setAttribute("aria-label", "Eingaben – rollen für sich");
+      } else {
+        ["tabindex", "role", "aria-label"].forEach(n => LINKS_SP.removeAttribute(n));
+        LINKS_SP.scrollTop = 0;
+      }
+    }
   }
   window.addEventListener("resize", () => nachziehen());
 
@@ -10753,6 +11028,7 @@ try{
       if(!ab) return;
       waehlen(ab);
       inhalt.scrollTo({top:0, behavior:"auto"});
+      if(LINKS_SP) LINKS_SP.scrollTop = 0;
       menue(false);
       return;
     }
