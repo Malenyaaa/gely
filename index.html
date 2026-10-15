@@ -263,7 +263,7 @@ button{font-family:var(--s)}
   display:flex;flex-direction:column;overflow:auto;min-height:0;
   scrollbar-width:thin;scrollbar-color:var(--kante-stark) transparent;
 }
-.leiste-kopf{display:flex;gap:11px;align-items:center;padding:14px 14px 12px;border-bottom:1px solid var(--kante)}
+.leiste-kopf{display:flex;gap:11px;align-items:center;padding:10px 14px 9px;border-bottom:1px solid var(--kante)}
 .leiste-kopf .maskottchen{width:38px;height:38px;flex:none}
 .leiste-kopf b{font-size:18px;display:block;line-height:1.1;letter-spacing:-.01em}
 .leiste-kopf small{color:var(--ink-weich);font-size:11.5px;display:block;line-height:1.3;margin-top:2px}
@@ -278,7 +278,7 @@ nav.abschnitte .gruppe{
 nav.abschnitte .gruppe:first-child{padding-top:2px}
 nav.abschnitte a{
   position:relative;display:grid;grid-template-columns:24px auto minmax(0,1fr);gap:10px;align-items:center;
-  padding:3px 8px;margin:1px 0;border-radius:8px;color:var(--ink);text-decoration:none;
+  padding:2px 8px;margin:0;border-radius:8px;color:var(--ink);text-decoration:none;
   font-size:13px;line-height:1.3;white-space:nowrap;
   transition:background .15s,color .15s;
 }
@@ -300,11 +300,46 @@ nav.abschnitte a.aktiv .meta{color:var(--blau);font-weight:400}
 nav.abschnitte a[hidden]{display:none}
 .meta .punkt{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;vertical-align:1px;background:var(--kante-stark)}
 .meta .punkt.ok{background:var(--gruen)} .meta .punkt.warn{background:var(--ocker)} .meta .punkt.fehler{background:var(--rot)}
+/* Rechts mit zu sehen, aber nicht selbst gewählt: nur die Plakette ist blau
+   umrandet. „aktiv" ist, was zuletzt angeklickt wurde — links die
+   Eingabekarte, rechts der gewählte Ergebnis-Abschnitt. */
+nav.abschnitte a.zu-sehen .nr{border-color:var(--blau);color:var(--blau)}
+nav.abschnitte a.zu-sehen .name{color:var(--blau)}
+
+/* ---------- Umschalten statt alles zugleich ----------
+   Die Leiste schaltet um, welche Karten zu sehen sind: links genau eine
+   Eingabekarte, rechts ein bis zwei passende (Zuordnung im Skript „Die
+   Leiste", Tabelle RECHTS). Verborgen wird mit einer eigenen Klasse und
+   display:none — nicht mit hidden, das benutzt das Werkzeug selbst (Trasse
+   auf dem geraden Weg). So läuft auch die Tabulatortaste nicht in eine
+   verborgene Karte. Nur am Bildschirm: gedruckt wird immer alles.
+   Die Spalten sind dabei Flex-Spalten mit Lücke statt Abstand zum
+   Vorgänger — sonst rückte die erste sichtbare Karte von einer verborgenen
+   ab — und „order" stellt die gewählte Karte rechts nach oben. */
+@media screen{
+  .spalten.k-umschalten > section > .k-aus{display:none}
+  .spalten.k-umschalten > section{display:flex;flex-direction:column;gap:14px}
+  .spalten.k-umschalten > section > * + *{margin-top:0}
+  /* Steht wenig da, wird der Platz genutzt: die Ansicht wächst, bis die
+     Seite das Fenster füllt (Höhe aus dem Skript, fuellen()). Die Zeichnung
+     bleibt eingepasst und steht mittig auf dem größeren Blatt. */
+  .spalten.k-umschalten #karte-ansicht .bp-flaeche{
+    min-height:var(--ansicht-hoehe,0px);display:flex;flex-direction:column;justify-content:center}
+  .spalten.k-umschalten #karte-ansicht .bp-flaeche > *{flex:none}
+}
 
 /* Der Fuß der Leiste: das Farbschema. */
 .leiste-fuss{display:flex;gap:8px;align-items:center;padding:6px 12px;border-top:1px solid var(--kante);font-size:12px;color:var(--ink-weich);margin-top:auto}
 .leiste-fuss .fuell{flex:1}
 .mappe + .leiste-fuss{margin-top:0}
+/* Zwei Zeilen im Fuß: „Alle Karten" und das Farbschema, ohne Trennlinie dazwischen. */
+.leiste-fuss + .leiste-fuss{margin-top:0;border-top:0;padding-top:0}
+/* Der Schalter „Alle Karten" leiht sich das Aussehen des Farbschema-Schalters,
+   ohne Sonne und Mond — und ohne dessen Lage, die am Farbschema hängt. */
+#alleschalter, :root[data-theme=dunkel] #alleschalter{background:var(--karte-tief)}
+#alleschalter .knopf{transform:none}
+#alleschalter[aria-checked=true]{background:var(--blau-hell);border-color:var(--blau)}
+#alleschalter[aria-checked=true] .knopf{transform:translateX(26px);border-color:var(--blau)}
 
 /* ---------- Schalter fürs Farbschema ----------
    Eine Bahn, ein Knopf, zwei Sinnbilder. Der Knopf hängt an data-theme und
@@ -701,7 +736,15 @@ button.tat.stumm[aria-disabled=true]:hover{background:var(--karte);color:var(--i
 .ablage .maskottchen{width:40px;height:40px;flex:none}
 .ablage:has(> .maskottchen){display:flex;gap:10px;align-items:center;text-align:left}
 .ablage b{color:var(--ink-weich)}
-.mappe-liste{list-style:none;margin:8px 0 0;padding:0}
+/* Die Liste rollt für sich, sobald mehr als etwa drei Einträge darin
+   stehen — so bleiben Ablage, „IFC 4 schreiben" und die Abschnitte darüber
+   stehen, und die Leiste selbst muss nicht rollen. Wird das Fenster knapp,
+   nimmt das Skript „Die Leiste" die Höhe weiter zurück, bis auf etwa einen
+   Eintrag (listePassen). */
+.mappe-liste{list-style:none;margin:8px 0 0;padding:0;position:relative;
+  max-height:126px;overflow-y:auto;overscroll-behavior:contain;
+  scrollbar-width:thin;scrollbar-color:var(--kante-stark) transparent}
+.mappe-liste:empty{margin-top:0}
 .mappe-liste li{
   display:grid;grid-template-columns:18px minmax(0,1fr) auto;gap:5px;align-items:center;
   padding:5px 2px;border-top:1px solid var(--kante);font-size:12.5px;border-radius:5px;
@@ -731,7 +774,9 @@ button.tat.stumm[aria-disabled=true]:hover{background:var(--karte);color:var(--i
 .mappe-fuss .zeile{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 .mappe-fuss .zeile[hidden]{display:none}   /* sonst schlägt display:flex das hidden */
 .mappe-fuss button.tat{width:100%}
-.mappe-datei{font-family:var(--z);font-size:10.5px;color:var(--ink-leise);overflow-wrap:anywhere;line-height:1.35}
+.mappe-datei{font-family:var(--z);font-size:10.5px;color:var(--ink-leise);overflow-wrap:anywhere;line-height:1.35;
+  /* höchstens zwei Zeilen; der ganze Satz steht im Tooltip */
+  display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden}
 .mappe .fehlt-meldung{margin-top:8px}
 /* Das Kärtchen, das beim Ablegen vom Knopf in den Zähler fliegt. Die
    Bewegung selbst steht im Skript (Web Animations). */
@@ -1109,6 +1154,12 @@ button, summary, label, select, a, .reiter{cursor:pointer}
     </div>
     <nav class="abschnitte" id="abschnitte" aria-label="Abschnitte"></nav>
     <div id="mappe-platz"></div>
+    <div class="leiste-fuss">
+      <span id="alle-label">Alle Karten zeigen</span><span class="fuell"></span>
+      <button type="button" class="schalter" id="alleschalter" role="switch" aria-checked="false"
+              aria-labelledby="alle-label"
+              title="Aus: links eine Eingabekarte, rechts die passenden Ergebnisse — gewählt in der Leiste. An: alle Karten untereinander, die Leiste springt nur noch hin."><span class="knopf"></span></button>
+    </div>
     <div class="leiste-fuss">
       <span>Farbschema</span><span class="fuell"></span>
       <button type="button" class="schalter" id="themaschalter" role="switch"
@@ -6388,6 +6439,7 @@ function sonderAnlegenFuer(nr){
   $("karte-sonder").open = true;
   sonderZeigen();
   alles();
+  if(window.karteHolen) karteHolen($("karte-sonder"));
   $("karte-sonder").scrollIntoView({behavior:"smooth", block:"start"});
   const f = $("sonder-liste").querySelector(`input[data-rolle=feld][data-k="${k}"]`);
   if(f){ f.focus(); f.select(); }
@@ -6588,13 +6640,16 @@ function zuKarte(nr, feldId){
   if(karte && karte.tagName === "DETAILS") karte.open = true;
   const ziel = (feldId && $(feldId)) || karte;
   if(!ziel) return;
+  // Ist die Karte gerade weggeschaltet (Leiste), erst nach vorn holen — sonst gibt es nichts zu rollen.
+  if(window.karteHolen) karteHolen(ziel);
   ziel.scrollIntoView({block:"center", behavior:"smooth"});
   if(ziel.focus) ziel.focus({preventScroll:true});
 }
 function karteSichtbar(nr){
   const kopf = [...document.querySelectorAll("summary, h2")].find(e => e.textContent.trim().startsWith(nr + " ·"));
   const karte = kopf && (kopf.closest("details") || kopf.closest(".karte"));
-  return !!(karte && karte.getClientRects().length);
+  // Nur weggeschaltet (Leiste) zählt als vorhanden; verborgen vom Werkzeug (hidden) nicht.
+  return !!(karte && !karte.hidden && (karte.getClientRects().length || karte.classList.contains("k-aus")));
 }
 /* Die häufigsten Gründe, einmal formuliert. */
 function ohneGelaender(){
@@ -9064,6 +9119,7 @@ try{
     if(!sel) return;
     const klappe = sel.closest("details");
     if(klappe) klappe.open = true;
+    if(window.karteHolen) karteHolen(sel);
     sel.scrollIntoView({block:"center", behavior:"smooth"});
     sel.focus({preventScroll:true});
   }
@@ -9777,7 +9833,7 @@ try{
       ? '<svg class="maskottchen" viewBox="0 0 64 64" aria-hidden="true"><use href="#gely-zeichen"/></svg>' +
         '<span><b>Die Mappe ist leer.</b><br><span style="font-size:11px">Geländer hierher ziehen — alle landen zusammen in <b>einer</b> IFC-Datei.</span></span>'
       : (bearbeitet >= 0
-          ? 'Hierher ziehen legt ein <b>neues</b> Geländer ab<br><span style="font-size:11px">Ersetzen: auf den Eintrag ziehen oder an der Kachel „Mappe-Eintrag ersetzen“ drücken</span>'
+          ? 'Hierher ziehen legt ein <b>neues</b> Geländer ab'     // wie man ersetzt, steht in der Zeile über „IFC 4 schreiben"
           : 'Geländer hierher ziehen<br><span style="font-size:11px">oder im Export „In die Mappe“ drücken</span>');
 
     const liste = hol("mappe-liste");
@@ -9808,7 +9864,7 @@ try{
     hol("btn-mappe-verwerfen").hidden = !verwaist;
     hol("btn-mappe-abbruch").textContent = verwaist ? "Zurückholen" : "Abbrechen";
     if(bearbeitet >= 0) hol("mappe-arbeit-text").innerHTML =
-      `Eintrag <b>${bearbeitet + 1}</b> steht im Formular. Ändern, dann an der Kachel im Export <i>Mappe-Eintrag ersetzen</i>.`;
+      `Eintrag <b>${bearbeitet + 1}</b> steht im Formular. Ändern, dann an der Kachel im Export <i>Mappe-Eintrag ersetzen</i> — oder die Kachel auf den Eintrag ziehen.`;
     else if(verwaist) hol("mappe-arbeit-text").textContent =
       `${nachBearbeiten || "Das Bearbeiten ist beendet."} Die Eingaben von vor dem Bearbeiten lassen sich noch zurückholen.`;
 
@@ -9826,6 +9882,8 @@ try{
             : (n === 1 ? "Das Geländer der Mappe." : `Die ${n} Geländer der Mappe.`) +
               " Geschrieben wird erst, wenn auch das aktuelle Geländer fertig ist — dafür die Gesamtlänge L eintragen.")) +
         (gesamt > 1 ? ` Der Dateiname bekommt den Zusatz _${gesamt}Gelaender.` : "");
+    // Die Zeile zeigt höchstens zwei Zeilen (Stilblock); ganz steht sie im Tooltip.
+    hol("mappe-datei").title = hol("mappe-datei").textContent;
     kachelZeigen();
   }
 
@@ -9838,6 +9896,10 @@ try{
   function aufleuchten(i){
     const li = liste.querySelectorAll("li")[i];
     if(!li) return;
+    // Die Liste rollt für sich (höchstens etwa drei Einträge hoch): den neuen ins Bild holen.
+    if(li.offsetTop < liste.scrollTop) liste.scrollTop = li.offsetTop;
+    else if(li.offsetTop + li.offsetHeight > liste.scrollTop + liste.clientHeight)
+      liste.scrollTop = li.offsetTop + li.offsetHeight - liste.clientHeight;
     li.classList.remove("neu"); void li.offsetWidth; li.classList.add("neu");
     li.addEventListener("animationend", () => li.classList.remove("neu"), {once:true});
   }
@@ -9959,6 +10021,7 @@ try{
     const fehlt = laden(mappe[i].schnapp, `Eintrag ${i + 1}`);
     zeigen();
     const karte = hol("karte-eingabe");
+    if(karte && window.karteHolen) karteHolen(karte);
     if(karte) karte.scrollIntoView({block:"start", behavior: ruhig() ? "auto" : "smooth"});
     /* Auf schmalen Fenstern schließt die Schublade — außer, es ließ sich
        nicht alles zurückholen: dann steht die Meldung darüber in der Mappe
@@ -10175,21 +10238,29 @@ try{
    Seit 15.10.2026, aus dem Konzeptblatt „Leiste links". Die Leiste ist ein
    Inhaltsverzeichnis mit Stand: je Karte eine Zeile mit Nummer, Name und
    rechts dem, was im Kopf der Karte steht (Typ, Länge, Abweichungen vom
-   Vorgabewert, Urteil der Prüfungen, Körperzahl). Ein Klick rollt zur Karte
-   und öffnet sie, wenn sie zugeklappt war; beim Rollen folgt die Markierung.
+   Vorgabewert, Urteil der Prüfungen, Körperzahl).
 
-   SPRINGEN, NICHT UMSCHALTEN. Die Seite bleibt eine: links die Eingaben,
-   rechts Ansicht, Prüfungen, Zahlen und Export, alles zugleich sichtbar.
-   Wer L tippt, sieht in derselben Sekunde Band, Zeichnung und Prüfungen —
-   umgeschaltete Seiten versteckten genau das. Und jedes Feld behält seinen
-   Platz und seine Kennung: die Sprungmarken „Zu L", „Zu 6 · Trasse" und die
-   Prüfskripte laufen unverändert.
+   UMSCHALTEN, ABER NIE OHNE BILD. Alle Karten zugleich waren zu viel für
+   ein Fenster. Ein Klick in der Leiste schaltet darum um: links steht genau
+   eine Eingabekarte, rechts stehen die ein bis zwei Karten, die man dabei
+   braucht — wer am Geländer etwas ändert, sieht immer die Ansicht und die
+   Prüfungen dazu. Welche das sind, steht in EINER Tabelle (RECHTS unten).
+   Ein Klick auf eine Ergebniszeile ändert nur die rechte Spalte, die
+   Eingabekarte links bleibt. Der Schalter „Alle Karten zeigen" unten in der
+   Leiste stellt die alte Seite mit allen Karten wieder her; dann rollt ein
+   Klick nur hin, und beim Rollen folgt die Markierung.
+
+   Weggeschaltet heißt nicht weg: jedes Feld behält Platz und Kennung, die
+   Rechnung läuft weiter, und alles, was irgendwohin springt („Zu L",
+   „Zu 6 · Trasse", ein gelber Kasten an einem Knopf), holt die Karte vorher
+   über karteHolen() nach vorn.
 
    DIE ZEILEN ENTSTEHEN AUS DEN KARTEN, nicht aus einer eigenen Liste. Nummer
    und Name kommen aus dem Kartenkopf („1 · Bauwerk"), der Stand aus dessen
    Nebenangabe. So passen Leiste und Karten immer zusammen, und zuKarte()
-   findet mit derselben Nummer dieselbe Karte. Eine verborgene Karte (die
-   Trasse auf dem geraden Weg) hat auch keine Zeile.
+   findet mit derselben Nummer dieselbe Karte. Eine Karte, die das Werkzeug
+   verbirgt (die Trasse auf dem geraden Weg), hat auch keine Zeile; eine,
+   die nur weggeschaltet ist (Klasse k-aus), behält ihre.
 
    Unter 1000 px Fensterbreite ist die Leiste eine Schublade hinter dem Knopf
    „Abschnitte" in der Kopfzeile; der Mappe-Chip dort öffnet sie bei der Mappe.
@@ -10205,7 +10276,11 @@ try{
      heißen, wie ihr Kopf sie nennt. */
   const NAMEN = {"karte-ansicht":"Ansicht", "trassenbild":"Trassenbild", "karte-listen":"Zahlen",
                  "karte-nachschlagen":"Nachschlagen"};
-  const sichtbar = el => !el.hidden && el.getClientRects().length > 0;
+  /* Zwei Arten von unsichtbar: das Werkzeug verbirgt eine Karte (hidden oder
+     display:none am Element) — dann gehört sie nicht in die Leiste. Die
+     Leiste schaltet sie weg (k-aus) — dann gehört sie gerade hinein. */
+  const da = el => !!el && !el.hidden && el.style.display !== "none";
+  const sichtbar = el => da(el) && (el.classList.contains("k-aus") || el.getClientRects().length > 0);
 
   function karten(){
     return [...spalten.querySelectorAll(":scope > section > *")].filter(el => el.id && sichtbar(el));
@@ -10313,9 +10388,8 @@ try{
     // In die richtige Reihenfolge bringen — bewegt wird nur, was nicht schon an seinem Platz steht.
     soll.forEach((knoten, i) => { if(nav.children[i] !== knoten) nav.insertBefore(knoten, nav.children[i] || null); });
     while(nav.children.length > soll.length) nav.lastElementChild.remove();
-    const erster = nav.querySelector("a[data-ziel]");
-    nav.querySelectorAll("a[data-ziel]").forEach(a =>
-      a.classList.toggle("aktiv", aktivId ? a.dataset.ziel === aktivId : a === erster));
+    anwenden();
+    zeilenMarkieren();
   }
 
   /* Neu gebaut wird gesammelt, einmal je Bild: Rechnung, Klappen und
@@ -10333,10 +10407,167 @@ try{
     zeichneBand = function(r){ alt(r); nachziehen(); };
   }
 
+  /* ---------- Umschalten ----------
+     Was rechts zu sehen ist, je nachdem, was in der Leiste gewählt wurde.
+     Die Reihenfolge in der Liste ist die Reihenfolge auf der Seite. Wer
+     etwas anders haben will, ändert nur diese Tabelle.
+
+     Gewählt …                       rechts zu sehen
+       eine Eingabekarte (1 bis 5)   Ansicht, Prüfungen — was eine Eingabe bewirkt
+       6 · Trasse                    Trassenbild, Ansicht — gibt es noch kein
+                                     Trassenbild, wie bei den anderen Eingaben
+       Ansicht                       Ansicht, Zahlen
+       Trassenbild                   Trassenbild, Ansicht
+       Prüfungen                     Ansicht, Prüfungen
+       Zahlen                        Ansicht, Zahlen
+       Export nach Allplan           Export, Prüfungen — ob es gültig ist, was
+                                     man gleich schreibt
+       Nachschlagen                  nur Nachschlagen
+     Fehlt die gewählte Karte selbst (die erste ihrer Zeile), gilt die
+     Zeile „eingabe". Links steht immer genau eine Eingabekarte: die zuletzt
+     gewählte, zu Beginn die erste. */
+  const RECHTS = {
+    "eingabe":            ["karte-ansicht", "karte-pruefungen"],
+    "karte-trasse":       ["trassenbild", "karte-ansicht"],
+    "karte-ansicht":      ["karte-ansicht", "karte-listen"],
+    "trassenbild":        ["trassenbild", "karte-ansicht"],
+    "karte-pruefungen":   ["karte-ansicht", "karte-pruefungen"],
+    "karte-listen":       ["karte-ansicht", "karte-listen"],
+    "karte-export":       ["karte-export", "karte-pruefungen"],
+    "karte-nachschlagen": ["karte-nachschlagen"]
+  };
+  const [LINKS_SP, RECHTS_SP] = spalten.querySelectorAll(":scope > section");
+  let links = null;          // die Eingabekarte links
+  let rechtsWahl = null;     // die zuletzt gewählte Ergebniszeile; null = was zur Eingabe gehört
+  let alle = false;          // „Alle Karten zeigen"
+  try{ alle = localStorage.getItem("karten-alle") === "ja"; }catch(e){}
+
+  function rechtsSoll(){
+    const zeile = RECHTS[rechtsWahl] || RECHTS[links] || RECHTS.eingabe;
+    return da(hol(zeile[0])) ? zeile.filter(id => da(hol(id))) : RECHTS.eingabe;
+  }
+  const wegSetzen = (el, weg) => { if(el.classList.contains("k-aus") !== weg) el.classList.toggle("k-aus", weg); };
+  function anwenden(){
+    if(!LINKS_SP || !RECHTS_SP) return;
+    if(spalten.classList.contains("k-umschalten") === alle) spalten.classList.toggle("k-umschalten", !alle);
+    const eingaben = [...LINKS_SP.children].filter(el => el.id && da(el));
+    if(!eingaben.some(el => el.id === links)) links = eingaben.length ? eingaben[0].id : null;
+    const rechts = rechtsSoll();
+    [...LINKS_SP.children].forEach(el => { if(el.id) wegSetzen(el, !alle && el.id !== links); });
+    [...RECHTS_SP.children].forEach(el => {
+      if(!el.id) return;
+      const i = rechts.indexOf(el.id);
+      wegSetzen(el, !alle && i < 0);
+      const o = (alle || i < 0) ? "" : String(i);
+      if(el.style.order !== o) el.style.order = o;
+    });
+    fuellen();
+  }
+
+  /* Eine Karte, die gerade erst zu sehen ist, steht offen da — eine
+     zugeklappte einzelne Karte sähe aus, als wäre nichts darin. Nachschlagen
+     klappt beide Teile auf. Nur beim Wählen, nicht bei jeder Rechnung: wer
+     danach zuklappt, dem klappt es nicht wieder auf. */
+  function aufklappen(el){
+    if(!el) return;
+    if(el.tagName === "DETAILS" && !el.open) el.open = true;
+    if(el.id === "karte-nachschlagen") el.querySelectorAll(":scope > details").forEach(d => { if(!d.open) d.open = true; });
+  }
+  function waehlen(el){
+    if(!el) return;
+    if(el.parentElement === LINKS_SP){ links = el.id; rechtsWahl = null; }
+    else rechtsWahl = el.id;
+    aufklappen(el);
+    anwenden();
+    zeilenMarkieren();
+  }
+  /* Für alles, was irgendwohin springt: liegt das Ziel in einer
+     weggeschalteten Karte, kommt diese nach vorn. Links wird sie die
+     Eingabekarte, rechts ihre Zeile in der Tabelle — die jeweils andere
+     Spalte bleibt, wie sie war, damit die Meldung, von der man kam, nicht
+     verschwindet. Danach ist sie sofort im Bild; rollen und den Fokus setzen
+     kann der Aufrufer gleich anschließend. */
+  function karteHolen(el){
+    if(alle || !el || !el.closest) return;
+    const karte = el.closest(".spalten > section > *");
+    if(!karte || !karte.classList.contains("k-aus")) return;
+    if(karte.parentElement === LINKS_SP) links = karte.id;
+    else rechtsWahl = karte.id;
+    if(karte.parentElement === LINKS_SP || karte.id === "karte-nachschlagen") aufklappen(karte);
+    anwenden();
+    zeilenMarkieren();
+  }
+  window.karteHolen = karteHolen;
+  /* Gelbe Kästen an Knöpfen: steht der Knopf in einer weggeschalteten Karte
+     (etwa der Export, wenn „IFC 4 schreiben" in der Mappe dessen Knopf
+     drückt und der etwas zu melden hat), kommt die Karte mit dem Kasten nach
+     vorn. Meldet der Knopf in der Mappe an sich selbst, bleibt alles stehen. */
+  if(typeof fehltMelden === "function"){
+    const meldenVorher = fehltMelden;
+    fehltMelden = function(knopf, m){
+      const r = meldenVorher(knopf, m);
+      try{ karteHolen(knopf); }catch(e){}
+      return r;
+    };
+  }
+
+  /* ---------- Markieren ----------
+     Umgeschaltet: „aktiv" ist links die Eingabekarte und rechts die gewählte
+     Ergebniszeile; was rechts außerdem zu sehen ist, ist „zu sehen".
+     Alle Karten: wie bisher die Karte, zu der gesprungen oder gerollt wurde. */
+  function zeilenMarkieren(){
+    const rechts = alle ? [] : rechtsSoll();
+    const erster = nav.querySelector("a[data-ziel]");
+    nav.querySelectorAll("a[data-ziel]").forEach(a => {
+      const id = a.dataset.ziel;
+      const aktiv = alle ? (aktivId ? id === aktivId : a === erster)
+                         : (id === links || (id === rechtsWahl && rechts.includes(id)));
+      const zuSehen = !alle && !aktiv && rechts.includes(id);
+      if(a.classList.contains("aktiv") !== aktiv) a.classList.toggle("aktiv", aktiv);
+      if(a.classList.contains("zu-sehen") !== zuSehen) a.classList.toggle("zu-sehen", zuSehen);
+      const aktuell = aktiv || zuSehen ? "true" : null;
+      if(a.getAttribute("aria-current") !== aktuell){
+        if(aktuell) a.setAttribute("aria-current", aktuell); else a.removeAttribute("aria-current");
+      }
+    });
+  }
+
+  /* ---------- Den Platz nutzen ----------
+     Steht wenig da, soll die Seite nicht leer wirken: endet die rechte
+     Spalte über dem Fensterrand (oder über der linken), wächst die Ansicht
+     in der Höhe, bis sie reicht — höchstens auf vier Fünftel der Höhe des
+     Inhalts. Die Zeichnung selbst wird nicht größer (ihre Breite bestimmt
+     sie), sie steht mittig auf dem größeren Blatt, mit Platz zum Zoomen.
+     Gemessen wird die natürliche Höhe, also ohne das, was schon dazukam —
+     so kommt jede Messung zum selben Wert und schaukelt nicht. Auf einer
+     Spalte untereinander (schmale Fenster) bleibt die Ansicht, wie sie ist. */
+  function fuellen(){
+    const ansicht = hol("karte-ansicht"), fl = hol("zeichnung");
+    let soll = 0;
+    if(!alle && ansicht && fl && da(ansicht) && !ansicht.classList.contains("k-aus") &&
+       Math.abs(LINKS_SP.getBoundingClientRect().top - RECHTS_SP.getBoundingClientRect().top) < 2){
+      const natur = [...fl.children].reduce((s, e) => s + e.getBoundingClientRect().height, 0) + 18;  // + Polster 8/10
+      const zusatz = Math.max(0, fl.getBoundingClientRect().height - natur);
+      const oben = inhalt.getBoundingClientRect().top - inhalt.scrollTop;
+      const unten = sp => Math.max(0, ...[...sp.children].filter(e => e.getClientRects().length)
+                                                         .map(e => e.getBoundingClientRect().bottom - oben));
+      const rechts = unten(RECHTS_SP) - zusatz;
+      const ziel = Math.max(inhalt.clientHeight - 28, unten(LINKS_SP));   // 28: Polster, Rand und Abstand unter den Spalten
+      const mehr = ziel - rechts;
+      if(mehr > 12) soll = Math.round(Math.min(natur + mehr, Math.max(natur, inhalt.clientHeight * 0.8)));
+    }
+    const alt = parseFloat(spalten.style.getPropertyValue("--ansicht-hoehe")) || 0;
+    if(Math.abs(alt - soll) > 2){
+      if(soll) spalten.style.setProperty("--ansicht-hoehe", soll + "px");
+      else spalten.style.removeProperty("--ansicht-hoehe");
+    }
+  }
+  window.addEventListener("resize", () => nachziehen());
+
   /* ---------- Springen ---------- */
   function markieren(id){
     aktivId = id;
-    nav.querySelectorAll("a").forEach(a => a.classList.toggle("aktiv", a.dataset.ziel === id));
+    zeilenMarkieren();
   }
   /* Nach einem Klick bleibt der gewählte Punkt stehen, bis man sich ein Stück
      davon wegrollt — sonst spränge die Markierung in der Zweispaltenansicht
@@ -10348,6 +10579,13 @@ try{
     ev.preventDefault();
     const ziel = hol(a.dataset.ziel);
     if(!ziel) return;
+    if(!alle){
+      // Umgeschaltet: wählen und oben anfangen — die Karte steht dann ganz oben in ihrer Spalte.
+      waehlen(ziel);
+      inhalt.scrollTo({top:0, behavior:"auto"});
+      menue(false);
+      return;
+    }
     if(ziel.tagName === "DETAILS" && !ziel.open) ziel.open = true;
     ziel.scrollIntoView({block:"start"});
     markieren(a.dataset.ziel);
@@ -10356,8 +10594,26 @@ try{
     menue(false);
   });
 
-  /* ---------- Folgen ---------- die Karte, die dem oberen Rand am nächsten liegt. */
+  /* ---------- Der Schalter „Alle Karten zeigen" ---------- */
+  const alleKnopf = hol("alleschalter");
+  function alleSetzen(an){
+    alle = !!an;
+    try{ localStorage.setItem("karten-alle", alle ? "ja" : "nein"); }catch(e){}
+    if(alleKnopf) alleKnopf.setAttribute("aria-checked", String(alle));
+    aktivId = alle ? links : null;
+    anwenden();
+    bauen();
+    if(!alle) inhalt.scrollTo({top:0, behavior:"auto"});
+  }
+  if(alleKnopf){
+    alleKnopf.setAttribute("aria-checked", String(alle));
+    alleKnopf.addEventListener("click", () => alleSetzen(!alle));
+  }
+
+  /* ---------- Folgen ---------- die Karte, die dem oberen Rand am nächsten liegt.
+     Nur bei „Alle Karten": umgeschaltet steht die Markierung für die Wahl. */
   function folgen(){
+    if(!alle) return;
     if(gehalten){
       if(Math.abs(inhalt.scrollTop - gehaltenBei) < 160) return;
       gehalten = false;
@@ -10401,7 +10657,39 @@ try{
   if(hol("schleier")) hol("schleier").addEventListener("click", () => menue(false));
   document.addEventListener("keydown", ev => { if(ev.key === "Escape" && app.classList.contains("menue-offen")) menue(false); });
 
+  /* ---------- Die Mappe-Liste passt sich ein ----------
+     Die Leiste soll nicht rollen: Abschnitte, Ablage, „IFC 4 schreiben" und
+     der Fuß bleiben immer ganz zu sehen. Nachgeben darf nur die Liste der
+     Mappe — sie rollt ohnehin für sich. Sie ist höchstens LISTE_HOCH hoch
+     (wie im Stilblock, etwa drei Einträge); fehlt der Leiste Platz, wird sie
+     kürzer, bis auf etwa einen Eintrag. Erst danach rollt die Leiste.
+     Gemessen wird am Leerraum vor dem Fuß und am Überstand der Leiste; die
+     neue Höhe geht als style an die Liste, und style beobachtet der
+     Wächter unten nicht — es schaukelt also nichts. */
+  const LISTE_HOCH = 126, LISTE_MIN = 40;
+  const mappePlatz = hol("mappe-platz");
+  function listePassen(){
+    const liste = hol("mappe-liste"), fuss = leiste && leiste.querySelector(".leiste-fuss");
+    if(!liste || !fuss || !mappePlatz || !leiste.clientHeight) return;
+    const h = liste.getBoundingClientRect().height;
+    const luft = Math.max(0, fuss.getBoundingClientRect().top - mappePlatz.getBoundingClientRect().bottom);
+    const zuViel = Math.max(0, leiste.scrollHeight - leiste.clientHeight);
+    const soll = Math.round(Math.max(LISTE_MIN, Math.min(LISTE_HOCH, h + luft - zuViel)));
+    const ist = parseFloat(liste.style.maxHeight) || LISTE_HOCH;
+    if(Math.abs(ist - soll) > 1) liste.style.maxHeight = soll >= LISTE_HOCH ? "" : soll + "px";
+  }
+  let passenAngemeldet = false;
+  function passenNachziehen(){
+    if(passenAngemeldet) return;
+    passenAngemeldet = true;
+    requestAnimationFrame(() => { passenAngemeldet = false; try{ listePassen(); }catch(e){} });
+  }
+  if(leiste) new MutationObserver(passenNachziehen).observe(leiste, {childList:true, subtree:true, characterData:true,
+                                                                   attributes:true, attributeFilter:["hidden"]});
+  window.addEventListener("resize", passenNachziehen);
+
   bauen();
+  passenNachziehen();
 }catch(e){
   // Lieber ohne Leiste als ohne Werkzeug.
   if(window.console) console.warn("Leiste nicht verfügbar:", e);
