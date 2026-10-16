@@ -854,6 +854,12 @@ button.tat.stumm[aria-disabled=true]:hover{background:var(--karte);color:var(--i
 .fehlt-meldung{margin:9px 0 0;padding:8px 10px;border-left:3px solid var(--ocker);
   background:var(--ocker-hell);color:var(--ink);border-radius:var(--r-klein);font-size:12.5px;line-height:1.5}
 .fehlt-meldung .minitat{margin-left:4px}
+/* Ein IFC-Knopf bei Rot: roter Ring und das Urteil in der Ecke. Er bleibt
+   drückbar und fragt beim Klick nach (Skript „Rot heißt: so nicht exportieren"). */
+button.ifc-rot{position:relative;box-shadow:0 0 0 2px var(--rot)}
+button.ifc-rot::after{
+  content:attr(data-urteil);position:absolute;top:-9px;right:8px;padding:0 7px;border-radius:9px;
+  background:var(--rot);color:#fff;font:600 10.5px/17px var(--s);white-space:nowrap;pointer-events:none}
 /* Ein Hinweis, der vor dem Drücken gelesen werden soll — blau, weil nichts
    fehlt, sondern etwas zu wissen ist (Gelb bleibt für „es fehlt etwas"). */
 .hinweis-kasten{margin:0 0 12px;padding:9px 11px;border-left:3px solid var(--blau);
@@ -1214,7 +1220,7 @@ button, summary, label, select, a, .reiter{cursor:pointer}
 
 /* Die Spalten: kein eigener Rahmen mehr, sie füllen die Höhe bis über das
    Dock; die rechte steht unten (Prüfungen über dem Dock). */
-.app.hud .spalten{background:transparent;border:0;border-radius:0;margin:12px 14px 78px;padding:0;flex:1 0 auto}
+.app.hud .spalten{background:transparent;border:0;border-radius:0;margin:12px 14px var(--dock-platz,116px);padding:0;flex:1 0 auto}
 .app.hud .spalten > section:last-child{align-self:end}
 /* Kein Kleben im HUD: die Seite rollt bei einer Eingabe ohnehin nicht, und
    position:sticky machte die rechte Spalte zum eigenen Stapelkontext — die
@@ -1307,13 +1313,27 @@ button, summary, label, select, a, .reiter{cursor:pointer}
 @media(max-width:1500px){.hud-dock nav.abschnitte a:not(.aktiv):has(.nr[data-sinn]) .name{display:none}}
 @media(max-width:1240px){.hud-dock nav.abschnitte a:not(.aktiv) .name{display:none}}
 
+/* Die Exportzeile: erste Zeile des Docks, so breit wie das Dock darunter
+   (width:0 + min-width:100% — sie macht das Dock nicht breiter). */
+/* width:max-content, sonst nähme das Dock wegen left:50% nur die halbe Fensterbreite an und bräche um */
+.app.hud .hud-dock{flex-wrap:wrap;row-gap:4px;width:max-content}
+.hud-export{
+  order:-1;flex:1 0 100%;width:0;min-width:100%;display:flex;align-items:center;gap:10px;
+  padding:3px 4px 7px 10px;border-bottom:1px solid var(--glas-kante);font-size:12px;color:var(--ink-weich);
+}
+.hud-export .titel{flex:none;font:600 9.5px var(--z);letter-spacing:.16em;text-transform:uppercase;color:var(--ink-leise)}
+.hud-export .name{flex:0 1 auto;min-width:0;font:600 12.5px var(--z);color:var(--blau);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hud-export .rest{flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hud-export #hud-ifc{flex:none;padding:6px 14px;font-size:12.5px;box-shadow:0 0 16px var(--glanz)}
+.hud-export #hud-ifc.ifc-rot{box-shadow:0 0 0 2px var(--rot)}
+
 /* Der Urhebervermerk unten rechts, neben dem Dock */
 .app.hud .urheber{position:fixed;right:16px;bottom:16px;margin:0;padding:0;z-index:8;pointer-events:none}
 .app.hud .urheber .lang{display:none}          /* neben dem Dock ist nur für den Namen Platz */
 
 /* Die Mappe öffnet sich über dem Dock */
 .app.hud .hud-mappe{
-  position:fixed;bottom:70px;left:var(--mappe-l,auto);right:auto;width:300px;max-height:calc(100vh - 170px);
+  position:fixed;bottom:calc(var(--dock-platz,116px) - 8px);left:var(--mappe-l,auto);right:auto;width:300px;max-height:calc(100vh - var(--dock-platz,116px) - 100px);
   overflow:auto;z-index:10;border-radius:14px;display:none;background:var(--glas-hoch);
 }
 .app.hud.mappe-offen .hud-mappe{display:block}
@@ -7486,8 +7506,10 @@ function fehltKasten(knopf, anlegen){
 function fehltMelden(knopf, m){
   if(typeof m === "string") m = {html: m};
   const k = fehltKasten(knopf, true);
-  k.innerHTML = m.html + (m.geh ? ` <button type="button" class="minitat">${m.geh.text}</button>` : "");
-  if(m.geh) k.querySelector("button").addEventListener("click", m.geh.tun);
+  const geh = m.geh ? [].concat(m.geh) : [];          // ein Sprung-Knopf oder mehrere
+  k.innerHTML = m.html + geh.map(g => ` <button type="button" class="minitat">${g.text}</button>`).join("");
+  if(geh.length) [...k.querySelectorAll(":scope > button.minitat")].slice(-geh.length)
+    .forEach((b, i) => b.addEventListener("click", geh[i].tun));
   k._erledigt = m.erledigt || null;
   k.hidden = false;
 }
@@ -7565,12 +7587,108 @@ $("btn-zur-trasse").addEventListener("click", () => {
   if(b) b.click();
   zuKarte("karte-trasse");
 });
+/* ---------- Rot heißt: so nicht exportieren ----------
+   Steht eine Prüfung auf Rot, schreibt kein IFC-Knopf mehr still. Der Klick
+   zeigt im gelben Kasten, was verstößt, mit „Zur Prüfung" und „Trotzdem
+   schreiben" — nie disabled, nichts wird verweigert. Bestätigt gilt für
+   genau diese Rechnung (letzte) und für den einen Klick samt dem, was er
+   auslöst: der Knopf der Mappe drückt den IFC-Knopf des Weges, ohne dass
+   noch einmal gefragt wird. Der Kasten verschwindet, sobald nichts mehr rot
+   ist. Die Knöpfe tragen das Urteil sichtbar (Klasse ifc-rot, Zeile unten). */
+// Der Knopf der Exportzeile im HUD (hud-ifc) fragt nicht selbst: er drückt den
+// IFC-Knopf des Weges, und dort steht dann der Kasten.
+const IFC_KNOEPFE = ["btn-ifc", "btn-ifc-kurve", "btn-mappe-ifc"];
+let ifcTrotzdem = null;
+document.addEventListener("click", ev => {
+  const b = ev.target.closest && ev.target.closest("button");
+  if(!b || !IFC_KNOEPFE.includes(b.id)) return;
+  if(b.getAttribute("aria-disabled") === "true") return;      // erst sagt er, was fehlt
+  /* Fehlt auf der Trasse noch etwas (keine Trasse, Länge passt nicht zum
+     Rand), sagt das der Knopf selbst — erst danach wird nach Rot gefragt,
+     sonst bestätigte man etwas, das dann doch nicht geschrieben wird. */
+  const aufTrasse = b.id === "btn-ifc-kurve" ||
+    (b.id === "btn-mappe-ifc" && !!document.querySelector('#bauwegwahl button[data-bauweg="trasse"][aria-pressed="true"]'));
+  if(aufTrasse && typeof kurveFehlt === "function" && kurveFehlt()) return;
+  const r = typeof letzte !== "undefined" ? letzte : null;
+  if(!r || !r.gueltig || !(r.fehler > 0) || ifcTrotzdem === r) return;
+  ev.preventDefault();
+  ev.stopImmediatePropagation();
+  const urteil = ($("k-urteil") && $("k-urteil").textContent.trim()) ||
+                 `${r.fehler} ${r.fehler > 1 ? "Verstöße" : "Verstoß"}`;
+  const was = [...document.querySelectorAll("#pruefungen .p-fehler strong")].map(s => s.textContent.trim());
+  fehltMelden(b, {
+    html: `<b>${fehltText(urteil)}.</b> ${was.length ? fehltText(was.join(", ")) + ". " : ""}` +
+          `Rot heißt: so nicht exportieren. Wird die Datei trotzdem gebraucht, wird sie so geschrieben, wie das Geländer hier steht.`,
+    geh: [{text: "Zur Prüfung", tun: () => zuKarte("karte-pruefungen")},
+          {text: "Trotzdem schreiben", tun: () => {
+            fehltWeg(b);
+            ifcTrotzdem = letzte;
+            try{ b.click(); } finally { ifcTrotzdem = null; }
+          }}],
+    erledigt: () => !(letzte && letzte.fehler > 0)
+  });
+}, true);
+function ifcUrteilZeigen(){
+  const r = typeof letzte !== "undefined" ? letzte : null;
+  const rot = !!(r && r.gueltig && r.fehler > 0);
+  const text = rot ? `${r.fehler} ${r.fehler > 1 ? "Verstöße" : "Verstoß"}` : "";
+  [...IFC_KNOEPFE, "hud-ifc"].forEach(id => {
+    const b = $(id);
+    if(!b) return;
+    b.classList.toggle("ifc-rot", rot);
+    if(rot) b.dataset.urteil = text; else delete b.dataset.urteil;
+  });
+}
+{ const alt = zeichneBand; zeichneBand = function(r){ alt(r); ifcUrteilZeigen(); }; }
+
+/* ---------- Der Name der IFC ----------
+   Eine Stelle für den Grundnamen, den beide IFC-Knöpfe schreiben: gerade
+   Gelaender_<Typ>.ifc, auf der Trasse mit dem Rand oder — bei einer
+   Standlinienachse — dem gekürzten Achsnamen. Was die Umfangwahl und die
+   Mappe beim Speichern anhängen (_Verankerung, _<n>Gelaender), hängen sie
+   über dieselben Regeln auch an ifcNameZusatz an; ifcDateiname() liefert so
+   vor dem Klick genau den Namen, den der Klick schreibt (Exportzeile im HUD).
+   null, solange es noch nichts zu schreiben gibt. */
+function ifcKennung(){
+  const seite = $("trasse-seite").value;
+  // Bei einer Standlinienachse ist die Randwahl gesperrt und stünde für beide Geländer
+  // auf "links" – dann käme das zweite als "… (1).ifc" herunter. Deshalb benennt der
+  // Achsname die Datei. Auch das hängt am eingestellten Weg, nicht an der Vorsilbe:
+  // eine von Hand gesetzte Standlinie hat dasselbe Namensproblem.
+  return (TRASSE && TRASSE._direkt && TRASSE.achse) ? achsKennung(TRASSE.achse) : seite;
+}
+function ifcGrundname(trasse){
+  if(!letzte || !letzte.t) return null;
+  const typ = letzte.t.kurz.replace(" ","");
+  if(!trasse) return `Gelaender_${typ}.ifc`;
+  return TRASSE ? `Gelaender_${typ}_${ifcKennung()}.ifc` : null;
+}
+let ifcNameZusatz = name => name;
+function ifcDateiname(trasse){
+  const g = ifcGrundname(trasse);
+  return g ? ifcNameZusatz(g) : null;
+}
+/* Wie viele Körper der IFC-Knopf schreibt — gezählt wie in ifcErzeugen:
+   mit „nur Verankerung" nur deren Körper, auf der Trasse nach dem
+   Segmentieren an den Knicken. letzte.teile ist die ungefilterte Liste der
+   Rechnung (bauteile() filtert nur während eines Exports). null, solange es
+   nichts zu zählen gibt. Eine Stelle für die Exportzeile und die Meldungen
+   nach dem Schreiben. */
+function ifcKoerperZahl(trasse){
+  if(!letzte || !letzte.gueltig) return null;
+  let t = letzte.teile || bauteile(letzte);
+  if(document.querySelector('#umfangwahl button[data-umfang="verank"][aria-pressed="true"]')) t = t.filter(q => q.verank);
+  if(!trasse) return t.length;
+  const rand = TRASSE && TRASSE.seiten[$("trasse-seite").value];
+  return rand ? segmentiere(t, letzte, rand.knicke).length : null;
+}
+
 $("btn-ifc").addEventListener("click", () => {
   const text = ifcErzeugen(letzte);
   if(!text){ fehltMelden($("btn-ifc"), ohneGelaender()); return; }
   fehltWeg($("btn-ifc"));
-  speichern(text, `Gelaender_${letzte.t.kurz.replace(" ","")}.ifc`, "application/x-step");
-  $("export-info").textContent = `IFC4 geschrieben: ${bauteile(letzte).length} Körper, ${letzte.t.kurz}, L = ${fmt(letzte.L)} ${einheit}.`;
+  speichern(text, ifcGrundname(false), "application/x-step");
+  $("export-info").textContent = `IFC4 geschrieben: ${ifcKoerperZahl(false)} Körper, ${letzte.t.kurz}, L = ${fmt(letzte.L)} ${einheit}.`;
 });
 
 /* ---------- Trassierung direkt aus dem TCL-Export lesen ----------
@@ -8136,19 +8254,13 @@ $("btn-ifc-kurve").addEventListener("click", () => {
   const text = ifcErzeugen(letzte, rand);
   if(!text){ fehltMelden(knopf, ohneGelaender()); return; }
   fehltWeg(knopf);
-  // Bei einer Standlinienachse ist die Randwahl gesperrt und stünde für beide Geländer
-  // auf "links" – dann käme das zweite als "… (1).ifc" herunter. Deshalb benennt der
-  // Achsname die Datei. Auch das hängt am eingestellten Weg, nicht an der Vorsilbe:
-  // eine von Hand gesetzte Standlinie hat dasselbe Namensproblem.
-  const direkt = !!TRASSE._direkt;
-  const kennung = (direkt && TRASSE.achse)
-    ? achsKennung(TRASSE.achse) : seite;
-  speichern(text, `Gelaender_${letzte.t.kurz.replace(" ","")}_${kennung}.ifc`, "application/x-step");
-  const n = segmentiere(bauteile(letzte), letzte, rand.knicke).length;
+  const kennung = ifcKennung();                 // Rand oder Achsname, siehe dort
+  speichern(text, ifcGrundname(true), "application/x-step");
+  const n = ifcKoerperZahl(true);              // wie geschrieben: Umfang gefiltert, segmentiert
   $("trasse-info").textContent =
     `IFC4 gekrümmt geschrieben: ${kennung === seite ? "Rand " + seite : "Achse " + TRASSE.achse}, ` +
     `${n} Körper, ${letzte.n} Felder à ${letzte.a.toFixed(1)} mm. Datei: ` +
-    `Gelaender_${letzte.t.kurz.replace(" ","")}_${kennung}.ifc`;
+    ifcDateiname(true);
 });
 
 $("btn-dxf").addEventListener("click", () => {
@@ -10159,12 +10271,14 @@ try{
     };
   });
 
+  const mitVerank = dateiname => (gewaehlt() && /^Gelaender_.*\.(ifc|dxf)$/i.test(dateiname))
+    ? dateiname.replace(/(\.[^.]+)$/, "_Verankerung$1") : dateiname;
   const speichernAlt = speichern;
   speichern = function(text, dateiname, typ){
-    if(gewaehlt() && /^Gelaender_.*\.(ifc|dxf)$/i.test(dateiname))
-      dateiname = dateiname.replace(/(\.[^.]+)$/, "_Verankerung$1");
-    return speichernAlt(text, dateiname, typ);
+    return speichernAlt(text, mitVerank(dateiname), typ);
   };
+  // Dieselbe Regel für den Namen, den der IFC-Knopf vor dem Klick ankündigt
+  if(typeof ifcNameZusatz === "function"){ const z = ifcNameZusatz; ifcNameZusatz = n => mitVerank(z(n)); }
 
   /* Wie viele Körper die Wahl schreiben würde — gezählt am wirklichen
      Geländer, nicht geschätzt. Die Zahl steht im Hinweis, weil man ihr
@@ -11261,6 +11375,19 @@ try{
     }
     return speichernAlt(text, dateiname, typ);
   };
+  /* Derselbe Zusatz für den angekündigten Namen: so viele Geländer, wie
+     geschrieben würden — die Mappe und das aktuelle, wenn es nicht schon darin
+     liegt (wie texte oben). Ein Scheitern beim Zusammenlegen lässt sich vorher
+     nicht wissen; dann sagt es der gelbe Kasten nach dem Klick. Die Mappe
+     wird vor den älteren Zusätzen angehängt, wie beim Speichern. */
+  if(typeof ifcNameZusatz === "function"){
+    const z = ifcNameZusatz;
+    ifcNameZusatz = n => {
+      const gesamt = mappe.length + (drinIndex() < 0 ? 1 : 0);
+      if(mappe.length && gesamt > 1) n = n.replace(/(\.[^.]+)$/, `_${gesamt}Gelaender$1`);
+      return z(n);
+    };
+  }
 
   /* Bei jeder Rechnung Kachel und Zähler nachziehen. */
   if(typeof zeichneBand === "function"){
@@ -12144,6 +12271,99 @@ try{
   // Wohin die Teile auf schmalen Fenstern zurückgehen
   const orte = [nav, mappe, chip, ...fuesse].map(el => ({el, eltern: el.parentNode, vor: el.nextSibling}));
 
+  /* ---------- Die Exportzeile über dem Dock ----------
+     Was der IFC-Knopf des gewählten Weges gerade schriebe, bevor man drückt:
+     der Dateiname (ifcDateiname — derselbe, den der Klick schreibt, samt
+     _Verankerung und Mappe), die Zahl der Körper (gezählt wie in
+     ifcErzeugen: Umfang gefiltert, auf der Trasse segmentiert) und wo das
+     Geländer liegt. Der Knopf darin drückt den IFC-Knopf des Weges; fehlt
+     etwas oder ist etwas rot, steht der gelbe Kasten dort, im Export. */
+  const ausfuhr = document.createElement("div");
+  ausfuhr.className = "hud-export"; ausfuhr.id = "hud-export";
+  ausfuhr.innerHTML = '<span class="titel">Export</span><span class="name" id="hud-ex-name"></span>' +
+    '<span class="rest" id="hud-ex-rest"></span>' +
+    '<button type="button" class="tat" id="hud-ifc">IFC 4 schreiben</button>';
+  dock.append(ausfuhr);
+  // Das Dock hängt erst ab 1001 px im Dokument — darum über die Zeile greifen, nicht über die Kennung.
+  const exName = ausfuhr.querySelector(".name"), exRest = ausfuhr.querySelector(".rest"), exKnopf = ausfuhr.querySelector("button");
+  const wegTrasse = () => {
+    const b = document.querySelector('#bauwegwahl button[aria-pressed="true"]');
+    return b ? b.dataset.bauweg === "trasse" : !!(typeof TRASSE !== "undefined" && TRASSE);
+  };
+  exKnopf.addEventListener("click", () => {
+    const ziel = hol(wegTrasse() ? "btn-ifc-kurve" : "btn-ifc");
+    if(!ziel) return;
+    ziel.click();
+    /* Hat der Knopf etwas zu sagen (fehlt etwas, ist etwas rot), steht sein
+       gelber Kasten im Export — den Abschnitt holen und den Kasten ins Bild
+       rollen. Sonst bliebe dieser Knopf still: der Kasten läge in einer
+       weggeschalteten Karte oder hinter dem Dock. */
+    const k = typeof fehltKasten === "function" ? fehltKasten(ziel, false) : null;
+    if(k && !k.hidden){
+      if(window.karteHolen) karteHolen(ziel);
+      k.scrollIntoView({block: "center", behavior: "instant"});
+    }
+  });
+  function exportZeigen(){
+    const r = typeof letzte !== "undefined" ? letzte : null;
+    const trasse = wegTrasse();
+    const tr = typeof TRASSE !== "undefined" ? TRASSE : null;
+    const nameEl = exName, restEl = exRest;
+    const hinweis = (a, b) => { nameEl.textContent = a; nameEl.title = ""; restEl.textContent = b; restEl.title = b; };
+    if(!r || !r.gueltig) return hinweis("noch kein Geländer", "erst L eintragen — größer als die beiden Randabstände zusammen");
+    if(trasse && !tr) return hinweis("noch keine Trasse", "in der Karte Trasse eine laden");
+    /* Was der Knopf auf der Trasse vorher noch verlangt (etwa: die Länge passt
+       nicht zum Rand), sagt die Zeile statt einer Ankündigung — gerechnet wäre
+       sie auf einer Teilung, die so nicht geschrieben wird. */
+    const fehlt = trasse && typeof kurveFehlt === "function" ? kurveFehlt() : null;
+    if(fehlt){
+      const d = document.createElement("div"); d.innerHTML = fehlt.html;
+      return hinweis("noch nicht bereit", d.textContent.trim());
+    }
+    let name = null, n = null;
+    try{ name = ifcDateiname(trasse); }catch(e){ name = null; }
+    try{ n = ifcKoerperZahl(trasse); }catch(e){ n = null; }
+    /* Die Lage so, wie ifcErzeugen sie schreibt: auf der Trasse sitzt der
+       Projektnullpunkt des Randes im IFCSITE — oder es gibt keinen. */
+    let lage;
+    if(!trasse) lage = "ohne Koordinaten, Nullpunkt am Geländeranfang";
+    else {
+      const rand = tr.seiten[hol("trasse-seite").value], np = rand && rand.nullpunkt;
+      const m = v => (v / 1000).toLocaleString("de-DE", {minimumFractionDigits: 3, maximumFractionDigits: 3});
+      lage = np ? `Landeskoordinate, Projektnullpunkt ${m(np.x)} / ${m(np.y)} m`
+                : "ohne Projektnullpunkt — in den Koordinaten der Achse";
+    }
+    nameEl.textContent = name || "–";
+    nameEl.title = name || "";
+    // Mit der Mappe zählt die Körperzahl oben nur das aktuelle Geländer — dann steht die Zahl der Geländer da.
+    const mitMappe = name && name.match(/_(\d+)Gelaender(?:_Verankerung)?\.ifc$/);
+    const menge = mitMappe ? `${mitMappe[1]} Geländer mit der Mappe · `
+                           : (n != null ? `${n.toLocaleString("de-DE")} Körper · ` : "");
+    restEl.textContent = menge + lage;
+    restEl.title = restEl.textContent;
+  }
+  if(typeof zeichneBand === "function"){
+    const alt = zeichneBand;
+    zeichneBand = function(r){ alt(r); try{ exportZeigen(); }catch(e){} };
+  }
+  // Was ohne Rechnung den Namen ändert: Umfang, Weg, Rand, Nullpunkt, die Mappe
+  document.addEventListener("click", ev => {
+    if(ev.target.closest && ev.target.closest("#umfangwahl, #bauwegwahl, #feld-mappe"))
+      setTimeout(() => { try{ exportZeigen(); }catch(e){} }, 0);
+  });
+  ["trasse-seite", "tr-nullpunkt"].forEach(id => { if(hol(id)) hol(id).addEventListener("change", () => { try{ exportZeigen(); }catch(e){} }); });
+  // Die Mappe schreibt ihren Knopftext bei jeder Rechnung neu — nur nachziehen, wenn er sich wirklich ändert.
+  if(hol("btn-mappe-ifc")){
+    let mappeText = hol("btn-mappe-ifc").textContent;
+    new MutationObserver(() => {
+      const t = hol("btn-mappe-ifc").textContent;
+      if(t === mappeText) return;
+      mappeText = t;
+      try{ exportZeigen(); }catch(e){}
+    }).observe(hol("btn-mappe-ifc"), {childList:true, characterData:true, subtree:true});
+  }
+  try{ exportZeigen(); if(typeof ifcUrteilZeigen === "function") ifcUrteilZeigen(); }catch(e){}
+
   /* ---------- Das freie Feld ----------
      Rechts der Eingabekarten, unter dem Band, über den Karten der rechten
      Spalte (Prüfungen) und dem Dock — in Bildschirmpunkten. Bei einem
@@ -12193,7 +12413,15 @@ try{
     const st = document.documentElement.style;
     const namen = ["--frei-l", "--frei-t", "--frei-b", "--frei-h"];
     buehneSetzen();
-    if(!hud()){ namen.forEach(n => st.removeProperty(n)); inhalt.classList.remove("hud-rollt"); return; }
+    if(!hud()){ [...namen, "--dock-platz"].forEach(n => st.removeProperty(n)); inhalt.classList.remove("hud-rollt"); return; }
+    /* Platz unter den Spalten: so viel, wie das Dock samt Exportzeile von
+       unten einnimmt, und 12 px Luft. Ändert er sich, rechnet die Leiste
+       (fuellen) neu — sie hört auf resize. */
+    const d = dock.getBoundingClientRect();
+    if(d.height){
+      const platz = Math.round(innerHeight - d.top + 12) + "px";
+      if(st.getPropertyValue("--dock-platz") !== platz){ st.setProperty("--dock-platz", platz); dispatchEvent(new Event("resize")); }
+    }
     const f = frei();
     const rollt = inhalt.scrollHeight > inhalt.clientHeight + 1;
     if(inhalt.classList.contains("hud-rollt") !== rollt) inhalt.classList.toggle("hud-rollt", rollt);
