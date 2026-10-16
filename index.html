@@ -264,7 +264,6 @@ button{font-family:var(--s)}
   scrollbar-width:thin;scrollbar-color:var(--kante-stark) transparent;
 }
 .leiste-kopf{display:flex;gap:11px;align-items:center;padding:10px 14px 9px;border-bottom:1px solid var(--kante)}
-.leiste-kopf .maskottchen{width:38px;height:38px;flex:none}
 .leiste-kopf b{font-size:18px;display:block;line-height:1.1;letter-spacing:-.01em}
 .leiste-kopf small{color:var(--ink-weich);font-size:11.5px;display:block;line-height:1.3;margin-top:2px}
 .leiste-hinweis{font-size:11.5px;color:var(--ink-leise);padding:0 16px 8px}
@@ -417,7 +416,6 @@ nav.abschnitte a[hidden]{display:none}
 
 /* ---------- Die Kopfzeile (nur auf schmalen Fenstern) ---------- */
 .kopfleiste{display:none;align-items:center;gap:10px;padding:8px 12px;background:var(--karte);border-bottom:1px solid var(--kante);position:sticky;top:0;z-index:7}
-.kopfleiste .maskottchen{width:28px;height:28px}
 .kopfleiste b{font-size:15px}
 .kopfleiste .fuell{flex:1}
 .chip{
@@ -849,8 +847,6 @@ button.tat.stumm[aria-disabled=true]:hover{background:var(--karte);color:var(--i
 }
 .ablage.ueber{border-color:var(--blau);background:var(--blau-hell);color:var(--blau);border-style:solid}
 .ablage.nein{border-color:var(--ocker);background:var(--ocker-hell);color:var(--ocker)}
-.ablage .maskottchen{width:40px;height:40px;flex:none}
-.ablage:has(> .maskottchen){display:flex;gap:10px;align-items:center;text-align:left}
 .ablage b{color:var(--ink-weich)}
 /* Die Liste rollt für sich, sobald mehr als etwa drei Einträge darin
    stehen — so bleiben Ablage, „IFC 4 schreiben" und die Abschnitte darüber
@@ -930,16 +926,6 @@ button.tat.stumm[aria-disabled=true]:hover{background:var(--karte);color:var(--i
 .kachel-fuss .hilfe{margin:0;flex:1;min-width:16ch}
 .geist{position:fixed;left:0;top:0;z-index:1000;pointer-events:none;background:var(--karte);border:1px solid var(--blau);
   border-radius:8px;padding:6px 10px;font:12px var(--z);color:var(--blau);box-shadow:var(--schatten-hoch);white-space:nowrap}
-
-/* ---------- Das Maskottchen ----------
-   Gezeichnet einmal als <symbol> im Rumpf der Seite, überall per <use>
-   eingesetzt. Es hat nur eine Farbe, die Schriftfarbe (currentColor); die
-   Linse im Auge ist ein Loch, durch das der Grund scheint — so stimmt es im
-   hellen wie im dunklen Schema ohne eigene Marke. Beim Ablegen in die Mappe
-   hüpft es einmal. */
-.maskottchen{display:block;color:var(--ink)}
-.maskottchen.winkt{animation:huepfen .7s ease-out 1}
-@keyframes huepfen{0%{transform:translateY(0)}35%{transform:translateY(-14%)}70%{transform:translateY(0)}85%{transform:translateY(-5%)}100%{transform:translateY(0)}}
 
 /* ---------- Blaupause ---------- */
 .blaupause{
@@ -1105,7 +1091,6 @@ button, summary, label, select, a, .reiter{cursor:pointer}
   .leiste{transition:transform .22s ease}
 }
 @media(prefers-reduced-motion:reduce){
-  .maskottchen.winkt{animation:none}
   .mappe-liste li.neu{animation:none;background:var(--blau-hell)}
   .inhalt{scroll-behavior:auto}
 }
@@ -1211,53 +1196,8 @@ button, summary, label, select, a, .reiter{cursor:pointer}
   anwenden();
 })();
 </script>
-<script>
-/* ---------- Zeichen im Browser-Tab ----------
-   Das Maskottchen mit festen Farben — ein Favicon kennt keine CSS-Marken und
-   kein currentColor: dunkle Striche auf einer weißen, abgerundeten Kachel,
-   die Figur auf 82 % verkleinert. Auf heller Tab-Leiste ist die Kachel
-   unsichtbar, auf dunkler trägt sie den Grund mit. Zwei Größen: ab 32 px mit
-   der Linse im Auge, bei 16 px ohne — dort wäre sie nur ein grauer Fleck.
-   Die Form ist dieselbe wie im <symbol id="gely-zeichen"> im Rumpf; wer sie
-   tauscht, tauscht beide.
-
-   Gesetzt per Skript und nicht als feste Zeile im Kopf, weil die öffentliche
-   Fassung keine Kopfzeile mit Verweis zulässt. Die Bilder selbst stehen hier
-   als data-URI, es wird nichts nachgeladen. */
-(function(){
-  const BILD = {
-    "32x32": "data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Crect%20x%3D%220%22%20y%3D%220%22%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2215%22%20fill%3D%22%23ffffff%22%2F%3E%3Cg%20transform%3D%22translate(32%2033)%20scale(.82)%20translate(-32%20-33)%22%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%231b2129%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M10.5%2023V58M53.5%2023V58M5%2020Q32%2036%2059%2020%22%20stroke-width%3D%225.5%22%2F%3E%3Cpath%20d%3D%22M23%2031V58M32%2033.5V58M41%2031V58%22%20stroke-width%3D%223.5%22%2F%3E%3C%2Fg%3E%3Ccircle%20cx%3D%2221%22%20cy%3D%2210%22%20r%3D%225%22%20fill%3D%22%231b2129%22%2F%3E%3Ccircle%20cx%3D%2243%22%20cy%3D%2210%22%20r%3D%225%22%20fill%3D%22%231b2129%22%2F%3E%3Ccircle%20cx%3D%2222.7%22%20cy%3D%228.3%22%20r%3D%221.7%22%20fill%3D%22%23ffffff%22%2F%3E%3Ccircle%20cx%3D%2244.7%22%20cy%3D%228.3%22%20r%3D%221.7%22%20fill%3D%22%23ffffff%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E",
-    "16x16": "data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Crect%20x%3D%220%22%20y%3D%220%22%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2215%22%20fill%3D%22%23ffffff%22%2F%3E%3Cg%20transform%3D%22translate(32%2033)%20scale(.82)%20translate(-32%20-33)%22%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%231b2129%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M10.5%2023V58M53.5%2023V58M5%2020Q32%2036%2059%2020%22%20stroke-width%3D%225.5%22%2F%3E%3Cpath%20d%3D%22M23%2031V58M32%2033.5V58M41%2031V58%22%20stroke-width%3D%223.5%22%2F%3E%3C%2Fg%3E%3Ccircle%20cx%3D%2221%22%20cy%3D%2210%22%20r%3D%225%22%20fill%3D%22%231b2129%22%2F%3E%3Ccircle%20cx%3D%2243%22%20cy%3D%2210%22%20r%3D%225%22%20fill%3D%22%231b2129%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E"
-  };
-  for(const groesse in BILD){
-    const l = document.createElement("link");
-    l.rel = "icon"; l.type = "image/svg+xml"; l.sizes = groesse;
-    l.href = BILD[groesse];
-    document.head.appendChild(l);
-  }
-})();
-</script>
 </head>
 <body>
-<!-- Das Maskottchen, einmal gezeichnet: ein Stück Geländer, dessen Handlauf
-     sich zum Lächeln biegt, darüber zwei Augen. Einfarbig in der Schriftfarbe;
-     die Linse im Auge ist ein Loch (evenodd). Überall sonst steht nur
-     <use href="#gely-zeichen">. Das Zeichen im Browser-Tab hat feste Farben
-     und steht im Kopf der Datei (Skript „Zeichen im Browser-Tab"). -->
-<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
-  <symbol id="gely-zeichen" viewBox="0 0 64 64">
-    <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M10.5 23V58M53.5 23V58" stroke-width="5"/>
-      <path d="M23 31V58M32 33.5V58M41 31V58" stroke-width="3.5"/>
-      <path d="M5 20Q32 36 59 20" stroke-width="5.5"/>
-    </g>
-    <path class="auge" fill="currentColor" fill-rule="evenodd"
-          d="M17 10a4 4 0 1 0 8 0a4 4 0 1 0 -8 0ZM21 8.6a1.4 1.4 0 1 0 2.8 0a1.4 1.4 0 1 0 -2.8 0Z"/>
-    <path class="auge" fill="currentColor" fill-rule="evenodd"
-          d="M39 10a4 4 0 1 0 8 0a4 4 0 1 0 -8 0ZM43 8.6a1.4 1.4 0 1 0 2.8 0a1.4 1.4 0 1 0 -2.8 0Z"/>
-  </symbol>
-</svg>
-
 <div class="app" id="app">
 
   <!-- ======== Die Leiste links ========
@@ -1265,7 +1205,6 @@ button, summary, label, select, a, .reiter{cursor:pointer}
        Mappe (hängt das Mappe-Skript an mappe-platz) und das Farbschema. -->
   <aside class="leiste" id="leiste" aria-label="Abschnitte und Mappe">
     <div class="leiste-kopf">
-      <svg class="maskottchen" viewBox="0 0 64 64" role="img" aria-label="Gely"><use href="#gely-zeichen"/></svg>
       <div><b>Gely</b><small>Geländer-Berechnung nach <span id="marke">RiZ-ING 12/2023 · Gruppe Gel</span></small></div>
     </div>
     <nav class="abschnitte" id="abschnitte" aria-label="Abschnitte"></nav>
@@ -1297,7 +1236,7 @@ button, summary, label, select, a, .reiter{cursor:pointer}
   <main class="inhalt" id="inhalt">
     <!-- Nur auf schmalen Fenstern zu sehen: Name, Mappe als Chip, Knopf für die Leiste. -->
     <div class="kopfleiste">
-      <svg class="maskottchen" viewBox="0 0 64 64" aria-hidden="true"><use href="#gely-zeichen"/></svg><b>Gely</b><span class="fuell"></span>
+      <b>Gely</b><span class="fuell"></span>
       <button type="button" class="chip" id="chip-mappe" title="Mappe öffnen — oder ein Geländer hierher ziehen">Mappe <span class="mappe-zahl" id="chip-zahl" hidden></span></button>
       <button type="button" class="chip" id="btn-menue" aria-expanded="false" aria-controls="leiste">Abschnitte ☰</button>
     </div>
@@ -3718,12 +3657,37 @@ function ansichtZustand(id, svg){
   const bl = ansichtBlatt(svg);
   return ANSICHT[id] || {k: 1, cx: bl.x + bl.b/2, cy: bl.y + bl.h/2};
 }
+/* Eingepasst hat das SVG das Seitenverhältnis seines Blatts (Ansicht
+   1000 : 222) und die Fläche darum herum oft Platz übrig. Gezoomt wird das
+   SVG zum Fenster über die ganze Fläche: seine Breite bleibt, die Höhe wird
+   alles, was die Fläche hergibt, und die viewBox bekommt das Verhältnis
+   dieses Fensters.
+   Sonst sähe man beim Zoomen nur einen flachen Streifen und verlöre oben den
+   Handlauf und unten den Fuß, obwohl darüber und darunter Fläche frei ist.
+   Gemessen wird mit dem SVG in seiner natürlichen Größe, damit das Fenster
+   die Fläche nie selbst aufbläht. Ist keine Höhe übrig, bleibt
+   es beim Blattverhältnis. Ändert sich die Fläche (Fenster, Tab, Spalten),
+   ziehen ansichtEinrichten() und die Leiste (fuellen) das Fenster nach. */
+function ansichtFenster(fl, svg, gezoomt){
+  svg.style.height = "";
+  if(!gezoomt) return;
+  const cs = getComputedStyle(fl);
+  let frei = fl.clientHeight - (parseFloat(cs.paddingTop) || 0) - (parseFloat(cs.paddingBottom) || 0);
+  for(const c of fl.children) if(c !== svg) frei -= c.getBoundingClientRect().height;
+  const natur = svg.getBoundingClientRect().height;
+  // Nur die Höhe: die Breite bleibt, sonst spränge der Maßstab beim ersten Zoomen.
+  svg.style.height = `${Math.max(natur, Math.floor(frei))}px`;
+}
 function ansichtAnwenden(id){
   const fl = $(id), svg = fl && fl.querySelector("svg");
   const st = ANSICHT_FL[id] || {};
   if(!svg){ if(st.stand) st.stand.textContent = ""; return; }
   const bl = ansichtBlatt(svg), z = ansichtZustand(id, svg);
-  const vw = bl.b / z.k, vh = bl.h / z.k;      // Verhältnis des Blatts halten, sonst springt die Höhe
+  ansichtFenster(fl, svg, !!ANSICHT[id]);
+  const r = svg.getBoundingClientRect();
+  const vw = bl.b / z.k;
+  // Gezoomt das Verhältnis des Fensters, eingepasst das des Blatts.
+  const vh = ANSICHT[id] && r.width && r.height ? vw * r.height / r.width : bl.h / z.k;
   svg.setAttribute("viewBox", `${z.cx - vw/2} ${z.cy - vh/2} ${vw} ${vh}`);
   if(st.stand) st.stand.textContent = Math.abs(z.k - 1) < 0.005 ? "" :
     (z.k >= 1 ? `${z.k.toLocaleString("de-DE", {maximumFractionDigits:1})} : 1` : `1 : ${(1/z.k).toLocaleString("de-DE", {maximumFractionDigits:1})}`);
@@ -3735,12 +3699,20 @@ function ansichtZoomen(id, faktor, px, py){
   if(!svg) return;
   const r = svg.getBoundingClientRect();
   if(!r.width) return;
-  const bl = ansichtBlatt(svg), z = ansichtZustand(id, svg);
+  const z = ansichtZustand(id, svg);
   const k2 = Math.min(ANSICHT_K.max, Math.max(ANSICHT_K.min, z.k * faktor));
-  const vw = bl.b / z.k, vh = bl.h / z.k;
-  const bx = z.cx - vw/2 + (px - r.left) / r.width  * vw;   // Blattpunkt unter dem Zeiger
-  const by = z.cy - vh/2 + (py - r.top)  / r.height * vh;
-  ANSICHT[id] = {k: k2, cx: bx + (z.cx - bx) * z.k / k2, cy: by + (z.cy - by) * z.k / k2};
+  // Blattpunkt unter dem Zeiger, aus der viewBox, wie sie gerade steht
+  const [vx, vy, vw, vh] = svg.getAttribute("viewBox").split(/[\s,]+/).map(Number);
+  const bx = vx + (px - r.left) / r.width  * vw;
+  const by = vy + (py - r.top)  / r.height * vh;
+  ANSICHT[id] = {k: k2, cx: z.cx, cy: z.cy};
+  ansichtAnwenden(id);
+  /* Erst jetzt steht das Fenster (beim ersten Zoomen wird das SVG höher):
+     die Mitte so legen, dass derselbe Blattpunkt unter dem Zeiger bleibt. */
+  const r2 = svg.getBoundingClientRect();
+  const [, , w2, h2] = svg.getAttribute("viewBox").split(/[\s,]+/).map(Number);
+  ANSICHT[id] = {k: k2, cx: bx - ((px - r2.left) / r2.width  - 0.5) * w2,
+                        cy: by - ((py - r2.top)  / r2.height - 0.5) * h2};
   ansichtAnwenden(id);
 }
 /* Verschieben um (dx, dy) Bildschirmpunkte. */
@@ -3762,6 +3734,8 @@ function ansichtEinrichten(id, knopfId, standId){
   ANSICHT_FL[id] = {knopf: knopfId && $(knopfId), stand: standId && $(standId)};
   fl.tabIndex = 0;
   const bild = () => fl.querySelector("svg");
+  // Gezoomt füllt das SVG die Fläche (ansichtFenster) — wird sie anders groß, mitziehen.
+  if(window.ResizeObserver) new ResizeObserver(() => { if(ANSICHT[id] && bild()) ansichtAnwenden(id); }).observe(fl);
   const mitte = () => { const r = bild().getBoundingClientRect(); return [r.left + r.width/2, r.top + r.height/2]; };
 
   fl.addEventListener("wheel", ev => {
@@ -3923,7 +3897,8 @@ function zeichneFuss(r){
   /* Kein Hintergrundrechteck mehr: --bp ist halbdurchsichtig, und ein Rechteck
      in dieser Farbe über der Blaupause war eine zweite Schicht, die beim
      Verschieben als dunkle Platte durchs Bild wanderte. */
-  ziel.innerHTML = `<svg viewBox="0 0 ${B} ${H}" role="img" ` +
+  // display:block wie in .bp-flaeche: ohne die Lücke unter einer Textzeile, die ansichtFenster() sonst mitmisst
+  ziel.innerHTML = `<svg viewBox="0 0 ${B} ${H}" role="img" style="display:block" ` +
     `aria-label="Schnitt durch den Pfostenfuß">${e.join("")}</svg>`;
   const namen = teile.filter(q => !q.pfosten).map(q => q.name);
   $("fuss-neben").textContent =
@@ -5567,6 +5542,149 @@ function ifcErzeugen(r, trasse){
   ].join("\n");
 }
 
+/* ---------- Rundrohre in der Ansicht verschneiden ----------
+   Gerade Rundrohre (Profil kreishohl), deren Achsen in einer Ebene liegen und
+   sich rechtwinklig kreuzen — beim Rohrgeländer Pfosten, Holme, Handlauf und
+   das senkrechte Rohr des Ohrs. Als Hüllrechtecke gezeichnet lägen ihre
+   Umrisse ineinander. Hier wird jedes Rohr so gezeichnet, wie man den
+   geschweißten Stoß sieht:
+   - Was von einem Umriss innerhalb eines anderen Rohrs liegt, fällt weg
+     (dort ist Rohr, keine Kante).
+   - Dazu kommt die Verschneidungslinie der beiden Mantelflächen. Für ein
+     waagerechtes Rohr (Halbmesser a) und ein lotrechtes (b) mit sich
+     schneidenden Achsen gilt in der Ansicht u² − w² = b² − a², u und w der
+     Abstand von der lotrechten bzw. waagerechten Achse. Bei gleichem
+     Durchmesser sind das zwei Geraden: das Kreuz am durchlaufenden Holm, die
+     Spitze am Pfostenkopf unter dem Handlauf und am Holmende im Endpfosten,
+     so wie die Richtzeichnung Gel 7 sie zeichnet. Bei verschiedenen
+     Durchmessern ist es eine Hyperbel, als Polylinie aus 12 Stücken.
+   Gezeichnet wird nur, was in beiden Rohren liegt; endet ein Rohr im
+   anderen, bleibt die Linie auf dessen Seite. Sie gehört zum Rohr, das am
+   Stoß endet, beim Kreuz zum dünneren, bei gleichem zum waagerechten.
+   Deshalb ist die Zeichnung nur mit allen Layern vollständig: ohne HOLM
+   fehlen den Pfosten die Stücke, die der Holm verdeckt hätte.
+   Bögen, Kanten und alles Eckige bleiben, wie sie sind.
+   Rückgabe: Map Bauteil → Liste von Strecken [x1, z1, x2, z2]. */
+function dxfRohrverschnitt(teile){
+  const EPS = 1e-6;
+  const rohre = teile.filter(q => q.art === "quader" && q.profil && q.profil.typ === "kreishohl" &&
+                                  q.dx > 0 && q.dz > 0 && Math.abs(q.dx - q.dz) > EPS)
+    .map(q => {
+      const steht = q.dz > q.dx;
+      return {q, steht, rad: (steht ? q.dx : q.dz) / 2, ym: q.y + q.dy/2,
+              x1: q.x, x2: q.x + q.dx, z1: q.z, z2: q.z + q.dz,
+              ax: q.x + q.dx/2, az: q.z + q.dz/2};
+    });
+  const aus = new Map();
+  if(rohre.length < 2) return aus;
+  /* Ein Rohr, das genau an der Flanke eines anderen endet (der Holm am
+     senkrechten Rohr des Ohrs), ist dort angeschweißt wie eines, das bis zur
+     Achse reicht. Für die Zeichnung bis zur Achse verlängern — dann bekommt
+     es dieselbe Verschneidungslinie. Die Körper selbst bleiben, wie sie sind. */
+  for(const p of rohre) for(const o of rohre){
+    // nur ein dünneres oder gleich dickes Rohr — ein dickeres sitzt wirklich stumpf an
+    if(p.steht === o.steht || Math.abs(o.ym - p.ym) > 1 || p.rad > o.rad + EPS) continue;
+    if(!p.steht && p.z1 >= o.z1 - EPS && p.z2 <= o.z2 + EPS){
+      if(Math.abs(p.x1 - o.x2) < 0.01) p.x1 = o.ax;
+      if(Math.abs(p.x2 - o.x1) < 0.01) p.x2 = o.ax;
+    }
+    if(p.steht && p.x1 >= o.x1 - EPS && p.x2 <= o.x2 + EPS){
+      if(Math.abs(p.z1 - o.z2) < 0.01) p.z1 = o.az;
+      if(Math.abs(p.z2 - o.z1) < 0.01) p.z2 = o.az;
+    }
+  }
+  /* Wo ein gerades Rohr bündig in einen Bogen gleichen Durchmessers übergeht
+     (Handlauf → Endbogen → Endpfosten, die Rohrschlaufe des Ohrs), ist es ein
+     durchgebogenes Rohr: dort kein Stoßstrich. Die Bogenenden auf der Achse,
+     mit denselben Winkeln wie die ARC in dxfErzeugen(). */
+  const bogenEnden = [];
+  for(const q of teile){
+    if(q.art !== "bogen") continue;
+    const a1 = q.oben ? (q.seite < 0 ? 90 : 0) : (q.seite < 0 ? 180 : 270);
+    const rad = ((q.profil && q.profil.d) || 60) / 2;
+    for(const a of [a1, a1 + 90])
+      bogenEnden.push({x: q.cx + q.R * Math.cos(a * Math.PI/180), z: q.cz + q.R * Math.sin(a * Math.PI/180), rad});
+  }
+  const amBogen = (p, x, z) => bogenEnden.some(e => Math.abs(e.rad - p.rad) < 0.01 &&
+                                                   Math.abs(e.x - x) < 0.01 && Math.abs(e.z - z) < 0.01);
+  for(const p of rohre){
+    const st = [];
+    // Die vier Umrisskanten, jede ohne die Stücke, die in einem anderen Rohr liegen.
+    const kanten = [[p.x1, p.z1, p.x2, p.z1], [p.x2, p.z1, p.x2, p.z2],
+                    [p.x2, p.z2, p.x1, p.z2], [p.x1, p.z2, p.x1, p.z1]];
+    kanten.forEach(([xa, za, xb, zb], i) => {
+      const stirn = p.steht ? i % 2 === 0 : i % 2 === 1;
+      kanten[i] = stirn && amBogen(p, (xa + xb)/2, (za + zb)/2) ? null : [xa, za, xb, zb, stirn];
+    });
+    for(const k of kanten){
+      if(!k) continue;
+      const [xa, za, xb, zb, stirn] = k;
+      const weg = [];                                      // verdeckte Abschnitte, Parameter 0…1
+      for(const o of rohre){
+        if(o === p || Math.abs(o.ym - p.ym) > 1) continue;
+        // Achsparallele Strecke gegen das offene Rechteck von o
+        let t0 = 0, t1 = 1;
+        const dx = xb - xa, dz = zb - za;
+        const schnitt = (s, d, lo, hi) => {
+          if(Math.abs(d) < EPS) return s > lo + EPS && s < hi - EPS;
+          let a = (lo - s) / d, b = (hi - s) / d;
+          if(a > b) [a, b] = [b, a];
+          t0 = Math.max(t0, a); t1 = Math.min(t1, b);
+          return t1 > t0 + EPS;
+        };
+        if(!(schnitt(xa, dx, o.x1, o.x2) && schnitt(za, dz, o.z1, o.z2))) continue;
+        /* Endet ein dickeres Rohr im dünneren (Pfosten 76,1 auf der Achse eines
+           Handlaufs 48,3), liegt seine Stirn zwischen den beiden Scheiteln der
+           Verschneidungslinie vorn: |u| < Wurzel(b² − a²) bleibt stehen. */
+        if(stirn && p.steht !== o.steht && p.rad > o.rad + EPS){
+          const c = Math.sqrt(p.rad*p.rad - o.rad*o.rad);
+          const s0 = p.steht ? xa : za, ds = p.steht ? dx : dz, m = p.steht ? p.ax : p.az;
+          let c0 = (m - c - s0) / ds, c1 = (m + c - s0) / ds;
+          if(c0 > c1) [c0, c1] = [c1, c0];
+          if(Math.min(t1, c0) > t0 + EPS) weg.push([t0, Math.min(t1, c0)]);
+          if(t1 > Math.max(t0, c1) + EPS) weg.push([Math.max(t0, c1), t1]);
+          continue;
+        }
+        weg.push([t0, t1]);
+      }
+      weg.sort((m, n) => m[0] - n[0]);
+      let t = 0;
+      for(const [a, b] of weg){
+        if(a > t + EPS) st.push([xa + (xb-xa)*t, za + (zb-za)*t, xa + (xb-xa)*a, za + (zb-za)*a]);
+        t = Math.max(t, b);
+      }
+      if(t < 1 - EPS) st.push([xa + (xb-xa)*t, za + (zb-za)*t, xb, zb]);
+    }
+    aus.set(p.q, st);
+  }
+  // Verschneidungslinien je Paar aus einem lotrechten und einem waagerechten Rohr
+  for(const v of rohre) for(const h of rohre){
+    if(!v.steht || h.steht || Math.abs(v.ym - h.ym) > 1) continue;
+    if(!(h.x1 < v.x2 - EPS && h.x2 > v.x1 + EPS && v.z1 < h.z2 - EPS && v.z2 > h.z1 + EPS)) continue;
+    const a = h.rad, b = v.rad;
+    const hEndet = (h.x1 > v.x1 + EPS && h.x1 < v.x2 - EPS) || (h.x2 > v.x1 + EPS && h.x2 < v.x2 - EPS);
+    const vEndet = (v.z1 > h.z1 + EPS && v.z1 < h.z2 - EPS) || (v.z2 > h.z1 + EPS && v.z2 < h.z2 - EPS);
+    const zu = hEndet && !vEndet ? h : vEndet && !hEndet ? v : (b < a - EPS ? v : h);
+    const N = Math.abs(a - b) < EPS ? 2 : 12;           // gleiche Rohre: zwei Geraden je Seite
+    for(const seite of [-1, 1]){
+      const pkt = [];
+      for(let i = 0; i <= N; i++){
+        let u, w;
+        if(a <= b){ w = -a + 2*a*i/N; u = seite * Math.sqrt(Math.max(0, b*b - a*a + w*w)); }
+        else      { u = -b + 2*b*i/N; w = seite * Math.sqrt(Math.max(0, a*a - b*b + u*u)); }
+        const x = v.ax + u, z = h.az + w;
+        // nur wo beide Rohre wirklich sind (mit der Rechenungenauigkeit am Rand)
+        const ok = x >= h.x1 - 1e-4 && x <= h.x2 + 1e-4 && z >= v.z1 - 1e-4 && z <= v.z2 + 1e-4;
+        pkt.push(ok ? [x, z] : null);
+      }
+      const st = aus.get(zu.q);
+      for(let i = 0; i < N; i++)
+        if(pkt[i] && pkt[i+1]) st.push([pkt[i][0], pkt[i][1], pkt[i+1][0], pkt[i+1][1]]);
+    }
+  }
+  return aus;
+}
+
 /* ---------- DXF der Ansicht (R12, 2D in der XZ-Ebene) ---------- */
 function dxfErzeugen(r){
   const teile = bauteile(r);
@@ -5598,8 +5716,13 @@ function dxfErzeugen(r){
      geht auf VERANKERUNG; ein Handlauf-Teil auf HANDLAUF, gleich wie es heißt. */
   const lageVon = q => q.verank ? "VERANKERUNG"
     : (LAGEN[q.name] || (/^Handlauf\b/.test(q.name) ? "HANDLAUF" : "GELAENDER"));
+  const rohre = dxfRohrverschnitt(teile);
   teile.forEach(q => {
     const lage = lageVon(q);
+    if(rohre.has(q)){
+      for(const [x1, y1, x2, y2] of rohre.get(q)) linie(x1, y1, x2, y2, lage);
+      return;
+    }
     if(q.art === "bogen"){
       const d = (q.profil && q.profil.d) || 60;
       /* Der Viertelkreis liegt auf der Seite des Mittelpunktes, auf der das
@@ -9950,8 +10073,7 @@ try{
 
     const ablage = hol("mappe-ablage");
     ablage.innerHTML = n === 0
-      ? '<svg class="maskottchen" viewBox="0 0 64 64" aria-hidden="true"><use href="#gely-zeichen"/></svg>' +
-        '<span><b>Die Mappe ist leer.</b><br><span style="font-size:11px">Geländer hierher ziehen — alle landen zusammen in <b>einer</b> IFC-Datei.</span></span>'
+      ? '<span><b>Die Mappe ist leer.</b><br><span style="font-size:11px">Geländer hierher ziehen — alle landen zusammen in <b>einer</b> IFC-Datei.</span></span>'
       : (bearbeitet >= 0
           ? 'Hierher ziehen legt ein <b>neues</b> Geländer ab'     // wie man ersetzt, steht in der Zeile über „IFC 4 schreiben"
           : 'Geländer hierher ziehen<br><span style="font-size:11px">oder im Export „In die Mappe“ drücken</span>');
@@ -10009,7 +10131,7 @@ try{
 
   /* ---------- Das Ablegen sichtbar machen ----------
      Ein Kärtchen fliegt vom Ausgangspunkt in den Zähler, dort pulst der
-     Zähler, der neue Eintrag leuchtet auf, das Maskottchen hüpft. Wer
+     Zähler, der neue Eintrag leuchtet auf. Wer
      „Bewegung reduzieren" eingestellt hat, bekommt nur das Aufleuchten.
      Scheitert etwas daran, bleibt es beim Ablegen; die Bewegung ist Beiwerk. */
   const ruhig = () => window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -10023,18 +10145,10 @@ try{
     li.classList.remove("neu"); void li.offsetWidth; li.classList.add("neu");
     li.addEventListener("animationend", () => li.classList.remove("neu"), {once:true});
   }
-  function huepfen(){
-    if(ruhig()) return;
-    document.querySelectorAll(".leiste-kopf .maskottchen, .kopfleiste .maskottchen").forEach(m => {
-      m.classList.remove("winkt"); void m.getBoundingClientRect(); m.classList.add("winkt");
-      m.addEventListener("animationend", () => m.classList.remove("winkt"), {once:true});
-    });
-  }
   function zeigenBewegt(name, von){
     zeigen();
     const i = mappe.length - 1;
     if(ruhig() || !von || !von.animate){ aufleuchten(i); return; }
-    huepfen();
     /* Der Zähler, der wirklich im Bild ist: unter 1000 px liegt der in der
        Leiste außerhalb (die Schublade ist nur hinausgeschoben), dann ist es
        der am Chip oben. */
@@ -10103,7 +10217,7 @@ try{
       if(wohin >= 0 && wohin < mappe.length){
         mappe[wohin] = eintrag;
         if(wohin === bearbeitet){ bearbeitet = -1; vorher = null; nachBearbeiten = ""; }
-        zeigen(); aufleuchten(wohin); huepfen();
+        zeigen(); aufleuchten(wohin);
       } else {
         mappe.push(eintrag);
         /* Neu abgelegt, während ein Eintrag bearbeitet wurde: das Bearbeiten
@@ -10713,7 +10827,11 @@ try{
     angemeldet = true;
     requestAnimationFrame(() => { angemeldet = false; try{ bauen(); }catch(e){} });
   }
-  new MutationObserver(nachziehen).observe(spalten, {childList:true, subtree:true, characterData:true,
+  /* Ausgenommen: die Höhe, die ansichtFenster() einem gezoomten Bild setzt —
+     sonst baute jeder Schritt am Rad die Leiste neu. */
+  const nurBildhoehe = m => m.type === "attributes" && m.target.tagName === "svg" &&
+                            m.target.parentElement && m.target.parentElement.closest(".bp-flaeche, #fuss-bild");
+  new MutationObserver(ms => { if(!ms.every(nurBildhoehe)) nachziehen(); }).observe(spalten, {childList:true, subtree:true, characterData:true,
                                                       attributes:true, attributeFilter:["hidden","open","style","class"]});
   if(typeof zeichneBand === "function"){
     const alt = zeichneBand;
@@ -10988,6 +11106,8 @@ try{
     FLAECHEN.map(hol).filter(Boolean).forEach(f => {
       setzen(f, "--fl-hoehe", hoehe.get(f) || 0, "px");
       setzen(f, "--fl-svg-b", breite.get(f) || 0, "%");
+      // Ein gezoomtes Bild hat eine feste Höhe (ansichtFenster) — an die neue Fläche anpassen.
+      if(ANSICHT[f.id]) ansichtAnwenden(f.id);
     });
     if(liste) setzen(liste, "--liste-max", listeMax, "px");
     // Genau, ohne die Toleranz von setzen(): schon 1 px zu viel ließe die Seite rollen.
