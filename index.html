@@ -3674,7 +3674,10 @@ function ansichtFenster(fl, svg, gezoomt){
   const cs = getComputedStyle(fl);
   let frei = fl.clientHeight - (parseFloat(cs.paddingTop) || 0) - (parseFloat(cs.paddingBottom) || 0);
   for(const c of fl.children) if(c !== svg) frei -= c.getBoundingClientRect().height;
-  const natur = svg.getBoundingClientRect().height;
+  // Natürliche Höhe aus dem Blatt, nicht gemessen: die viewBox ist schon die
+  // gezoomte, gemessen wanderte die Höhe um Bruchteile eines Pixels.
+  const bl = ansichtBlatt(svg);
+  const natur = svg.getBoundingClientRect().width * bl.h / bl.b;
   // Nur die Höhe: die Breite bleibt, sonst spränge der Maßstab beim ersten Zoomen.
   svg.style.height = `${Math.max(natur, Math.floor(frei))}px`;
 }
