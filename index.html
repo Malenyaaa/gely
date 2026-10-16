@@ -2907,6 +2907,16 @@ function pruefen(r){
       p("fehler","Holme passen nicht",
         `Zwischen Fuß und Handlauf bleiben ${fmt(Math.max(0, r.h - (r.fuss || 0) - t.qHandlauf.d))} ${einheit} — ` +
         `zu wenig für ${r.holme} Holme Ø ${fmt(t.qHolm.d)} ${einheit} mit lichtem Abstand. Die Holme liegen dann ineinander oder unter dem Fuß.`);
+    /* Baulich: üblich läuft der Pfosten durch, und die Holme sind ihm mit
+       Sattelschnitt angeschweißt — das geht nur, solange der Holm nicht
+       dicker ist als der Pfosten. */
+    if(r.holme && t.qHolm.d > t.qPfosten.d + 1e-6)
+      p("hinweis","Holm dicker als Pfosten",
+        `Holm Ø ${fmt(t.qHolm.d)} ${einheit}, Pfosten Ø ${fmt(t.qPfosten.d)} ${einheit}. Der Holm umfasst den Pfosten ` +
+        `nicht mehr: an den Zwischenpfosten läuft deshalb der Holm durch und der Pfosten ist oben und unten an ihn ` +
+        `angeschweißt, an den Endpfosten stößt das Holmrohr stumpf an die Pfostenflanke. Dort berührt es den Pfosten ` +
+        `nur auf einer Linie und bleibt offen — das Ende braucht einen eigenen Abschluss, den das Werkzeug nicht baut. ` +
+        `Üblich ist der Holm höchstens so dick wie der Pfosten.`);
   }
 
   const wPruef = r.wGroesst !== undefined ? r.wGroesst : r.w;
@@ -4645,7 +4655,11 @@ function bauteile(r){
          Pfosten, und der steht lotrecht. Stünde der Schuh schräg, ginge der
          Pfosten durch seine Wand. Auf einem Bauwerk ohne Neigung fällt beides
          zusammen; erst am Flügel mit 66 % trennt es sich. */
-      aus[k].kappe = aus[k].name !== "Pfostenschuh";
+      aus[k].kappe = aus[k].name !== "Pfostenschuh" && aus[k].name !== "Fundament";
+      /* Das Fundament (Gel 7) steht lotrecht im Boden, auch auf einer geneigten
+         Trasse: Sohle waagerecht, Kopf in der Ebene, auf der der Pfosten
+         aufsetzt (IFC und Schrägansicht, Marke lot). Entschieden 16.10.2026. */
+      if(aus[k].name === "Fundament") aus[k].lot = true;
     }
   }
 
@@ -4746,7 +4760,19 @@ function bauteile(r){
     const eL = ohrLaengsEnde(r, -1, art), eR = ohrLaengsEnde(r, 1, art);
     for(const [a1, a2] of holmAbschnitte(r, eL !== null ? eL : hox1, eR !== null ? eR : hox2)){
       if(a2 - a1 < 1) continue;
-      if(t.rohr) quader("Holm", t.qHolm, a1, -t.qHolm.d/2, z - t.qHolm.d/2, a2 - a1, t.qHolm.d, t.qHolm.d);
+      if(t.rohr){
+        /* Ein Holmrohr, das dicker ist als das Pfostenrohr, kann nicht bis zur
+           Pfostenachse laufen: der Schnitt am Pfosten nähme ihm nur dessen
+           Zylinder, und die Stirn stünde seitlich über. Es stößt dann stumpf an
+           die Pfostenflanke. Gleich dick oder dünner bleibt es wie bisher. */
+        let b1 = a1, b2 = a2;
+        const dP = t.qPfosten.d, dH = t.qHolm.d;
+        if(dH > dP + 1e-6){
+          if(r.achsen.some(x => Math.abs(x - a1) < 1e-6)) b1 = a1 + dP/2;
+          if(r.achsen.some(x => Math.abs(x - a2) < 1e-6)) b2 = a2 - dP/2;
+        }
+        if(b2 - b1 >= 1) quader("Holm", t.qHolm, b1, -dH/2, z - dH/2, b2 - b1, dH, dH);
+      }
       else       quader("Holm", t.qHolm, a1, -hq/2, z - hh/2, a2 - a1, hq, hh);
     }
   });
@@ -5486,6 +5512,16 @@ function ifcErzeugen(r, trasse){
     return k;
   };
 
+  /* Ein lotrecht stehender Block unter dem Pfosten (Fundament, Marke lot):
+     Sohle waagerecht in seiner Tiefe, Kopf in der Kappenebene — dort, wo
+     fussUndKopf() den Pfosten aufsetzen lässt. */
+  const fundamentSchnitt = (koerper, u, my, mz) => {
+    const R = rahmenLot(TR, u), K = rahmenKappe(TR, u);
+    let k = setz(`IFCBOOLEANCLIPPINGRESULT(.DIFFERENCE.,${koerper},${halbraum(abb(R, 0, my, mz), [0,0,1], true)});`);
+    k = setz(`IFCBOOLEANCLIPPINGRESULT(.DIFFERENCE.,${k},${halbraum(abb(K, 0, my, 0), K.ez, false)});`);
+    return k;
+  };
+
   /* Ein Quader als Körper, ohne Gehrung und ohne Fuß- und Kopfschnitt. Mit
      profErsatz dasselbe Teil mit einem anderen Profil, an derselben Stelle —
      so entsteht der volle Zylinder, mit dem ein Rohr am Stoß geschnitten wird. */
@@ -5510,7 +5546,10 @@ function ifcErzeugen(r, trasse){
        lotrecht auf der Sollhöhe, geschnitten wird mit der geneigten Fuge unter
        dem Handlauf — abzuschneiden ist deshalb nur, was die halbe Pfostenbreite
        mal der Neigung ausmacht. Bei 70 mm Pfosten und 66 % sind das 23 mm. */
-    const U = steht ? UEBERLAENGE : 0;
+    // Ein breiter Block (Fundament) braucht mehr: an seiner hohen Ecke steigt die
+    // Kappenebene um halbe Breite mal Neigung über die Mitte. Unten schadet es nicht,
+    // die Sohle wird waagerecht geschnitten.
+    const U = steht ? (q.lot ? Math.max(UEBERLAENGE, q.dx + q.dy) : UEBERLAENGE) : 0;
     const P = setzPlatz([g.mx, g.my, g.mz - U], g.ax, g.ref, g.mx,
                         (TR && laengs) ? {bis: g.mx + q.dx, mVor: m.mVor, mNach: m.mNach}
                       : aufKappe      ? {kappe: true} : null);
@@ -5592,6 +5631,7 @@ function ifcErzeugen(r, trasse){
     const q2 = STOSS_MASS.get(q) || q;
     const k = quaderRoh(q2);
     let erg = k.laengs ? gehren(k.koerper1, q2)
+            : k.steht && q.lot ? fundamentSchnitt(k.koerper1, k.g.mx, k.g.my, k.g.mz)
             : k.steht ? fussUndKopf(k.koerper1, k.g.mx, k.g.my, k.g.mz, k.g.tiefe, q.name === "Pfosten")
             : k.koerper1;
     for(const o of STOSS_SCHNITT.get(q) || []){
@@ -6158,9 +6198,14 @@ function schraegKoerper(r, alpha){
     const R = rahmenLot(TR, mx), mz = q.z, hoehe = q.dz;
     const B = rahmenBahn(TR, Math.max(0, mx - 100), mx + 100);
     const K = q.name === "Pfosten" ? rahmenKappe(TR, mx) : null;
-    const pFuss = K ? abb(K, 0, my, mz) : abb(R, 0, my, mz);
-    const nFuss = K ? K.ez : (Math.abs(mz) < 1 ? trNormale(TR, mx) : B.ez);
-    const pKopf = abb(R, 0, my, mz + hoehe), nKopf = B.ez;
+    let pFuss = K ? abb(K, 0, my, mz) : abb(R, 0, my, mz);
+    let nFuss = K ? K.ez : (Math.abs(mz) < 1 ? trNormale(TR, mx) : B.ez);
+    let pKopf = abb(R, 0, my, mz + hoehe), nKopf = B.ez;
+    if(q.lot){                                            // Fundament: wie fundamentSchnitt() in der IFC
+      const KK = rahmenKappe(TR, mx);
+      pFuss = abb(R, 0, my, mz); nFuss = [0, 0, 1];
+      pKopf = abb(KK, 0, my, 0); nKopf = KK.ez;
+    }
     const qs = querschnitt(q, dx, q.dy);
     const o = abb(R, 0, my, 0);
     const schnitt = (Q, P0, n) => {                      // lotrecht auf die Ebene (P0, n)
