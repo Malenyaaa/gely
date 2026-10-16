@@ -7,12 +7,12 @@
   AUFBAU
   Eine HTML-Datei hat vier Teile, hier in dieser Reihenfolge:
 
-    <style>   Zeile  121 –  983   wie es aussieht (Farben, Leiste, Raster, Karten)
-    <script>  Zeile  984 – 1054   Farbschema und Zeichen im Browser-Tab; muss vor
-                                  dem ersten Zeichnen laufen, sonst blitzt es
-    <body>    Zeile 1056 – 1884   was auf der Seite steht (Felder, Knöpfe, Texte)
-    <script>  ab Zeile 1885      was gerechnet wird, am Ende die Bausteine der
-                                  Oberfläche (Weg, Mappe, Leiste links)
+    <style>   Zeile  121 – 1354   wie es aussieht (Farben, HUD, Leiste, Karten)
+    <script>  Zeile 1355 – 1399   Farbschema; muss vor dem ersten Zeichnen
+                                  laufen, sonst blitzt es
+    <body>    Zeile 1401 – 2224   was auf der Seite steht (Felder, Knöpfe, Texte)
+    <script>  ab Zeile 2225      was gerechnet wird, am Ende die Bausteine der
+                                  Oberfläche (Weg, Mappe, Leiste, Bühne und Dock)
 
   Alles Rechnende steckt im <script>. Nichts davon läuft im Netz, nichts wird
   gespeichert, es gibt keine zweite Datei. Wer etwas ändern will, sucht die
@@ -120,7 +120,7 @@
 <title>Gely — Geländer-Berechnung nach RiZ-ING</title>
 <style>
 /* ===========================================================================
-   OBERFLÄCHE — flache Fassung mit Leiste links (seit 15.10.2026)
+   OBERFLÄCHE — das HUD (seit 16.10.2026, davor flach mit Leiste links)
 
    Aufgebaut wie zuvor: oben die Marken (CSS-Variablen), darunter die Regeln.
    Keine Regel weiter unten kennt eine feste Farbe; wer das Aussehen ändern
@@ -128,17 +128,22 @@
 
    WAS DIESE FASSUNG AUSMACHT
 
-     - Flächen statt Glas: weiße Karten mit 1 px Kante auf hellgrauem Grund,
-       kaum Schatten, Ecken 10 px. Kein Weichzeichnen, keine Lichtkanten,
-       kein wandernder Grund — und damit auch kein Schalter dafür.
-     - Eine Akzentfarbe (Blau) für alles, was man anklicken kann; Grün,
-       Ocker und Rot nur für Prüfungen, Hinweise und Fehler.
+     - Ab 1001 px Fensterbreite liegt die Ansicht als Bühne über den ganzen
+       Bildschirm, auf einem Raster, frei zu zoomen und zu verschieben wie in
+       CAD. Darüber halbdurchsichtige Glastafeln (Weichzeichnen hinter der
+       Tafel): Name, Band, Eingabekarten, Prüfungen, unten das Dock mit den
+       Abschnitten, der Mappe und den Schaltern. Abschnitt „Das HUD" unten.
+     - Zwei Schemata: Nacht (dunkel, Linien hell, Akzent Cyan) und Papier
+       (hell, Linien dunkelblau). Die Zeichnung liest dieselben Marken.
+     - Eine Akzentfarbe für alles, was man anklicken kann, leuchtend, wo es
+       gewählt ist (die Pille der Wahlbahnen); Grün, Ocker und Rot nur für
+       Prüfungen, Hinweise und Fehler.
      - Systemschrift für Text, die Schreibmaschinenschrift des Systems für
-       alle Maße und Zähler, mit gleich breiten Ziffern.
-     - Die Zeichenfläche bleibt dunkelblau mit hellen Linien.
-     - Links eine Leiste: Kopf, Abschnitte mit Stand, die Mappe, das
-       Farbschema. Unter 1000 px Fensterbreite wird sie zur Schublade hinter
-       einer Kopfzeile; unter 900 px stehen die Spalten untereinander.
+       alle Maße und Zähler, mit gleich breiten Ziffern; Kartenköpfe und
+       Bandbeschriftungen in kleinen Versalien wie Anzeigen.
+     - Bis 1000 px kein HUD: die Leiste ist eine Schublade hinter einer
+       Kopfzeile, die Ansicht eine Karte; unter 900 px stehen die Spalten
+       untereinander.
 
    Das dunkle Schema tauscht nur die Marken. Gesetzt wird data-theme immer
    ausdrücklich auf "hell" oder "dunkel" — das Skript im Kopf löst "System"
@@ -146,44 +151,57 @@
    =========================================================================== */
 :root{
   /* Blaupause — die Zeichenfläche. Die Linien darin kommen aus dem SVG und
-     lesen dieselben Marken. */
-  --bp:#10304f;
-  --bp-tief:#0a2a46;
-  --bp-linie:#e9f2fa;
-  --bp-hilf:#7fa8c8;
-  --bp-mass:#a9cde8;
+     lesen dieselben Marken. Im Papier-Schema dunkle Linien auf hellem Grund. */
+  --bp:#f3f6f9;
+  --bp-tief:#e6edf4;
+  --bp-linie:#16324d;
+  --bp-hilf:#7f9ab3;
+  --bp-mass:#1f6fae;
 
   /* Oberfläche */
-  --grund:#f2f4f7;          /* Seite */
-  --rahmen:#e3e7ed;         /* der feste Rahmen: Leiste und Band */
-  --rahmen-schatten:0 8px 14px -10px rgba(27,33,41,.45);
-  --karte:#ffffff;          /* Karten, Leiste */
-  --karte-tief:#f6f7f9;     /* eine Stufe tiefer: Bahnen, Kacheln, Formeln */
-  --kante:#e2e5ea;
-  --kante-stark:#c6ccd5;
-  --ink:#1b2129;
-  --ink-weich:#596270;
-  --ink-leise:#8b93a0;
-  --blau:#1f5f9c;
+  --grund:#eef2f6;          /* Seite */
+  --grund-2:#dfe7ef;        /* die Mitte der Bühne, etwas tiefer */
+  --rahmen:#e4eaf1;         /* der feste Rahmen: Leiste und Band */
+  --rahmen-schatten:0 8px 14px -10px rgba(20,50,80,.35);
+  --karte:#ffffff;          /* deckende Flächen: Listen, Kästen, Dialoge */
+  --karte-tief:rgba(20,60,100,.05);   /* eine Stufe tiefer: Bahnen, Kacheln, Formeln */
+  --kante:rgba(20,60,100,.13);
+  --kante-stark:rgba(20,60,100,.25);
+  --ink:#122233;
+  --ink-weich:#4b6177;
+  --ink-leise:#7f92a5;
+  --blau:#0f6fb8;
   --blau-ink:#ffffff;       /* Schrift auf Blau */
-  --blau-hell:#e7eff9;
+  --blau-hell:rgba(15,111,184,.10);
 
-  --rot:#a93226;
-  --rot-hell:#f9e5e2;
-  --ocker:#8a5f0b;
-  --ocker-hell:#fbf1d8;
-  --gruen:#1e6a47;
-  --gruen-hell:#e3f2ea;
+  --rot:#c0362b;
+  --rot-hell:rgba(204,48,48,.10);
+  --ocker:#946400;
+  --ocker-hell:rgba(185,125,0,.12);
+  --gruen:#14794d;
+  --gruen-hell:rgba(20,145,92,.10);
+
+  /* Das HUD: Glastafeln über der Bühne, das Raster darauf, das Leuchten der
+     Akzentfarbe. */
+  --glas:rgba(255,255,255,.74);
+  --glas-hoch:rgba(255,255,255,.93);
+  --glas-kante:rgba(20,60,100,.14);
+  --glas-licht:rgba(255,255,255,.7);
+  --glanz:rgba(15,111,184,.22);
+  --raster:rgba(30,80,130,.06);
+  --raster-stark:rgba(30,80,130,.11);
+  --schatten-glas:0 18px 40px -22px rgba(20,50,80,.35);
 
   /* Eingabefelder und die Vollton-Knöpfe */
-  --eingabe:#ffffff;
+  --eingabe:rgba(255,255,255,.9);
   --tat-grund:var(--blau);
   --tat-ink:#ffffff;
   --tat-hover-ink:#ffffff;
 
-  /* Die Pille der Wahlbahnen (der Gleiter) */
-  --gleiter-fuell:#ffffff;
-  --gleiter-schatten:0 1px 2px rgba(27,33,41,.14);
+  /* Die Pille der Wahlbahnen (der Gleiter): Vollton in der Akzentfarbe */
+  --gleiter-fuell:var(--blau);
+  --gleiter-ink:var(--blau-ink);
+  --gleiter-schatten:0 0 12px var(--glanz);
 
   --s:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
   --eng:"Arial Narrow","Helvetica Neue Condensed","Liberation Sans Narrow",var(--s);
@@ -205,34 +223,49 @@
 
 :root[data-theme=dunkel]{
   --bp:#0b2238;
-  --grund:#0f1317;
-  --rahmen:#080a0d;
+  --bp-tief:#081a2b;
+  --bp-linie:#e8f2fb;
+  --bp-hilf:#5f88aa;
+  --bp-mass:#8fd3ff;
+  --grund:#071523;
+  --grund-2:#0c2740;
+  --rahmen:#081a2b;
   --rahmen-schatten:0 8px 14px -8px rgba(0,0,0,.9);
-  --karte:#181d23;
-  --karte-tief:#1f252d;
-  --kante:#2a313a;
-  --kante-stark:#3d4753;
-  --ink:#e8ecf0;
-  --ink-weich:#a8b1bb;
-  --ink-leise:#737d89;
-  --blau:#7fb6e8;
-  --blau-ink:#0b1420;
-  --blau-hell:rgba(127,182,232,.14);
+  --karte:#0f2438;
+  --karte-tief:rgba(4,16,28,.5);
+  --kante:rgba(150,205,255,.14);
+  --kante-stark:rgba(150,205,255,.26);
+  --ink:#e8f2fb;
+  --ink-weich:#9db6cc;
+  --ink-leise:#6b87a1;
+  --blau:#5cc8ff;
+  --blau-ink:#04121f;
+  --blau-hell:rgba(92,200,255,.13);
 
-  --rot:#f5a08f;
-  --rot-hell:rgba(245,160,143,.14);
-  --ocker:#e8bc6a;
-  --ocker-hell:rgba(232,188,106,.14);
-  --gruen:#7fd3a8;
-  --gruen-hell:rgba(127,211,168,.14);
+  --rot:#ff7a6e;
+  --rot-hell:rgba(255,100,100,.13);
+  --ocker:#ffc24b;
+  --ocker-hell:rgba(255,194,75,.13);
+  --gruen:#3ddc97;
+  --gruen-hell:rgba(61,220,151,.12);
 
-  --eingabe:#141920;
+  --glas:rgba(9,27,46,.68);
+  --glas-hoch:rgba(12,34,56,.92);
+  --glas-kante:rgba(150,205,255,.16);
+  --glas-licht:rgba(255,255,255,.06);
+  --glanz:rgba(92,200,255,.35);
+  --raster:rgba(120,180,230,.06);
+  --raster-stark:rgba(120,180,230,.12);
+  --schatten-glas:0 18px 50px -18px rgba(0,0,0,.7);
+
+  --eingabe:rgba(4,16,28,.55);
   --tat-grund:var(--blau);
-  --tat-ink:#0b1420;
-  --tat-hover-ink:#0b1420;
+  --tat-ink:#04121f;
+  --tat-hover-ink:#04121f;
 
-  --gleiter-fuell:#2b333d;
-  --gleiter-schatten:0 1px 2px rgba(0,0,0,.45);
+  --gleiter-fuell:var(--blau);
+  --gleiter-ink:var(--blau-ink);
+  --gleiter-schatten:0 0 14px var(--glanz);
 
   --schatten:0 1px 2px rgba(0,0,0,.4);
   --schatten-hoch:0 2px 4px rgba(0,0,0,.4),0 16px 40px -20px rgba(0,0,0,.9);
@@ -676,7 +709,7 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
 .segment button{font-size:12.5px;padding:7px 0}
 .typwahl button:hover,.segment button:hover{color:var(--ink)}
 .typwahl button[aria-pressed=true],.segment button[aria-pressed=true]{
-  color:var(--blau);font-weight:600;
+  color:var(--gleiter-ink);font-weight:600;
   /* ohne Skript: dann gibt es keinen Gleiter, und der Knopf muss die Pille
      selbst sein. Mit Gleiter wird das gleich darunter wieder abgeräumt. */
   background:var(--gleiter-fuell);box-shadow:var(--gleiter-schatten);
@@ -941,7 +974,7 @@ button.tat.stumm[aria-disabled=true]:hover{background:var(--karte);color:var(--i
 }
 .bp-kopf{
   display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center;
-  padding:9px 14px;border-bottom:1px solid rgba(233,242,250,.16);
+  padding:9px 14px;border-bottom:1px solid color-mix(in srgb,var(--bp-linie) 16%,transparent);
   font-family:var(--z);font-size:11px;letter-spacing:.1em;text-transform:uppercase;
   color:var(--bp-mass);position:relative;
 }
@@ -1020,7 +1053,7 @@ dialog.achsbau::backdrop{background:rgba(8,12,18,.42)}
 /* Der zweite Weg: Achse aus drei Punkten. Oben die Wahl zwischen beiden. */
 .ab-wege{display:flex;gap:3px;padding:3px;margin-bottom:16px;background:var(--karte-tief);border:1px solid var(--kante);border-radius:8px}
 .ab-weg{flex:1 1 0;padding:7px 12px;border:0;border-radius:6px;cursor:pointer;font-family:var(--s);font-size:12.5px;color:var(--ink-weich);background:transparent}
-.ab-weg[aria-pressed="true"]{color:var(--blau);font-weight:600;background:var(--gleiter-fuell);box-shadow:var(--gleiter-schatten)}
+.ab-weg[aria-pressed="true"]{color:var(--gleiter-ink);font-weight:600;background:var(--gleiter-fuell);box-shadow:var(--gleiter-schatten)}
 .ab-preihe{display:grid;grid-template-columns:1.05fr 1fr 1fr 1fr 34px;gap:8px;align-items:center;margin-bottom:7px}
 .ab-preihe.kopf{margin-bottom:5px;font-size:11px;color:var(--ink-weich);font-family:var(--s);letter-spacing:.02em}
 .ab-preihe input{padding:0 10px;font-size:13.5px;height:32px;width:100%}
@@ -1095,6 +1128,198 @@ button, summary, label, select, a, .reiter{cursor:pointer}
   .inhalt{scroll-behavior:auto}
 }
 
+/* ---------- Urhebervermerk ---------- klein und leise, am Ende des Inhalts. */
+.urheber{margin:4px 16px 14px;font-family:var(--z);font-size:10.5px;letter-spacing:.04em;color:var(--ink-leise);text-align:right}
+
+/* ---------- Das HUD: Bühne, Glastafeln, Dock ----------
+   Gilt ab 1001 px Fensterbreite, sobald das Skript „Die Bühne und das Dock"
+   der App die Klasse hud gegeben hat — ohne Skript bleibt die Seite wie
+   auf schmalen Fenstern, nur breit.
+     - Die Bühne: das Raster liegt auf der App, die Ansicht als feste Fläche
+       über den ganzen Bildschirm dahinter (z-index -1; isolation sorgt
+       dafür, dass sie über dem Raster der App liegt). Zoom und Verschieben
+       wie in CAD, eingepasst steht das Blatt im freien Feld zwischen den
+       Tafeln (--frei-*, vom Skript gemessen).
+     - Darüber Glastafeln: Name oben links, das Band oben, links die
+       Eingabe, rechts unten die Prüfungen, unten das Dock mit den
+       Abschnitten, der Mappe und den Schaltern.
+     - Wo keine Tafel liegt, geht der Zeiger durch Inhalt und Spalten
+       hindurch auf die Bühne (pointer-events). */
+@media screen{
+.app.hud{
+  isolation:isolate;grid-template-columns:minmax(0,1fr);
+  background:
+    linear-gradient(var(--raster-stark) 1px,transparent 1px) 0 0/130px 130px,
+    linear-gradient(90deg,var(--raster-stark) 1px,transparent 1px) 0 0/130px 130px,
+    linear-gradient(var(--raster) 1px,transparent 1px) 0 0/26px 26px,
+    linear-gradient(90deg,var(--raster) 1px,transparent 1px) 0 0/26px 26px,
+    radial-gradient(1200px 800px at 60% 45%,var(--grund-2),var(--grund) 75%);
+}
+.app.hud .inhalt{background:transparent;display:flex;flex-direction:column;pointer-events:none;scroll-padding-top:90px}
+.app.hud .inhalt > *{flex:none}
+.app.hud .band,.app.hud .spalten > section > *{pointer-events:auto}
+.app.hud .spalten > section{pointer-events:none}
+/* Rollt etwas, muss sein Rollbalken greifbar sein und das Rad die Seite
+   rollen statt die Zeichnung zu zoomen: die Eingabespalte, die in sich
+   rollt, und der Inhalt, wenn er rollt (Klasse hud-rollt vom Skript —
+   bei einem langen Ergebnis oder mit „Alle Karten"). Rollt er nicht, bleibt
+   die Bühne auch neben einer Ergebniskarte bedienbar. */
+.app.hud .spalten > section.k-rollt,
+.app.hud .inhalt.hud-rollt{pointer-events:auto}
+
+/* Glas */
+.app.hud :is(.karte,.band,.hud-dock,.hud-mappe,.leiste){
+  background:var(--glas);border:1px solid var(--glas-kante);
+  -webkit-backdrop-filter:blur(14px) saturate(1.3);backdrop-filter:blur(14px) saturate(1.3);
+  box-shadow:var(--schatten-glas),inset 0 1px 0 var(--glas-licht);
+}
+.app.hud .karte{border-radius:14px}
+.app.hud .karte-kopf{border-bottom-color:var(--glas-kante)}
+.app.hud .karte-kopf h2{font:600 10.5px/1.4 var(--z);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-weich)}
+.app.hud .klappe > summary.karte-kopf:hover h2{color:var(--blau)}
+.app.hud :is(.zuruecksetzen,.minitat,.mini,.k-frage,.neben-wahl){background:transparent}
+
+/* Oben links: der Name. Von der Leiste bleibt hier nur ihr Kopf, alles
+   andere ist ins Dock gezogen. */
+.app.hud .leiste{
+  position:fixed;left:14px;top:12px;width:236px;height:auto;z-index:6;
+  border-radius:14px;overflow:hidden;display:block;transform:none;
+}
+.app.hud .leiste-kopf{border-bottom:0;padding:9px 12px;gap:10px;min-height:56px}
+.app.hud .leiste-kopf::before{
+  content:"";flex:none;width:30px;height:30px;border-radius:9px;
+  /* ein Geländer als Zeichen: Handlauf, Kappe, drei Pfosten */
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30' fill='none' stroke='white' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M7 21h16M8 10h14M9 10v11M15 10v11M21 10v11'/%3E%3C/svg%3E") center/30px 30px no-repeat,
+    linear-gradient(150deg,var(--blau),color-mix(in srgb,var(--blau) 55%,#000));
+  box-shadow:0 0 18px var(--glanz);
+}
+.app.hud .leiste-kopf b{font-size:15px}
+.app.hud .leiste-kopf small{font-size:10.5px}
+
+/* Das Band: Messwerte wie Anzeigen, das Urteil mit Leuchtpunkt */
+.app.hud .band{position:sticky;top:12px;margin:12px 14px 0 264px;border-radius:14px;overflow:hidden}
+.app.hud .band .zelle{border-right-color:var(--glas-kante);padding:8px 16px}
+.app.hud .band dt{font:600 9.5px var(--z);letter-spacing:.16em;text-transform:uppercase;color:var(--ink-leise)}
+.app.hud .band dd{font-size:20px}
+.app.hud .band .status{background:transparent}
+.app.hud .band .status .fahne{display:flex;align-items:center;gap:9px;font-size:13px}
+.app.hud .band .status .fahne::before{
+  content:"";flex:none;width:9px;height:9px;border-radius:50%;background:currentColor;
+  box-shadow:0 0 0 3px color-mix(in srgb,currentColor 22%,transparent),0 0 14px currentColor;
+}
+.app.hud .band .status.ok{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--gruen) 35%,transparent)}
+.app.hud .band .status.warn{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ocker) 45%,transparent)}
+.app.hud .band .status.fehler{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--rot) 50%,transparent)}
+
+/* Die Spalten: kein eigener Rahmen mehr, sie füllen die Höhe bis über das
+   Dock; die rechte steht unten (Prüfungen über dem Dock). */
+.app.hud .spalten{background:transparent;border:0;border-radius:0;margin:12px 14px 78px;padding:0;flex:1 0 auto}
+.app.hud .spalten > section:last-child{align-self:end}
+/* Kein Kleben im HUD: die Seite rollt bei einer Eingabe ohnehin nicht, und
+   position:sticky machte die rechte Spalte zum eigenen Stapelkontext — die
+   Bühne darin (z-index -1) läge dann über der linken Spalte und finge deren
+   Klicks. */
+.app.hud .spalten.k-umschalten > section.k-kleben{position:static}
+
+/* Die Bühne. Hängt an den Klassen hud-buehne (Karte) und buehne (Fläche),
+   die das Skript nur setzt, solange umgeschaltet wird — mit „Alle Karten"
+   und beim Drucken ist die Ansicht wieder eine Karte. */
+#karte-ansicht.hud-buehne{
+  position:fixed;inset:0;z-index:-1;margin:0;border:0;border-radius:0;
+  background:transparent;box-shadow:none;overflow:hidden;
+}
+.app.hud .spalten.k-umschalten > section > #karte-ansicht.hud-buehne.k-aus{display:block}
+#karte-ansicht.hud-buehne::before{display:none}
+.app.hud .spalten #zeichnung.buehne{position:absolute;inset:0;padding:0;display:block;min-height:0}
+.app.hud .spalten #zeichnung.buehne > svg{width:100% !important;height:100% !important;margin:0}
+.app.hud #zeichnung.buehne:focus-visible{box-shadow:none}
+.app.hud #zeichnung.buehne:focus-visible::before,.app.hud #zeichnung.buehne:focus-visible::after{opacity:1;border-width:2.5px}
+#karte-ansicht.hud-buehne .bp-kopf{
+  position:absolute;left:var(--frei-l,300px);top:var(--frei-t,90px);width:var(--frei-b,600px);
+  padding:2px 0 4px;border:0;color:var(--blau);font-size:10.5px;letter-spacing:.16em;z-index:1;flex-wrap:nowrap;
+}
+#karte-ansicht.hud-buehne #bp-titel{flex:none}
+#karte-ansicht.hud-buehne #bp-neben{color:var(--ink-leise);letter-spacing:.1em;flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#karte-ansicht.hud-buehne .bp-kopf .minitat{color:var(--ink-weich);border-color:var(--glas-kante);background:var(--glas)}
+#karte-ansicht.hud-buehne .bp-kopf .minitat:hover{color:var(--blau);border-color:var(--blau)}
+#karte-ansicht.hud-buehne .bp-stand{color:var(--ink-weich)}
+/* Deckt eine Ergebniskarte das ganze Feld, gibt es dort nichts zu bedienen */
+#karte-ansicht.hud-buehne.hud-verdeckt :is(.bp-kopf,.fehlt-meldung),
+#karte-ansicht.hud-buehne.hud-verdeckt #zeichnung.buehne::before,
+#karte-ansicht.hud-buehne.hud-verdeckt #zeichnung.buehne::after{display:none}
+/* Der gelbe Kasten am Knopf Einpassen steht oben im freien Feld, über der Zeichnung */
+#karte-ansicht.hud-buehne > .fehlt-meldung{position:absolute;left:var(--frei-l,300px);top:calc(var(--frei-t,90px) + 30px);
+  width:min(var(--frei-b,600px),520px);z-index:2;margin:0}
+#zeichnung.buehne .bp-leer{
+  position:absolute;left:var(--frei-l,300px);top:var(--frei-t,90px);width:var(--frei-b,600px);height:var(--frei-h,400px);
+  display:grid;place-items:center;padding:20px;color:var(--ink-weich)}
+/* Sucherecken um das freie Feld */
+#zeichnung.buehne::before,#zeichnung.buehne::after{
+  content:"";position:absolute;width:20px;height:20px;border:1.5px solid var(--blau);opacity:.55;pointer-events:none}
+#zeichnung.buehne::before{left:calc(var(--frei-l,300px) - 6px);top:calc(var(--frei-t,90px) - 6px);border-right:0;border-bottom:0}
+#zeichnung.buehne::after{left:calc(var(--frei-l,300px) + var(--frei-b,600px) - 14px);top:calc(var(--frei-t,90px) + var(--frei-h,400px) - 14px);border-left:0;border-top:0}
+
+/* Die Prüfungen: Kacheln nebeneinander, Rot und Gelb vorn. Neben einer
+   Eingabe knapp (Liste höchstens 22 % der Fensterhöhe, Bestandenes in einer
+   Zeile); im Tab „Prüfungen & Zahlen" ganz. */
+.app.hud #karte-pruefungen .karte-kopf{padding:6px 12px}
+.app.hud #karte-pruefungen .karte-koerper{padding:8px !important}
+.app.hud #pruefungen{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px;background:none}
+.app.hud .spalten.k-umschalten:not(.k-ergebnis) #pruefungen{max-height:min(var(--liste-max,22vh),22vh);overflow-y:auto}
+.app.hud .pruefung{background:var(--karte-tief);border:1px solid var(--kante);border-radius:9px;padding:6px 10px}
+.app.hud .spalten.k-umschalten:not(.k-ergebnis) :is(.p-ok,.p-neutral) > span:last-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.app.hud #k-urteil{padding:7px 14px}
+.app.hud .pruefung.p-fehler{background:var(--rot-hell);border-color:color-mix(in srgb,var(--rot) 50%,transparent)}
+.app.hud .pruefung.p-hinweis{background:var(--ocker-hell);border-color:color-mix(in srgb,var(--ocker) 50%,transparent)}
+.app.hud .pruefung .punkt{box-shadow:0 0 8px currentColor}
+.app.hud .p-ok .punkt{color:var(--gruen)} .app.hud .p-hinweis .punkt{color:var(--ocker)} .app.hud .p-fehler .punkt{color:var(--rot)}
+.app.hud #k-urteil{display:flex;align-items:center;gap:9px;background:transparent;border-bottom-color:var(--glas-kante)}
+.app.hud #k-urteil::before{content:"";flex:none;width:9px;height:9px;border-radius:50%;background:currentColor;box-shadow:0 0 12px currentColor}
+
+/* Das Dock unten: Abschnitte, Mappe, Schalter */
+.app.hud .hud-dock{
+  position:fixed;left:50%;bottom:12px;transform:translateX(-50%);z-index:9;
+  display:flex;align-items:center;gap:2px;padding:6px;border-radius:16px;max-width:calc(100vw - 28px);
+}
+.hud-dock nav.abschnitte{display:flex;align-items:center;gap:2px;padding:0}
+.hud-dock nav.abschnitte .gruppe{font-size:0;padding:0;width:1px;align-self:stretch;margin:6px 5px;background:var(--glas-kante)}
+.hud-dock nav.abschnitte .gruppe:first-child{display:none}
+.hud-dock nav.abschnitte a{grid-template-columns:auto auto auto;gap:7px;height:40px;padding:0 11px 0 8px;border-radius:10px;font-size:12.5px}
+.hud-dock nav.abschnitte a .nr{width:22px;height:22px;background:transparent;border-color:var(--glas-kante)}
+.hud-dock nav.abschnitte a .meta{font-size:0;line-height:0}
+.hud-dock nav.abschnitte a .meta .punkt{margin:0;box-shadow:0 0 8px currentColor}
+.hud-dock nav.abschnitte a .meta .punkt.ok{color:var(--gruen)} .hud-dock nav.abschnitte a .meta .punkt.warn{color:var(--ocker)} .hud-dock nav.abschnitte a .meta .punkt.fehler{color:var(--rot)}
+.hud-dock nav.abschnitte a:hover{background:var(--blau-hell)}
+.hud-dock nav.abschnitte a.aktiv{background:var(--blau-hell);color:var(--ink)}
+.hud-dock nav.abschnitte a.aktiv::before{left:22%;right:22%;top:auto;bottom:1px;width:auto;height:2px;border-radius:2px;box-shadow:0 0 10px var(--blau)}
+.hud-dock nav.abschnitte a.aktiv .nr{background:var(--blau);border-color:var(--blau);color:var(--blau-ink);box-shadow:0 0 12px var(--glanz)}
+.hud-dock #chip-mappe{height:40px;border:0;border-radius:10px;background:transparent;margin-left:11px;position:relative;padding:0 12px}
+.hud-dock #chip-mappe::before{content:"";position:absolute;left:-6px;top:6px;bottom:6px;width:1px;background:var(--glas-kante)}
+.hud-dock #chip-mappe:hover,.hud-dock #chip-mappe[aria-expanded=true]{background:var(--blau-hell);color:var(--blau)}
+.hud-dock .leiste-fuss{border:0;margin:0;padding:0 3px;gap:0}
+.hud-dock .leiste-fuss > span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.hud-dock .leiste-fuss:first-of-type{margin-left:6px}
+/* Wo Platz ist, steht „Alle Karten" ausgeschrieben neben seinem Schalter (der Farbschalter hat Sonne und Mond) */
+@media(min-width:1501px){.hud-dock #alle-label{position:static;width:auto;height:auto;overflow:visible;clip:auto;
+  font-size:11.5px;color:var(--ink-weich);margin:0 7px 0 4px}}
+/* Zu schmal für alle Namen: erst die Ergebnisse, dann alle außer dem gewählten nur mit Zeichen */
+@media(max-width:1500px){.hud-dock nav.abschnitte a:not(.aktiv):has(.nr[data-sinn]) .name{display:none}}
+@media(max-width:1240px){.hud-dock nav.abschnitte a:not(.aktiv) .name{display:none}}
+
+/* Der Urhebervermerk unten rechts, neben dem Dock */
+.app.hud .urheber{position:fixed;right:16px;bottom:16px;margin:0;padding:0;z-index:8;pointer-events:none}
+.app.hud .urheber .lang{display:none}          /* neben dem Dock ist nur für den Namen Platz */
+
+/* Die Mappe öffnet sich über dem Dock */
+.app.hud .hud-mappe{
+  position:fixed;bottom:70px;left:var(--mappe-l,auto);right:auto;width:300px;max-height:calc(100vh - 170px);
+  overflow:auto;z-index:10;border-radius:14px;display:none;background:var(--glas-hoch);
+}
+.app.hud.mappe-offen .hud-mappe{display:block}
+.hud-mappe .mappe{background:transparent;border-top:0}
+}
+
 /* ---------- Schmale Fenster ----------
    Unter 1000 px wird die Leiste zur Schublade hinter der Kopfzeile: Knopf
    „Abschnitte" schiebt sie herein, ein Tipp daneben schließt sie. Die Mappe
@@ -1130,12 +1355,13 @@ button, summary, label, select, a, .reiter{cursor:pointer}
     --rot:#a93226;--rot-hell:#fbeeec;--ocker:#96690e;--ocker-hell:#fbf3e2;
     --gruen:#2b6b50;--gruen-hell:#eaf3ef;
     --eingabe:#fff;--tat-grund:#111;--tat-ink:#fff;--tat-hover-ink:#fff;
-    --schatten:none;--schatten-hoch:none;--gleiter-fuell:#fff;--gleiter-schatten:none;
+    --schatten:none;--schatten-hoch:none;--gleiter-fuell:#fff;--gleiter-ink:#111;--gleiter-schatten:none;
+    --glas:#fff;--glas-hoch:#fff;--glas-kante:#ccc;--glanz:transparent;
     color-scheme:light;
   }
   body{background:#fff}
-  .app{display:block;height:auto;overflow:visible}
-  .leiste,.kopfleiste,.schleier{display:none!important}
+  .app{display:block;height:auto;overflow:visible;background:#fff}
+  .leiste,.kopfleiste,.schleier,.hud-dock,.hud-mappe{display:none!important}
   .inhalt{overflow:visible}
   .spalten{margin:0;border:0;border-radius:0}
   .band{position:static;border:1px solid #ccc;box-shadow:none}
@@ -1213,7 +1439,7 @@ button, summary, label, select, a, .reiter{cursor:pointer}
       <span id="alle-label">Alle Karten zeigen</span><span class="fuell"></span>
       <button type="button" class="schalter" id="alleschalter" role="switch" aria-checked="false"
               aria-labelledby="alle-label"
-              title="Aus: nur die Karten des Abschnitts, der in der Leiste gewählt ist — bei einer Eingabe mit Ansicht und Prüfungen dazu. An: alle Karten untereinander, die Leiste springt nur noch hin."><span class="knopf"></span></button>
+              title="Alle Karten zeigen. Aus: nur die Karten des gewählten Abschnitts — bei einer Eingabe mit Ansicht und Prüfungen dazu. An: alle Karten untereinander, die Ansicht als Karte darunter; ein Klick auf einen Abschnitt springt nur noch hin."><span class="knopf"></span></button>
     </div>
     <div class="leiste-fuss">
       <span>Farbschema</span><span class="fuell"></span>
@@ -1878,7 +2104,7 @@ button, summary, label, select, a, .reiter{cursor:pointer}
 
         <div class="tafel" id="tafel-trasse" role="tabpanel" hidden>
             <p class="hilfe" style="margin:0 0 10px">Für gekrümmte, schräge oder geneigte Bauwerke.
-            <b>Die Trasse wird in der Karte <i>Trasse</i> geladen und eingestellt</b> (in der Leiste unter <i>Eingaben</i>) — Achse,
+            <b>Die Trasse wird in der Karte <i>Trasse</i> geladen und eingestellt</b> (Abschnitt <i>Trasse</i>, unten im Dock oder unter <i>Abschnitte</i>) — Achse,
             Nullpunkt, Stationsbereich, Querversatz und Quergefälle stehen dort, weil sie Eingaben
             sind und die Länge oben bestimmen. Hier steht nur noch der Export.</p>
 
@@ -1985,7 +2211,7 @@ button, summary, label, select, a, .reiter{cursor:pointer}
             <p class="hilfe" style="margin:6px 0 0"><b>Teilung, Sonderfelder und Ohr kommen aus den
             Eingaben</b> und gelten hier genauso: <i>Anzahl vorgeben</i> setzt die Pfostenzahl,
             die <i>Sonderfelder</i> in der Karte <i>Teilung</i> setzen einzelne Felder anders, das Ohr steht je Ende um sein
-            eigenes Maß über. Was davon wirkt, zeigt das Bild <i>Trasse</i> (in der Leiste unter <i>Trasse</i>) — Grundriss und
+            eigenes Maß über. Was davon wirkt, zeigt das Bild <i>Trasse</i> (im Abschnitt <i>Trasse</i>) — Grundriss und
             Höhenverlauf mit jedem Pfosten.</p>
             <p class="hilfe" style="margin:6px 0 0">Welcher <b>Rand</b> geschrieben wird, steht
             in der Karte <i>Trasse</i> und auf dem Knopf. <b>Für das zweite Geländer nur die Achse
@@ -2016,6 +2242,8 @@ button, summary, label, select, a, .reiter{cursor:pointer}
       </div>
     </section>
   </div>
+  <!-- Urhebervermerk. Im HUD unten rechts neben dem Dock, sonst am Ende des Inhalts. -->
+  <p class="urheber">© 2026 Malenya<span class="lang"> · Alle Rechte vorbehalten</span></p>
   </main>
 </div>
 
@@ -3705,9 +3933,33 @@ function ansichtBlatt(svg){
   const [x, y, b, h] = svg.dataset.blatt.split(/[\s,]+/).map(Number);
   return {x, y, b, h};
 }
+/* Die Bühne. Auf breiten Fenstern ist die Ansicht keine Karte, sondern
+   liegt über den ganzen Bildschirm hinter den Tafeln (Klasse buehne an der
+   Fläche, gesetzt vom Skript „Die Bühne" am Dateiende). Das SVG füllt dann
+   immer die ganze Fläche; eingepasst steht das Blatt im freien Feld
+   zwischen den Tafeln, das ansichtFrei() in Bildschirmpunkten liefert
+   ({l, t, r, b}). k zählt dann gegenüber diesem eingepassten Maßstab s
+   (Bildpunkte je Blatteinheit), cx/cy bleiben der Blattpunkt in der Mitte
+   des SVG — so rechnen Zoomen und Verschieben unverändert weiter. */
+let ansichtFrei = null;
+function ansichtBuehne(fl, svg){
+  if(!fl || !fl.classList.contains("buehne") || typeof ansichtFrei !== "function") return null;
+  const r = svg.getBoundingClientRect();
+  if(!r.width || !r.height) return null;
+  let f = ansichtFrei();
+  // Kein brauchbares Feld (sehr kleines Fenster): dann die ganze Bühne — nie zurück auf das Kartenmaß.
+  if(!f || f.r - f.l < 40 || f.b - f.t < 40) f = {l: r.left, t: r.top, r: r.right, b: r.bottom};
+  const bl = ansichtBlatt(svg);
+  const s = Math.min((f.r - f.l) / bl.b, (f.b - f.t) / bl.h);
+  return {s, r,
+    cx: bl.x + bl.b/2 + (r.left + r.width/2 - (f.l + f.r)/2) / s,
+    cy: bl.y + bl.h/2 + (r.top + r.height/2 - (f.t + f.b)/2) / s};
+}
 function ansichtZustand(id, svg){
   const bl = ansichtBlatt(svg);
-  return ANSICHT[id] || {k: 1, cx: bl.x + bl.b/2, cy: bl.y + bl.h/2};
+  if(ANSICHT[id]) return ANSICHT[id];
+  const b = ansichtBuehne($(id), svg);
+  return b ? {k: 1, cx: b.cx, cy: b.cy} : {k: 1, cx: bl.x + bl.b/2, cy: bl.y + bl.h/2};
 }
 /* Eingepasst hat das SVG das Seitenverhältnis seines Blatts (Ansicht
    1000 : 222) und die Fläche darum herum oft Platz übrig. Gezoomt wird das
@@ -3722,7 +3974,7 @@ function ansichtZustand(id, svg){
    ziehen ansichtEinrichten() und die Leiste (fuellen) das Fenster nach. */
 function ansichtFenster(fl, svg, gezoomt){
   svg.style.height = "";
-  if(!gezoomt) return;
+  if(!gezoomt || fl.classList.contains("buehne")) return;   // die Bühne ist immer ganz gefüllt
   const cs = getComputedStyle(fl);
   let frei = fl.clientHeight - (parseFloat(cs.paddingTop) || 0) - (parseFloat(cs.paddingBottom) || 0);
   for(const c of fl.children) if(c !== svg) frei -= c.getBoundingClientRect().height;
@@ -3740,9 +3992,12 @@ function ansichtAnwenden(id){
   const bl = ansichtBlatt(svg), z = ansichtZustand(id, svg);
   ansichtFenster(fl, svg, !!ANSICHT[id]);
   const r = svg.getBoundingClientRect();
-  const vw = bl.b / z.k;
-  // Gezoomt das Verhältnis des Fensters, eingepasst das des Blatts.
-  const vh = ANSICHT[id] && r.width && r.height ? vw * r.height / r.width : bl.h / z.k;
+  const b = ansichtBuehne(fl, svg);
+  let vw = bl.b / z.k;
+  // Gezoomt das Verhältnis des Fensters, eingepasst das des Blatts; auf der Bühne immer das der Fläche.
+  let vh = ANSICHT[id] && r.width && r.height ? vw * r.height / r.width : bl.h / z.k;
+  // Gezoomt gilt der Maßstab vom ersten Zoomen (z.s) — sonst spränge der Ausschnitt, sobald sich das freie Feld ändert.
+  if(b){ const s = (ANSICHT[id] && ANSICHT[id].s) || b.s; vw = r.width / (s * z.k); vh = r.height / (s * z.k); }
   svg.setAttribute("viewBox", `${z.cx - vw/2} ${z.cy - vh/2} ${vw} ${vh}`);
   if(st.stand) st.stand.textContent = Math.abs(z.k - 1) < 0.005 ? "" :
     (z.k >= 1 ? `${z.k.toLocaleString("de-DE", {maximumFractionDigits:1})} : 1` : `1 : ${(1/z.k).toLocaleString("de-DE", {maximumFractionDigits:1})}`);
@@ -3756,18 +4011,20 @@ function ansichtZoomen(id, faktor, px, py){
   if(!r.width) return;
   const z = ansichtZustand(id, svg);
   const k2 = Math.min(ANSICHT_K.max, Math.max(ANSICHT_K.min, z.k * faktor));
+  const b0 = ANSICHT[id] ? null : ansichtBuehne(fl, svg);
+  const s = (ANSICHT[id] && ANSICHT[id].s) || (b0 && b0.s) || undefined;   // nur auf der Bühne
   // Blattpunkt unter dem Zeiger, aus der viewBox, wie sie gerade steht
   const [vx, vy, vw, vh] = svg.getAttribute("viewBox").split(/[\s,]+/).map(Number);
   const bx = vx + (px - r.left) / r.width  * vw;
   const by = vy + (py - r.top)  / r.height * vh;
-  ANSICHT[id] = {k: k2, cx: z.cx, cy: z.cy};
+  ANSICHT[id] = {k: k2, cx: z.cx, cy: z.cy, s};
   ansichtAnwenden(id);
   /* Erst jetzt steht das Fenster (beim ersten Zoomen wird das SVG höher):
      die Mitte so legen, dass derselbe Blattpunkt unter dem Zeiger bleibt. */
   const r2 = svg.getBoundingClientRect();
   const [, , w2, h2] = svg.getAttribute("viewBox").split(/[\s,]+/).map(Number);
   ANSICHT[id] = {k: k2, cx: bx - ((px - r2.left) / r2.width  - 0.5) * w2,
-                        cy: by - ((py - r2.top)  / r2.height - 0.5) * h2};
+                        cy: by - ((py - r2.top)  / r2.height - 0.5) * h2, s};
   ansichtAnwenden(id);
 }
 /* Verschieben um (dx, dy) Bildschirmpunkte. */
@@ -3776,9 +4033,10 @@ function ansichtSchieben(id, dx, dy){
   if(!svg) return;
   const r = svg.getBoundingClientRect();
   if(!r.width) return;
-  const bl = ansichtBlatt(svg), z = ansichtZustand(id, svg);
-  const je = bl.b / z.k / r.width;              // Blatteinheiten je Bildschirmpunkt
-  ANSICHT[id] = {k: z.k, cx: z.cx - dx * je, cy: z.cy - dy * je};
+  const z = ansichtZustand(id, svg);
+  // Blatteinheiten je Bildschirmpunkt, aus der viewBox, wie sie steht (auf der Bühne ist es nicht bl.b / k)
+  const je = Number(svg.getAttribute("viewBox").split(/[\s,]+/)[2]) / r.width;
+  ANSICHT[id] = {k: z.k, cx: z.cx - dx * je, cy: z.cy - dy * je, s: (ANSICHT[id] && ANSICHT[id].s) || (ansichtBuehne(fl, svg) || {}).s};
   ansichtAnwenden(id);
 }
 /* Einmal je Fläche: Rad, Tasten, Finger, Tastatur, Knopf. Das SVG darin darf
@@ -10103,7 +10361,7 @@ try{
         '<div class="kachel-mini" id="kachel-mini"></div>' +
         '<div class="kachel-fakten" id="kachel-fakten"></div>' +
         '<div class="kachel-fuss"><button type="button" class="tat stumm" id="btn-mappe-dazu">In die Mappe</button>' +
-          '<p class="hilfe" id="kachel-hinweis">oder die Kachel in die Mappe links ziehen — auf schmalen Fenstern auf den Knopf „Mappe“ oben.</p></div>' +
+          '<p class="hilfe" id="kachel-hinweis">oder die Kachel auf den Knopf „Mappe“ ziehen — unten im Dock, auf schmalen Fenstern oben.</p></div>' +
       '</div>' +
     '</div>';
   const zwischen = hol("schublade-zwischen");
@@ -10894,6 +11152,9 @@ try{
 
    Unter 1000 px Fensterbreite ist die Leiste eine Schublade hinter dem Knopf
    „Abschnitte" in der Kopfzeile; der Mappe-Chip dort öffnet sie bei der Mappe.
+   Ab 1001 px zieht das Skript „Die Bühne und das Dock" die Abschnitte, den
+   Mappe-Chip und die Schalter ins Dock unten und die Mappe in eine Tafel
+   darüber; die Zeilen und ihr Verhalten bleiben dieselben.
    Nichts hiervon rechnet; fällt der Block aus, fehlt die Leiste, sonst nichts. */
 (function(){
 try{
@@ -11262,15 +11523,27 @@ try{
     /* Was unter den Karten noch zur Seite gehört: Innenabstand, Rahmen und
        Außenabstand der Spalten. Bleibt das im Fenster, rollt die Seite nicht. */
     const sps = getComputedStyle(spalten);
-    const fussRand = (parseFloat(sps.paddingBottom) || 0) + (parseFloat(sps.borderBottomWidth) || 0) +
+    let fussRand = (parseFloat(sps.paddingBottom) || 0) + (parseFloat(sps.borderBottomWidth) || 0) +
                      (parseFloat(sps.marginBottom) || 0);
+    // Der Urhebervermerk steht ohne HUD unter den Spalten und gehört mit zur Seite.
+    const urheber = document.querySelector(".urheber");
+    if(urheber && urheber.getClientRects().length && getComputedStyle(urheber).position !== "fixed"){
+      const us = getComputedStyle(urheber);
+      fussRand += urheber.getBoundingClientRect().height + (parseFloat(us.marginTop) || 0) + (parseFloat(us.marginBottom) || 0);
+    }
     let linksMax = 0;                                              // Höhe der Eingabespalte, wenn sie rollt
     const rL = LINKS_SP.getBoundingClientRect(), rR = RECHTS_SP.getBoundingClientRect();
     const liste = hol("pruefungen");
-    const flaechen = FLAECHEN.map(hol).filter(f => f && RECHTS_SP.contains(f) && f.getClientRects().length);
+    /* Die Bühne (breite Fenster) liegt hinter allem und ist keine Karte der
+       Spalte: sie zählt weder als Fläche noch beim Bedarf. Dann steht rechts
+       oft nur die Liste der Prüfungen — gerechnet wird trotzdem, damit die
+       Eingabespalte in sich rollt, statt die Seite rollen zu lassen. */
+    const aufBuehne = el => el.classList.contains("buehne") || el.classList.contains("hud-buehne");
+    const hud = app.classList.contains("hud");
+    const flaechen = FLAECHEN.map(hol).filter(f => f && RECHTS_SP.contains(f) && f.getClientRects().length && !aufBuehne(f));
     const hoehe = new Map(), breite = new Map();
     let kleben = false, listeMax = 0;
-    if(!alle && !spalten.classList.contains("k-ergebnis") && flaechen.length &&
+    if(!alle && !spalten.classList.contains("k-ergebnis") && (flaechen.length || hud) &&
        rL.width && rR.left >= rL.right - 1){                       // zwei Spalten nebeneinander
       const band = hol("band");
       let bandUnten = 0;                                           // Unterkante des Bands, im Inhalt gemessen
@@ -11286,9 +11559,9 @@ try{
          unter das Band. */
       const platz = Math.min(inhalt.clientHeight - fussRand - ruheOben, inhalt.clientHeight - 28 - klebenOben);
       // Die rechte Spalte von der obersten bis zur untersten Karte
-      const karten = [...RECHTS_SP.children].filter(e => e.id && e.getClientRects().length);
+      const karten = [...RECHTS_SP.children].filter(e => e.id && e.getClientRects().length && !aufBuehne(e));
       const kr = karten.map(e => e.getBoundingClientRect());
-      let bedarf = Math.max(...kr.map(r => r.bottom)) - Math.min(...kr.map(r => r.top));
+      let bedarf = kr.length ? Math.max(...kr.map(r => r.bottom)) - Math.min(...kr.map(r => r.top)) : 0;
       // … ohne das, was die Flächen und die Liste gerade dazubekamen oder abgaben
       const fl = flaechen.map(f => {
         const cs = getComputedStyle(f);
@@ -11315,7 +11588,8 @@ try{
         /* 3 px bleiben frei: setzen() schreibt erst ab 2 px Unterschied
            neu, und schon 1 px zu viel ließe die Seite rollen. */
         const mehr = -ueber - 3;
-        if(mehr > 12) fl.forEach(x => {
+        // Im HUD wächst nichts: die rechte Spalte steht unten, ein wachsendes Trassenbild schöbe sich über die Bühne.
+        if(mehr > 12 && !hud) fl.forEach(x => {
           const natur = x.rest + x.bild;
           hoehe.set(x.f, Math.min(natur + mehr / fl.length, Math.max(natur, inhalt.clientHeight * 0.8)));
         });
@@ -11516,6 +11790,211 @@ try{
 }catch(e){
   // Lieber ohne Leiste als ohne Werkzeug.
   if(window.console) console.warn("Leiste nicht verfügbar:", e);
+}
+})();
+</script>
+<script>
+/* ---------- Die Bühne und das Dock ----------
+   Seit 16.10.2026, aus dem Konzeptblatt „HUD". Auf Fenstern ab 1001 px
+   Breite bekommt die App die Klasse hud (Aussehen im Stilblock, Abschnitt
+   „Das HUD"):
+
+   - DIE BÜHNE. Die Ansicht ist keine Karte mehr, sondern liegt über den
+     ganzen Bildschirm hinter allen Tafeln — frei beweglich wie in einem
+     CAD-Programm: das Rad zoomt zum Zeiger, gedrückte Taste verschiebt,
+     Einpassen (Knopf, Pos1, zweimal mittlere Taste) legt das ganze Blatt in
+     das freie Feld zwischen den Tafeln. Das Feld misst frei() hier; der
+     Baustein „Ansicht: Zoom und Verschieben" liest es über ansichtFrei.
+     Die Karte bleibt, wo sie im Dokument steht (rechte Spalte) — die Leiste
+     schaltet sie weiter, sie wird nur fest über den Bildschirm gelegt.
+   - DAS DOCK. Abschnitte, Mappe-Knopf und die beiden Schalter ziehen aus der
+     Leiste in eine Tafel unten; die Mappe öffnet sich darüber
+     (Klasse mappe-offen), auch von selbst, sobald man die Kachel zieht.
+     Oben links bleibt vom Leistenkopf der Name.
+
+   Unter 1001 px kommt alles an seinen alten Platz zurück (Schublade, Karte).
+   Gedruckt wird ohne Bühne. Nichts hiervon rechnet; fällt der Block aus,
+   sieht die Seite aus wie auf schmalen Fenstern, nur breiter. */
+(function(){
+try{
+  const hol = id => document.getElementById(id);
+  const app = hol("app"), leiste = hol("leiste"), nav = hol("abschnitte"), mappe = hol("mappe-platz"),
+        chip = hol("chip-mappe"), karte = hol("karte-ansicht"), flaeche = hol("zeichnung"), band = hol("band"),
+        inhalt = hol("inhalt");
+  const spalten = document.querySelector(".spalten");
+  if(!app || !leiste || !nav || !mappe || !chip || !karte || !flaeche || !spalten || !inhalt) return;
+  const kopf = karte.querySelector(".bp-kopf");
+  const [LINKS, RECHTS] = spalten.querySelectorAll(":scope > section");
+  const fuesse = [...leiste.querySelectorAll(":scope > .leiste-fuss")];
+  const breit = window.matchMedia ? matchMedia("(min-width:1001px)") : {matches:false};
+  const hud = () => app.classList.contains("hud");
+
+  const dock = document.createElement("div");
+  dock.className = "hud-dock"; dock.id = "hud-dock";
+  dock.setAttribute("role", "group"); dock.setAttribute("aria-label", "Abschnitte, Mappe, Alle Karten und Farbschema");
+  const tafel = document.createElement("div");
+  tafel.className = "hud-mappe"; tafel.id = "hud-mappe";
+  tafel.setAttribute("role", "region"); tafel.setAttribute("aria-label", "Mappe");
+  // Wohin die Teile auf schmalen Fenstern zurückgehen
+  const orte = [nav, mappe, chip, ...fuesse].map(el => ({el, eltern: el.parentNode, vor: el.nextSibling}));
+
+  /* ---------- Das freie Feld ----------
+     Rechts der Eingabekarten, unter dem Band, über den Karten der rechten
+     Spalte (Prüfungen) und dem Dock — in Bildschirmpunkten. Bei einem
+     Ergebnis (volle Breite) zählt nur Band und Dock: die Bühne liegt dann
+     hinter der Karte. */
+  const RAND = 18;
+  const zuSehen = sp => sp ? [...sp.children].filter(e => e.id && e !== karte && e.getClientRects().length) : [];
+  function frei(){
+    let l = RAND, t = RAND, r = innerWidth - RAND, b = innerHeight - RAND;
+    if(band && band.getClientRects().length) t = Math.max(t, band.getBoundingClientRect().bottom + 12);
+    if(dock.isConnected){ const d = dock.getBoundingClientRect(); if(d.height) b = Math.min(b, d.top - 12); }
+    if(spalten.classList.contains("k-umschalten")){
+      const kl = spalten.classList.contains("k-ergebnis") ? [] : zuSehen(LINKS).map(e => e.getBoundingClientRect());
+      if(kl.length) l = Math.max(l, Math.max(...kl.map(q => q.right)) + RAND);
+      // Karten unten (Prüfungen, Export): das Feld endet darüber. Reicht eine Karte bis oben, bleibt es beim Dock.
+      const alleR = zuSehen(RECHTS).map(e => e.getBoundingClientRect());
+      const kr = alleR.filter(q => q.top > t + 80);
+      if(kr.length) b = Math.min(b, Math.min(...kr.map(q => q.top)) - 14);
+      // … und die Bühne ist dann verdeckt: ihr Kopf mit „Einpassen" läge unter der Karte.
+      return {l, t, r, b, verdeckt: alleR.some(q => q.top <= t + 80 && q.bottom > t + 20 && q.right > l + 40)};
+    }
+    return {l, t, r, b, verdeckt: false};
+  }
+  // Für die Zeichnung: unter dem Kopf der Ansicht, der oben im freien Feld steht
+  ansichtFrei = () => {
+    const f = frei();
+    if(kopf && kopf.getClientRects().length) f.t += kopf.getBoundingClientRect().height + 6;
+    return f;
+  };
+
+  /* Bühne ja oder nein: nur im HUD und nur, solange umgeschaltet wird. Mit
+     „Alle Karten" stehen alle Karten untereinander und rollen — dann ist die
+     Ansicht wieder eine Karte unter ihnen, sonst läge sie verdeckt dahinter.
+     Beim Wechsel beginnt die Ansicht eingepasst: ein Zoomfaktor der Karte
+     hieße auf der Bühne etwas anderes. */
+  let druck = false;
+  function buehneSetzen(){
+    const soll = hud() && !druck && spalten.classList.contains("k-umschalten");
+    if(flaeche.classList.contains("buehne") === soll) return;
+    karte.classList.toggle("hud-buehne", soll);
+    flaeche.classList.toggle("buehne", soll);
+    ANSICHT["zeichnung"] = null;
+    ansichtAnwenden("zeichnung");
+  }
+
+  function vermessen(){
+    const st = document.documentElement.style;
+    const namen = ["--frei-l", "--frei-t", "--frei-b", "--frei-h"];
+    buehneSetzen();
+    if(!hud()){ namen.forEach(n => st.removeProperty(n)); inhalt.classList.remove("hud-rollt"); return; }
+    const f = frei();
+    const rollt = inhalt.scrollHeight > inhalt.clientHeight + 1;
+    if(inhalt.classList.contains("hud-rollt") !== rollt) inhalt.classList.toggle("hud-rollt", rollt);
+    // Rollt der Inhalt, nimmt er den Zeiger — dann ist die Bühne nicht zu bedienen, und ihr Kopf hat nichts anzubieten.
+    const verdeckt = f.verdeckt || rollt;
+    if(karte.classList.contains("hud-verdeckt") !== verdeckt) karte.classList.toggle("hud-verdeckt", verdeckt);
+    [f.l, f.t, f.r - f.l, f.b - f.t].forEach((w, i) => {
+      const v = Math.round(w) + "px";
+      if(st.getPropertyValue(namen[i]) !== v) st.setProperty(namen[i], v);
+    });
+    // Eingepasst folgt das Blatt dem Feld; ein gezoomter Ausschnitt bleibt stehen.
+    if(!ANSICHT["zeichnung"]) ansichtAnwenden("zeichnung");
+  }
+  let angemeldet = false;
+  function nachziehen(){
+    if(angemeldet) return;
+    angemeldet = true;
+    requestAnimationFrame(() => { angemeldet = false; try{ vermessen(); }catch(e){} });
+  }
+
+  /* ---------- Die Mappe über dem Dock ---------- */
+  const vorherOeffnen = window.leisteOeffnen;
+  function mappeAuf(an){
+    an = !!an && hud();
+    if(an){
+      const c = chip.getBoundingClientRect();
+      const l = Math.max(14, Math.min(innerWidth - 314, c.left + c.width / 2 - 150));
+      tafel.style.setProperty("--mappe-l", Math.round(l) + "px");
+    }
+    app.classList.toggle("mappe-offen", an);
+    if(hud()) chip.setAttribute("aria-expanded", String(an));
+  }
+  // Wer die Leiste öffnen will, um die Mappe zu zeigen, bekommt im HUD die Tafel.
+  window.leisteOeffnen = function(an){
+    if(hud()){ mappeAuf(an); return; }
+    if(vorherOeffnen) return vorherOeffnen(an);
+  };
+  // Der Knopf schaltet: offen → zu (vor dem Behandler der Mappe, der nur öffnet).
+  chip.addEventListener("click", ev => {
+    if(!hud() || !app.classList.contains("mappe-offen")) return;
+    ev.stopImmediatePropagation();
+    mappeAuf(false);
+  }, true);
+  document.addEventListener("pointerdown", ev => {
+    if(!hud() || !app.classList.contains("mappe-offen")) return;
+    if(tafel.contains(ev.target) || chip.contains(ev.target)) return;
+    mappeAuf(false);
+  });
+  document.addEventListener("keydown", ev => {
+    if(ev.key !== "Escape" || !hud() || !app.classList.contains("mappe-offen")) return;
+    const fokusDrin = tafel.contains(document.activeElement);
+    mappeAuf(false);
+    if(fokusDrin) chip.focus({preventScroll:true});   // nur zurückholen, was in der Tafel war
+  });
+  // Die Kachel ziehen öffnet die Mappe, damit die Ablage zu sehen ist.
+  let vomZiehen = false, zuNachZiehen = 0;
+  document.addEventListener("dragstart", ev => {
+    if(!hud() || !ev.target.closest || !ev.target.closest(".kachel")) return;
+    clearTimeout(zuNachZiehen);
+    if(!app.classList.contains("mappe-offen")){ vomZiehen = true; mappeAuf(true); }
+  });
+  document.addEventListener("dragend", () => {
+    if(!vomZiehen) return;
+    vomZiehen = false;
+    // kurz stehen lassen: man sieht, dass es angekommen ist — wer gleich hineinklickt, dem bleibt sie offen
+    zuNachZiehen = setTimeout(() => mappeAuf(false), 1200);
+  });
+  tafel.addEventListener("pointerdown", () => clearTimeout(zuNachZiehen));
+
+  /* ---------- Umziehen ---------- */
+  function umziehen(){
+    const an = !!breit.matches;
+    if(an === hud()) return;
+    if(an){
+      dock.append(nav, chip, ...fuesse);
+      tafel.append(mappe);
+      app.append(dock, tafel);
+      app.classList.add("hud");
+      chip.setAttribute("aria-controls", "hud-mappe");
+      chip.setAttribute("aria-expanded", "false");
+      if(vorherOeffnen) vorherOeffnen(false);      // eine offene Schublade nicht mitnehmen
+    } else {
+      mappeAuf(false);
+      app.classList.remove("hud");
+      orte.forEach(o => o.eltern.insertBefore(o.el, o.vor && o.vor.parentNode === o.eltern ? o.vor : null));
+      dock.remove(); tafel.remove();
+      chip.removeAttribute("aria-controls"); chip.removeAttribute("aria-expanded");
+    }
+    vermessen();
+  }
+  if(breit.addEventListener) breit.addEventListener("change", umziehen);
+
+  /* Gedruckt wird die Ansicht als Karte, mit dem Blatt eingepasst: die Bühne
+     geht vorher weg (buehneSetzen setzt dabei auch den Zoom zurück), danach
+     kommt sie eingepasst wieder. */
+  addEventListener("beforeprint", () => { druck = true; buehneSetzen(); });
+  addEventListener("afterprint", () => { druck = false; buehneSetzen(); nachziehen(); });
+
+  if(window.ResizeObserver){
+    const ro = new ResizeObserver(nachziehen);
+    [LINKS, RECHTS, band, dock].forEach(e => e && ro.observe(e));
+  }
+  new MutationObserver(nachziehen).observe(spalten, {attributes:true, attributeFilter:["class"]});
+  addEventListener("resize", nachziehen);
+  umziehen();
+}catch(e){
+  if(window.console) console.warn("Bühne und Dock nicht verfügbar:", e);
 }
 })();
 </script>
