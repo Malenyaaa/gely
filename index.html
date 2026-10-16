@@ -3397,11 +3397,6 @@ function pruefen(r){
         `${V.blatt} bemaßt die Dübelabstände nicht, sie stehen dort „nach statischem ` +
         `Erfordernis". Gebaut sind Mörtelfuge und Fußplatte, nicht die Verankerungsmittel.`);
 
-    if(V.fundament)
-      p("neutral","Fundament nur im Export",
-        `Das Fundament liegt ganz unter seiner Oberkante, von der die Höhen zählen. Es steht ` +
-        `im Export und im Fußbild, die Ansicht zeigt es nicht — dort ist darunter kein Platz.`);
-
     if(V.anker)
       p("neutral","Was in der Kappe steckt",
         `Fußplatte und Anker liegen unter der Kappenoberkante. Sie stehen im Export, ` +
@@ -3612,6 +3607,11 @@ function zeichnen(r){
   const s = Math.min(nutzB / spanne, nutzH / Math.max(r.h, 1));
   const x0 = links + (nutzB - spanne * s) / 2 - xVon * s;
   const y0 = oben + nutzH;                 // Oberkante Kappe
+  /* Ein Fundament (Gel 7) liegt ganz unter y0. Statt das Geländer zu verkleinern,
+     wird das Blatt um seine Tiefe nach unten länger; Maßketten und Feldnummern
+     rücken unter die Sohle (yU). Ohne Fundament ist yU = y0 und alles wie zuvor. */
+  const tief = Math.max(0, ...(r.teile || bauteile(r)).filter(q => q.verank && q.name === "Fundament").map(q => -q.z));
+  const yU = y0 + tief * s, HB = H + tief * s;
   /* Gezeichnet wird immer das ganze Blatt. Zoom und Verschieben sind Sache
      des Bausteins „Ansicht: Zoom und Verschieben“ weiter unten: er setzt nur
      die viewBox dieses SVG. Deshalb hier keine Mindestmaße in Bildpunkten —
@@ -3799,15 +3799,17 @@ function zeichnen(r){
     teil("Pfosten", q.x, zU, q.dx, q.z + q.dz - zU);
   });
   for(let i = 0; i <= r.n; i++)
-    linie(X(r.achsen[i]), yTop-10, X(r.achsen[i]), y0+26, `${hilf} stroke-dasharray="10 3 2 3"`);
+    linie(X(r.achsen[i]), yTop-10, X(r.achsen[i]), yU+26, `${hilf} stroke-dasharray="10 3 2 3"`);
 
   /* ---------- Verankerung ----------
      Aus denselben Körpern wie der Export. Gezeichnet wird nur, was über der
      Kappe liegt: die Ansicht hat unter y0 keinen Platz, dort stehen die
      Maßketten. Fußplatte und Anker von Gel 13 stecken in der Kappe und
-     erscheinen deshalb nur im Export — die Prüfungen sagen es. */
-  teile.filter(q => q.verank && q.z + q.dz > 0).forEach(q => {
-    const zU = Math.max(q.z, 0);
+     erscheinen deshalb nur im Export — die Prüfungen sagen es. Ausnahme ist
+     das Fundament von Gel 7: für es wird das Blatt nach unten länger (yU),
+     und es erscheint ganz. */
+  teile.filter(q => q.verank && (q.z + q.dz > 0 || q.name === "Fundament")).forEach(q => {
+    const zU = q.name === "Fundament" ? q.z : Math.max(q.z, 0);
     teil(q.name, q.x, zU, q.dx, q.z + q.dz - zU, hohl);
   });
 
@@ -3839,7 +3841,7 @@ function zeichnen(r){
     if(x2 - x1 > 40)
       e.push(`<text x="${(x1+x2)/2}" y="${y-7}" text-anchor="middle" fill="var(--bp-mass)" font-size="14" font-family="ui-monospace,monospace">${text}</text>`);
   };
-  const yA = y0 + 24, yB = y0 + 48;
+  const yA = yU + 24, yB = yU + 48;
   for(const fd of r.felder) kette(X(fd.von), X(fd.bis), yA, fmt(fd.laenge));
   if(r.e1 > 0) kette(X(0), X(r.e1), yA, fmt(r.e1));
   if(r.e2 > 0) kette(X(r.L-r.e2), X(r.L), yA, fmt(r.e2));
@@ -3863,7 +3865,7 @@ function zeichnen(r){
   /* ---------- Feldnummern ----------
      Damit man beim Eintragen eines Sonderfeldes nicht abzählen muss. Feld 1 ist
      das erste hinter dem Anfangspfosten — dieselbe Zählung wie in der Karte. */
-  const yN = y0 + 62;
+  const yN = yU + 62;
   // Das Wort „Feld“ hängt am Anfang des Blatts, nicht am Bildschirmrand: es fährt mit.
   e.push(`<text x="${X(xVon) - 12}" y="${yN + 4}" text-anchor="end" fill="var(--bp-mass)" font-size="11" font-family="ui-monospace,monospace">Feld</text>`);
   for(const fd of r.felder){
@@ -3893,7 +3895,7 @@ function zeichnen(r){
            `<title>Feld ${fd.i} · ${fmt(fd.laenge)} ${einheit} — anklicken, um ein Sonderfeld anzulegen</title></rect>`);
   }
 
-  ziel.innerHTML = `<svg viewBox="0 0 ${B} ${H}" role="img" aria-label="Maßstäbliche Ansicht des Geländers">` +
+  ziel.innerHTML = `<svg viewBox="0 0 ${B} ${HB}" role="img" aria-label="Maßstäbliche Ansicht des Geländers">` +
     `<style>.feldklick{fill:transparent;cursor:pointer}.feldklick:hover{fill:var(--bp-mass);opacity:.10}</style>` +
     `${e.join("")}</svg>`;
   const sonderZahl = r.felder.filter(f => f.sonder).length;
@@ -6150,12 +6152,13 @@ function dxfErzeugen(r){
   const teile = bauteile(r);
   if(!teile.length) return null;
   const z = [...dxfTabellen(1), "0","SECTION","2","ENTITIES"];
-  const linie = (x1,y1,x2,y2,lage) =>
-    z.push("0","LINE","8",lage,"10",x1.toFixed(2),"20",y1.toFixed(2),"30","0.0",
-           "11",x2.toFixed(2),"21",y2.toFixed(2),"31","0.0");
+  /* Gesammelt statt sofort geschrieben: zum Schluss fallen deckungsgleiche
+     Kanten weg (dxfDeckungWeg), dann wird in derselben Reihenfolge geschrieben. */
+  const elem = [];
+  const linie = (x1,y1,x2,y2,lage) => elem.push({l:[x1, y1, x2, y2], lage});
   const bogen = (cx,cy,rad,a1,a2,lage) =>
-    z.push("0","ARC","8",lage,"10",cx.toFixed(2),"20",cy.toFixed(2),"30","0.0",
-           "40",rad.toFixed(2),"50",a1.toFixed(1),"51",a2.toFixed(1));
+    elem.push({a:["0","ARC","8",lage,"10",cx.toFixed(2),"20",cy.toFixed(2),"30","0.0",
+                  "40",rad.toFixed(2),"50",a1.toFixed(1),"51",a2.toFixed(1)]});
   const LAGEN = {"Pfosten":"PFOSTEN","Handlauf":"HANDLAUF","Holm":"HOLM",
                  "Füllstab":"FUELLSTAB","Rahmen":"RAHMEN","Gitterdraht":"GITTER",
                  "Bogen":"HANDLAUF","Ohr":"OHR",
@@ -6205,8 +6208,63 @@ function dxfErzeugen(r){
   const zU = Math.min(0, ...teile.map(q => q.art === "bogen" ? q.cz - q.R : q.z));
   const zO = Math.max(r.h, ...teile.map(q => q.art === "bogen" ? q.cz + q.R : q.z + q.dz));
   for(const x of r.achsen) linie(x, zU - 100, x, zO + 100, "ACHSE");
+  for(const e of dxfDeckungWeg(elem, ["KAPPE", "ACHSE"])){
+    if(e.a){ z.push(...e.a); continue; }
+    const [x1, y1, x2, y2] = e.l;
+    z.push("0","LINE","8",e.lage,"10",x1.toFixed(2),"20",y1.toFixed(2),"30","0.0",
+           "11",x2.toFixed(2),"21",y2.toFixed(2),"31","0.0");
+  }
   z.push("0","ENDSEC","0","EOF","");
   return z.join("\n");
+}
+
+/* ---------- Deckungsgleiche Kanten nur einmal ----------
+   Zwei Bauteile, die aneinanderstoßen, haben dort dieselbe Kante: der Holm
+   endet an der Pfostenflanke, die Stirn des Ohrs liegt auf der Handlauf-
+   Oberkante. In der DXF lägen dann zwei Linien übereinander, oft auf
+   verschiedenen Layern — beim Fangen und beim Bauen von Körpern in Allplan
+   stört das. Für waagerechte und lotrechte Strecken, auf 0,01 mm genau (die
+   Genauigkeit der Datei): wo sich zwei auf derselben Geraden überdecken,
+   behält die längere — das durchlaufende Bauteil — ihr Stück, der kürzeren
+   fehlt die Überdeckung. Bezugslinien (frei) bleiben unberührt, ebenso
+   schräge Strecken und Bögen. Reihenfolge und Layer bleiben. */
+function dxfDeckungWeg(elem, frei){
+  const r2 = v => Math.round(v * 100) / 100;
+  const gruppen = new Map();
+  elem.forEach((e, i) => {
+    if(!e.l || frei.includes(e.lage)) return;
+    let [x1, y1, x2, y2] = e.l.map(r2);
+    let k, a, b;
+    if(y1 === y2 && x1 !== x2){ k = "w" + y1; a = Math.min(x1, x2); b = Math.max(x1, x2); }
+    else if(x1 === x2 && y1 !== y2){ k = "l" + x1; a = Math.min(y1, y2); b = Math.max(y1, y2); }
+    else return;
+    if(!gruppen.has(k)) gruppen.set(k, []);
+    gruppen.get(k).push({i, a, b, w: k[0] === "w"});
+  });
+  const ersatz = new Map();                         // Index → Liste von Stücken (leer = fällt weg)
+  for(const g of gruppen.values()){
+    if(g.length < 2) continue;
+    for(const s of g){
+      // Wer hat Vorrang? Länger, bei gleicher Länge das frühere.
+      const vor = g.filter(o => o !== s && (o.b - o.a > s.b - s.a + 1e-9 ||
+                                            (Math.abs((o.b - o.a) - (s.b - s.a)) <= 1e-9 && o.i < s.i)))
+                   .map(o => [Math.max(o.a, s.a), Math.min(o.b, s.b)]).filter(([u, v]) => v > u + 1e-9)
+                   .sort((m, n) => m[0] - n[0]);
+      if(!vor.length) continue;
+      const stuecke = [];
+      let t = s.a;
+      for(const [u, v] of vor){ if(u > t + 1e-9) stuecke.push([t, u]); t = Math.max(t, v); }
+      if(s.b > t + 1e-9) stuecke.push([t, s.b]);
+      const y = elem[s.i].l[1], x = elem[s.i].l[0];
+      ersatz.set(s.i, stuecke.map(([u, v]) => s.w ? [u, y, v, y] : [x, u, x, v]));
+    }
+  }
+  const aus = [];
+  elem.forEach((e, i) => {
+    if(!ersatz.has(i)){ aus.push(e); return; }
+    for(const l of ersatz.get(i)) aus.push({l, lage: e.lage});
+  });
+  return aus;
 }
 
 /* ---------- DXF der Draufsicht (Grundriss, R12, 2D in der XY-Ebene) ----------
