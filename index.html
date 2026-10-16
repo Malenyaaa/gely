@@ -1808,7 +1808,7 @@ button, summary, label, select, a, .reiter{cursor:pointer}
                 <div>
                   <label for="sa-verdeckt">Verdeckte Kanten</label>
                   <select id="sa-verdeckt" style="min-width:170px"
-                          title="Weglassen ergibt die übliche Zeichnung. Auf einem eigenen Layer lassen sie sich in Allplan gestrichelt zeigen oder löschen.">
+                          title="Weglassen ergibt die übliche Zeichnung. Auf einem eigenen Layer kommen sie gestrichelt (Linienart VERDECKT) und lassen sich in Allplan ausblenden oder löschen.">
                     <option value="weg" selected>weglassen</option>
                     <option value="layer">auf Layer VERDECKT</option>
                   </select>
@@ -1860,7 +1860,7 @@ button, summary, label, select, a, .reiter{cursor:pointer}
                   <p><b>Verdeckte Kanten.</b> Jeder Körper verdeckt, was hinter ihm liegt — ein Holm
                   endet im Bild am Pfosten, ein Füllstab verschwindet unter dem Holm. Weggelassen ergibt die
                   übliche Zeichnung; auf dem Layer VERDECKT bleiben die verdeckten Stücke erhalten und lassen
-                  sich in Allplan gestrichelt zeigen oder löschen.</p>
+                  sich in Allplan ausblenden oder löschen; die DXF bringt für sie die Strichlinie VERDECKT mit.</p>
                   <p><b>Vereinfacht</b>, weil eine Linienzeichnung es nicht genauer zeigt: das gekantete
                   Handlaufprofil (Gel 10, HA 85) als sein Hüllkasten; Rohre als 12-Eck, Gitterdrähte als
                   6-Eck, die Bögen von Gel 7 und der Rohrschlaufe als Kette von sechs Rohrstücken je
@@ -1973,7 +1973,15 @@ button, summary, label, select, a, .reiter{cursor:pointer}
                 <button type="button" class="tat stumm" id="btn-dxf-plan-kurve"
                         title="Grundriss des Geländers auf der Trasse, in Metern mit Landeskoordinate — wie die Führungskurve">DXF Draufsicht</button>
               </div>
+              <div>
+                <button type="button" class="tat stumm" id="btn-dxf-ansicht-kurve"
+                        title="Ansicht des Geländers abgewickelt: Längen entlang der Achse, Höhen über der Kappe, in mm — wie beim geraden Bauwerk">DXF Ansicht</button>
+              </div>
             </div>
+            <p class="hilfe" style="margin:6px 0 0"><b>DXF Ansicht</b> zeichnet das Geländer
+            <b>abgewickelt</b>, wie in einer Werkstattzeichnung: jedes Feld in seiner Länge entlang
+            der Achse, die Höhen über der Kappe, Nullpunkt am Geländeranfang, in mm. Kurve und
+            Steigung der Trasse stecken darin nicht — dafür sind IFC und Draufsicht da.</p>
             <p class="hilfe" style="margin:6px 0 0"><b>Teilung, Sonderfelder und Ohr kommen aus den
             Eingaben</b> und gelten hier genauso: <i>Anzahl vorgeben</i> setzt die Pfostenzahl,
             die <i>Sonderfelder</i> in der Karte <i>Teilung</i> setzen einzelne Felder anders, das Ohr steht je Ende um sein
@@ -5853,11 +5861,37 @@ function dxfRohrverschnitt(teile){
   return aus;
 }
 
+/* ---------- Achsen in der DXF ----------
+   Pfostenachsen (Ansicht) und Geländerachse (Draufsicht) als Strichpunktlinie
+   auf dem Layer ACHSE, wie man Mittellinien in einer Werkstattzeichnung
+   zeichnet. Die Linienart heißt ACHSE und wird in einer TABLES-Sektion vor
+   den Körpern mitgeliefert: Strich 120, Lücke 30, Punkt, Lücke 30 — in mm,
+   dazu VERDECKT (Strich 30, Lücke 15) für die verdeckten Kanten der Schrägansicht,
+   für Zeichnungen um 1 : 20 bis 1 : 50 gedacht; feiner oder gröber stellt man
+   sie im CAD über den Linientypfaktor. einheit = 1 für mm, 1/1000 für m.
+   Die Körper bleiben durchgezogen (Linienart des Layers). */
+function dxfTabellen(einheit){
+  const m = v => (v * einheit).toFixed(einheit === 1 ? 2 : 6);
+  return ["0","SECTION","2","TABLES",
+          "0","TABLE","2","LTYPE","70","3",
+          "0","LTYPE","2","CONTINUOUS","70","0","3","Solid line","72","65","73","0","40","0.0",
+          "0","LTYPE","2","ACHSE","70","0","3","Strichpunkt __ . __ . __","72","65","73","4",
+          "40",m(180),"49",m(120),"49",m(-30),"49",m(0),"49",m(-30),
+          "0","LTYPE","2","VERDECKT","70","0","3","Strich __ __ __","72","65","73","2",
+          "40",m(45),"49",m(30),"49",m(-15),
+          "0","ENDTAB",
+          "0","TABLE","2","LAYER","70","2",
+          "0","LAYER","2","ACHSE","70","0","62","1","6","ACHSE",
+          "0","LAYER","2","VERDECKT","70","0","62","8","6","VERDECKT",
+          "0","ENDTAB",
+          "0","ENDSEC"];
+}
+
 /* ---------- DXF der Ansicht (R12, 2D in der XZ-Ebene) ---------- */
 function dxfErzeugen(r){
   const teile = bauteile(r);
   if(!teile.length) return null;
-  const z = ["0","SECTION","2","ENTITIES"];
+  const z = [...dxfTabellen(1), "0","SECTION","2","ENTITIES"];
   const linie = (x1,y1,x2,y2,lage) =>
     z.push("0","LINE","8",lage,"10",x1.toFixed(2),"20",y1.toFixed(2),"30","0.0",
            "11",x2.toFixed(2),"21",y2.toFixed(2),"31","0.0");
@@ -5908,6 +5942,11 @@ function dxfErzeugen(r){
     linie(x2,y2,x1,y2,lage); linie(x1,y2,x1,y1,lage);
   });
   linie(-100, 0, r.L + 100, 0, "KAPPE");
+  /* Pfostenachsen: von 100 unter dem tiefsten bis 100 über dem höchsten
+     Bauteil, mit Fundament oder einbetoniertem Pfosten also bis unter die Kappe. */
+  const zU = Math.min(0, ...teile.map(q => q.art === "bogen" ? q.cz - q.R : q.z));
+  const zO = Math.max(r.h, ...teile.map(q => q.art === "bogen" ? q.cz + q.R : q.z + q.dz));
+  for(const x of r.achsen) linie(x, zU - 100, x, zO + 100, "ACHSE");
   z.push("0","ENDSEC","0","EOF","");
   return z.join("\n");
 }
@@ -5948,7 +5987,7 @@ function dxfDraufsicht(r, trasse){
   // Ausgabe: gerade in mm mit 2 Stellen, auf der Trasse in m mit 6 Stellen
   const zahlT = v => TR ? ((v) / 1000).toFixed(6) : v.toFixed(2);
   const welt = TR ? p => [p[0] + NP.x, p[1] + NP.y] : p => p;
-  const z = ["0","SECTION","2","ENTITIES"];
+  const z = [...dxfTabellen(TR ? 1/1000 : 1), "0","SECTION","2","ENTITIES"];
   const linie = (a, b, lage) => {
     const p = welt(a), q = welt(b);
     z.push("0","LINE","8",lage,"10",zahlT(p[0]),"20",zahlT(p[1]),"30","0.0",
@@ -6012,6 +6051,12 @@ function dxfDraufsicht(r, trasse){
     zug([ort(F, x1, y1), ort(F, x2, y1), ort(F, x2, y2), ort(F, x1, y2)], lage);
   });
 
+  /* Pfostenachsen quer zur Standlinie, 300 mm je Seite, Strichpunkt auf ACHSE —
+     zum Einmessen der Pfosten. Die Standlinie selbst ist die Längsachse. */
+  for(const x of r.achsen){
+    const F = TR ? {R: rahmenLot(TR, x), u: x} : null;
+    linie(ort(F, x, -300), ort(F, x, 300), "ACHSE");
+  }
   // Standlinie der Pfosten auf KAPPE, über die ganze Länge samt Ohr
   const ohr = r.ohrM;
   const von = Math.min(0, ohr ? ohr.kL : 0), bis = Math.max(r.L, ohr ? ohr.kR : r.L);
@@ -6440,7 +6485,7 @@ function schraegZeichnung(r, o){
 function dxfSchraeg(r, o){
   const zg = schraegZeichnung(r, o);
   if(!zg || zg.fehler) return zg;
-  const z = ["0","SECTION","2","ENTITIES"];
+  const z = [...dxfTabellen(1), "0","SECTION","2","ENTITIES"];
   for(const l of zg.linien)
     z.push("0","LINE","8",l.lage,"10",l.a[0].toFixed(2),"20",l.a[1].toFixed(2),"30","0.0",
            "11",l.b[0].toFixed(2),"21",l.b[1].toFixed(2),"31","0.0");
@@ -7690,6 +7735,23 @@ $("btn-dxf").addEventListener("click", () => {
   $("export-info").textContent = `DXF geschrieben: Ansicht ${letzte.t.kurz}, Maße in mm.`;
 });
 
+/* Dieselbe Ansicht auf dem Weg über die Trasse: abgewickelt. Die Feldlängen
+   sind dort Bogenlängen, L kommt aus der Achse — dxfErzeugen() rechnet das
+   Geländer wie beim geraden Bauwerk, die Lage im Raum braucht es nicht. */
+$("btn-dxf-ansicht-kurve").addEventListener("click", () => {
+  const knopf = $("btn-dxf-ansicht-kurve");
+  const b = trasseDxfBereit(knopf);         // dieselben Sperren wie die Draufsicht
+  if(!b) return;
+  const text = dxfErzeugen(letzte);
+  if(!text){ fehltMelden(knopf, ohneGelaender()); return; }
+  fehltWeg(knopf);
+  const name = `Gelaender_${letzte.t.kurz.replace(" ","")}_${b.kennung}_Ansicht.dxf`;
+  speichern(text, name, "application/dxf");
+  $("trasse-info").textContent = `DXF Ansicht geschrieben: ${letzte.t.kurz} abgewickelt, ` +
+    `${b.kennung === b.seite ? "Rand " + b.seite : "Achse " + TRASSE.achse}, ${letzte.n} Felder, ` +
+    `L = ${Math.round(letzte.L)} mm entlang der Achse, Maße in mm. Datei: ${name}`;
+});
+
 // Grundriss des geraden Geländers, mm örtlich wie die Ansicht
 $("btn-dxf-plan").addEventListener("click", () => {
   const knopf = $("btn-dxf-plan");
@@ -7902,10 +7964,13 @@ function schraegVorschau(knopf){
 /* Grundriss auf der Trasse: dieselben Sperren wie beim IFC-Knopf daneben —
    ohne Trasse, ohne Geländer oder mit einer Länge, die nicht zum Rand passt,
    sagt er es im gelben Kasten. Meter mit Landeskoordinate. */
-$("btn-dxf-plan-kurve").addEventListener("click", () => {
-  const knopf = $("btn-dxf-plan-kurve");
-  if(!TRASSE){ fehltMelden(knopf, ohneTrasse()); return; }
-  if(!letzte || !letzte.gueltig){ fehltMelden(knopf, ohneGelaender()); return; }
+/* Was beide DXF-Knöpfe der Trasse vor dem Schreiben brauchen: eine Trasse, ein
+   Geländer und eine Länge, die zum gewählten Rand passt — sonst stimmt die
+   Teilung nicht. Gibt {seite, rand, kennung} zurück oder null (dann steht die
+   Meldung schon am Knopf). */
+function trasseDxfBereit(knopf){
+  if(!TRASSE){ fehltMelden(knopf, ohneTrasse()); return null; }
+  if(!letzte || !letzte.gueltig){ fehltMelden(knopf, ohneGelaender()); return null; }
   const seite = $("trasse-seite").value;
   const rand = TRASSE.seiten[seite];
   if(Math.abs(rand.laenge - letzte.L) > 1){
@@ -7914,12 +7979,19 @@ $("btn-dxf-plan-kurve").addEventListener("click", () => {
            `${(rand.laenge/1000).toFixed(3)} m — erst ${Math.round(rand.laenge)} mm als Länge übernehmen, dann stimmt die Teilung.`,
       geh:{text:"Länge übernehmen", tun:() => laengeUebernehmen()},
       erledigt:() => TRASSE && letzte && Math.abs(TRASSE.seiten[$("trasse-seite").value].laenge - letzte.L) <= 1});
-    return;
+    return null;
   }
+  const kennung = (TRASSE._direkt && TRASSE.achse) ? achsKennung(TRASSE.achse) : seite;
+  return {seite, rand, kennung};
+}
+$("btn-dxf-plan-kurve").addEventListener("click", () => {
+  const knopf = $("btn-dxf-plan-kurve");
+  const b = trasseDxfBereit(knopf);
+  if(!b) return;
+  const {seite, rand, kennung} = b;
   const text = dxfDraufsicht(letzte, rand);
   if(!text){ fehltMelden(knopf, ohneGelaender()); return; }
   fehltWeg(knopf);
-  const kennung = (TRASSE._direkt && TRASSE.achse) ? achsKennung(TRASSE.achse) : seite;
   const name = `Gelaender_${letzte.t.kurz.replace(" ","")}_${kennung}_Draufsicht.dxf`;
   speichern(text, name, "application/dxf");
   $("trasse-info").textContent = `DXF Draufsicht geschrieben: ${kennung === seite ? "Rand " + seite : "Achse " + TRASSE.achse}, ` +
