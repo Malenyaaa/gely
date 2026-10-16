@@ -6121,6 +6121,114 @@ function dxfRohrverschnitt(teile){
   return aus;
 }
 
+/* ---------- Polylinien aus einer DXF lesen ----------
+   Für eine Achse, die in AutoCAD als Polylinie gezeichnet ist: Pfostenmitte auf
+   Oberkante Kappe, vom Geländeranfang zum Geländerende, am besten als
+   3D-Polylinie mit echten Höhen. Gelesen wird nur die ENTITIES-Sektion (der
+   Zeichenbereich), keine Blöcke, also kein Schriftfeld.
+
+     LWPOLYLINE  2D; Höhe aus der Erhebung (38), Bögen als Wölbung (42)
+     POLYLINE    mit VERTEX bis SEQEND; 3D-Polylinie (70 & 8) mit eigener
+                 Höhe je Punkt; Netze und Flächen (70 & 16/64) werden übergangen
+
+   Ein Bogen (Wölbung ≠ 0) wird in Sehnen von höchstens 0,25 m aufgelöst — die
+   Achse ist danach ein dichter Punktzug wie eine abgetastete TCL-Achse.
+   Die Einheit steht in $INSUNITS; fehlt sie, gibt es keinen Maßstab — raten
+   wäre ein stiller Fehler um den Faktor 1000. Rückgabe {einheit (m je
+   Zeichnungseinheit oder null), linien: [{typ, layer, punkte [{x,y,z}] in
+   Zeichnungseinheiten, dreiD, geschlossen}]}. */
+function dxfPolylinien(text){
+  const L = String(text).split(/\r?\n/);
+  const P = [];
+  for(let i = 0; i + 1 < L.length; i += 2) P.push([parseInt(L[i].trim(), 10), L[i+1].trim()]);
+  const EINHEIT = {1: 0.0254, 2: 0.3048, 4: 0.001, 5: 0.01, 6: 1, 14: 0.1};
+  let einheit = null;
+  for(let i = 0; i + 1 < P.length; i++)
+    if(P[i][0] === 9 && P[i][1] === "$INSUNITS"){ einheit = EINHEIT[parseInt(P[i+1][1], 10)] || null; break; }
+  let a = -1, e = P.length;
+  for(let i = 0; i + 1 < P.length; i++)
+    if(P[i][0] === 0 && P[i][1] === "SECTION" && P[i+1][0] === 2 && P[i+1][1] === "ENTITIES"){ a = i + 2; break; }
+  if(a < 0) return {einheit, linien: []};
+  for(let i = a; i < P.length; i++) if(P[i][0] === 0 && P[i][1] === "ENDSEC"){ e = i; break; }
+  // in Objekte zerlegen: je Gruppencode 0 ein neues
+  const obj = [];
+  for(let i = a; i < e; i++){
+    if(P[i][0] === 0) obj.push({typ: P[i][1], g: []});
+    else if(obj.length) obj[obj.length - 1].g.push(P[i]);
+  }
+  const wert = (g, c) => { const f = g.find(p => p[0] === c); return f ? f[1] : null; };
+  const linien = [];
+  // Wölbung b zwischen p und q in Sehnen auflösen; z läuft linear mit
+  const boegen = (pts, schritt) => {
+    const aus = [];
+    for(let i = 0; i < pts.length; i++){
+      const p = pts[i], q = pts[i+1];
+      aus.push({x: p.x, y: p.y, z: p.z});
+      if(!q || !p.b) continue;
+      const dx = q.x - p.x, dy = q.y - p.y, c = Math.hypot(dx, dy);
+      if(c < 1e-12) continue;
+      const th = 4 * Math.atan(p.b), r = c / (2 * Math.sin(th / 2)), h = r * Math.cos(th / 2);
+      const mx = (p.x + q.x) / 2 - h * dy / c, my = (p.y + q.y) / 2 + h * dx / c;
+      const a0 = Math.atan2(p.y - my, p.x - mx);
+      const n = Math.max(2, Math.ceil(Math.abs(r * th) / schritt));
+      for(let k = 1; k < n; k++){
+        const w = a0 + th * k / n;
+        aus.push({x: mx + Math.abs(r) * Math.cos(w), y: my + Math.abs(r) * Math.sin(w), z: p.z + (q.z - p.z) * k / n});
+      }
+    }
+    return aus;
+  };
+  const schritt = einheit ? 0.25 / einheit : 250;   // 0,25 m in Zeichnungseinheiten
+  /* 2D-Polylinien stehen im Objektkoordinatensystem ihrer Extrusion (210/220/230).
+     Nach SPIEGELN oder in einem gekippten BKS ist das oft 0/0/−1, und dann gilt
+     Welt = (−x, y, −z). Jede andere Richtung hieße: die Linie liegt nicht in der
+     Grundrissebene — sie wird markiert (schief) und nicht still falsch gelesen. */
+  const ocs = (g, pts) => {
+    const nx = parseFloat(wert(g, 210)) || 0, ny = parseFloat(wert(g, 220)) || 0;
+    const nzw = wert(g, 230), nz = nzw === null ? 1 : parseFloat(nzw);
+    if(Math.abs(nx) < 1e-9 && Math.abs(ny) < 1e-9 && nz > 0) return {pts, schief: false};
+    if(Math.abs(nx) < 1e-9 && Math.abs(ny) < 1e-9 && nz < 0)
+      return {pts: pts.map(p => ({x: -p.x, y: p.y, z: -p.z})), schief: false};
+    return {pts, schief: true};
+  };
+  for(let i = 0; i < obj.length; i++){
+    const o = obj[i];
+    if(o.typ === "LWPOLYLINE"){
+      const z0 = parseFloat(wert(o.g, 38)) || 0, fl = parseInt(wert(o.g, 70), 10) || 0;
+      const pts = [];
+      for(const [c, v] of o.g){
+        if(c === 10) pts.push({x: parseFloat(v), y: 0, z: z0, b: 0});
+        else if(c === 20 && pts.length) pts[pts.length - 1].y = parseFloat(v);
+        else if(c === 42 && pts.length) pts[pts.length - 1].b = parseFloat(v);
+      }
+      if(fl & 1 && pts.length > 1) pts.push({...pts[0], b: 0});
+      const w = ocs(o.g, boegen(pts, schritt));
+      linien.push({typ: "LWPOLYLINE", layer: wert(o.g, 8) || "0", punkte: w.pts, schief: w.schief,
+                   dreiD: false, geschlossen: !!(fl & 1), hoehe: z0});
+    } else if(o.typ === "POLYLINE"){
+      const fl = parseInt(wert(o.g, 70), 10) || 0;
+      const z0 = parseFloat(wert(o.g, 30)) || 0;
+      const pts = [];
+      let j = i + 1;
+      for(; j < obj.length && obj[j].typ === "VERTEX"; j++){
+        const vf = parseInt(wert(obj[j].g, 70), 10) || 0;
+        if(vf & 16) continue;                          // Steuerpunkt einer Spline
+        pts.push({x: parseFloat(wert(obj[j].g, 10)), y: parseFloat(wert(obj[j].g, 20)),
+                  z: fl & 8 ? (parseFloat(wert(obj[j].g, 30)) || 0) : z0,
+                  b: parseFloat(wert(obj[j].g, 42)) || 0});
+      }
+      i = j;                                            // SEQEND überspringen
+      if(fl & (16 | 64)) continue;                      // Netz oder Vielflächennetz
+      if(fl & 1 && pts.length > 1) pts.push({...pts[0], b: 0});
+      // Eine 3D-Polylinie steht im Weltsystem; nur die 2D-Polylinie hat ein OCS.
+      const w = fl & 8 ? {pts: boegen(pts, schritt), schief: false} : ocs(o.g, boegen(pts, schritt));
+      linien.push({typ: fl & 8 ? "3D-POLYLINE" : "POLYLINE", layer: wert(o.g, 8) || "0",
+                   punkte: w.pts, schief: w.schief, dreiD: !!(fl & 8), geschlossen: !!(fl & 1), hoehe: z0});
+    }
+  }
+  return {einheit, linien: linien.filter(l => l.punkte.length >= 2 && l.punkte.every(p => isFinite(p.x) && isFinite(p.y) && isFinite(p.z)))};
+}
+
 /* ---------- Achsen in der DXF ----------
    Pfostenachsen (Ansicht) und Geländerachse (Draufsicht) als Strichpunktlinie
    auf dem Layer ACHSE, wie man Mittellinien in einer Werkstattzeichnung
@@ -7443,7 +7551,7 @@ function ohneGelaender(){
 }
 function ohneTrasse(){
   return karteSichtbar("karte-trasse")
-    ? {html:`<b>Noch keine Trasse.</b> Erst in der Karte <i>Trasse</i> eine laden — TCL-Export, <i>Achse selbst erstellen</i> oder eine fertige JSON.`,
+    ? {html:`<b>Noch keine Trasse.</b> Erst in der Karte <i>Trasse</i> eine laden — TCL-Export, Achse aus AutoCAD (DXF), <i>Achse selbst erstellen</i> oder eine fertige JSON.`,
        geh:{text:"Zu Trasse", tun:() => zuKarte("karte-trasse")}}
     : {html:`<b>Noch keine Trasse.</b> Oben in der Karte <i>Bauwerk</i> „auf einer Trasse" wählen, dann in der Karte <i>Trasse</i> eine laden.`,
        geh:{text:"Zu Bauwerk", tun:() => zuKarte("karte-eingabe")}};
@@ -9089,6 +9197,140 @@ try{
   leiste.appendChild(oeffner); leiste.appendChild(nebentext);
   datei.insertAdjacentElement("afterend", leiste);
 
+  /* ---------- Achse aus einer AutoCAD-DXF ----------
+     Eine Polylinie (dxfPolylinien()) wird zur Achse wie beim Weg über
+     Messpunkte — erster Punkt ist der Nullpunkt mit Landeskoordinate, die
+     Höhen kommen aus den z-Werten. Ein Unterschied, und der ist Absicht: ein
+     Bogen ist in AutoCAD oft in viele kurze Geraden zerlegt. Jede davon als
+     Knick zu bauen, gäbe Stöße mit Gehrung mitten im Feld; so wird kein
+     Geländer gebaut. Die Linie gilt deshalb als glatte Kurve wie eine
+     TCL-Achse — die Pfosten stehen auf ihr, der Handlauf läuft je Feld als
+     Sehne. Ein Knick mit Gehrung entsteht nur, wo sie um mehr als
+     DXF_KNICK abknickt. Der Layer gibt den Namen; GEL_… gilt als Standlinie.
+     Eine Linie ohne Höhen (2D) wird gebaut, aber gelb gemeldet: sie liegt
+     waagerecht auf ihrer Erhebung, meist 0. */
+  const DXF_KNICK = 10 * Math.PI / 180;
+  const dxfZeile = document.createElement("div");
+  dxfZeile.style.cssText = "flex:1 1 100%;display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-top:4px";
+  dxfZeile.innerHTML =
+    '<label for="dxf-achse" style="margin:0">Achse aus AutoCAD (DXF)</label>' +
+    '<input type="file" id="dxf-achse" accept=".dxf">' +
+    '<select id="dxf-wahl" hidden style="min-width:220px"></select>' +
+    '<p class="hilfe" id="dxf-info" style="margin:0;flex:1 1 100%">Eine Polylinie auf der Geländerachse — ' +
+    'Pfostenmitte auf Oberkante Kappe, vom Anfang zum Ende, am besten als 3D-Polylinie mit Höhen. ' +
+    'Liegt sie auf einem Layer <code>GEL_…</code>, gilt sie als Standlinie ohne Versatz.</p>';
+  leiste.appendChild(dxfZeile);
+  const dxfDatei = dxfZeile.querySelector("#dxf-achse"), dxfWahl = dxfZeile.querySelector("#dxf-wahl"),
+        dxfInfo = dxfZeile.querySelector("#dxf-info");
+  let DXF_GELESEN = null;
+  const dxfMelde = (html, art) => {
+    dxfInfo.innerHTML = html;
+    dxfInfo.style.color = art === "schlecht" ? "var(--rot)" : art === "gelb" ? "var(--ocker)" : "";
+  };
+  const dxfLaenge = l => l.punkte.reduce((s, p, i) => i ? s + Math.hypot(p.x - l.punkte[i-1].x, p.y - l.punkte[i-1].y) : 0, 0);
+
+  function achseAusDxf(l, einheit, dateiname){
+    if(l.schief) throw new Error(`Die Polylinie auf Layer ${l.layer} liegt nicht in der Grundrissebene (ihre Extrusion zeigt nicht senkrecht nach oben oder unten). Als Achse in AutoCAD in Draufsicht (Welt-BKS) zeichnen oder als 3D-Polylinie.`);
+    if(l.geschlossen) throw new Error(`Die Polylinie auf Layer ${l.layer} ist geschlossen — eine Geländerachse hat einen Anfang und ein Ende.`);
+    // in m, aufeinanderfallende Punkte (< 0,1 mm) zusammenfassen
+    const P = [];
+    for(const p of l.punkte){
+      const q = {x: p.x * einheit, y: p.y * einheit, z: p.z * einheit};
+      const v = P[P.length - 1];
+      if(v && Math.hypot(q.x - v.x, q.y - v.y) < 1e-4) continue;
+      P.push(q);
+    }
+    if(P.length < 2) throw new Error(`Die Polylinie auf Layer ${l.layer} hat keine Länge.`);
+    const ab = [];
+    for(let i = 1; i < P.length; i++){
+      const d = Math.hypot(P[i].x - P[i-1].x, P[i].y - P[i-1].y);
+      ab.push({d, th: Math.atan2(P[i].y - P[i-1].y, P[i].x - P[i-1].x), dz: P[i].z - P[i-1].z,
+               l: Math.hypot(d, P[i].z - P[i-1].z)});
+    }
+    const gesamt = ab.reduce((s, x) => s + x.d, 0);
+    if(gesamt > GRENZE_LAENGE)
+      throw new Error(`Die Polylinie ist ${gross(gesamt)} m lang — länger als ${gross(GRENZE_LAENGE)} m kann das ` +
+        `Werkzeug eine Achse nicht abtasten. Stimmt die Einheit der Zeichnung?`);
+    const plan = [{typ: "START", x: 0, y: 0, ri: ab[0].th}];
+    const grad = [{s: 0, h: P[0].z}];
+    const knicke = [], zwang = [];
+    let s = 0;
+    for(let i = 0; i < ab.length; i++){
+      if(i > 0){
+        let dth = ab[i].th - ab[i-1].th;
+        while(dth <= -Math.PI) dth += 2*Math.PI;
+        while(dth >   Math.PI) dth -= 2*Math.PI;
+        if(Math.abs(dth) > 2.96)
+          throw new Error(`Am ${i + 1}. Punkt der Polylinie knickt die Achse um ` +
+            `${(Math.abs(dth)*200/Math.PI).toFixed(1)} gon und läuft fast in sich zurück.`);
+        if(Math.abs(dth) > 1e-9){
+          // Richtungswechsel wie bei Messpunkten; nur ein scharfer ist ein Knick
+          if(Math.abs(dth) > DXF_KNICK){ knicke.push({s, dth, nr: i, punkt: `${i + 1}. Punkt`}); zwang.push(s); }
+          const len = KNICK_R * Math.abs(dth);
+          plan.push({typ: "ARC", len, r: Math.sign(dth) * KNICK_R, knick: dth});
+          s += len;
+        }
+      }
+      plan.push({typ: "LINE", len: ab[i].d, r: 0});
+      s += ab[i].d;
+      grad.push({s, h: P[i+1].z});
+    }
+    const name = l.layer;                       // GEL_… erkennt modusAusAchse() als Standlinie
+    return {name, sbegin: 0, plan, grad, rundungen: [], sEnde: s,
+            profil: "aus DXF", profilNotlage: false,
+            pkt: P, ab, knicke, zwang, dxf: true,
+            quelle: `${dateiname} · Layer ${l.layer}`,
+            ohneHoehe: !l.dreiD && P.every(p => Math.abs(p.z - P[0].z) < 1e-9)};
+  }
+
+  function dxfNehmen(i){
+    const D = DXF_GELESEN;
+    if(!D || !D.linien[i]) return;
+    let a;
+    try{ a = achseAusDxf(D.linien[i], D.einheit, D.datei); }
+    catch(e){ dxfMelde(`<b>Nicht übernommen.</b> ${esc(e.message)}`, "schlecht"); dxfDatei.value = ""; return; }
+    achseSetzen(a, null);
+    dxfDatei.value = "";
+    const L = a.sEnde;
+    const text = `Achse aus <b>${esc(D.datei)}</b>, Layer <b>${esc(a.name)}</b>: ${L.toFixed(3)} m, ` +
+      `${a.pkt.length} Punkte, ${a.knicke.length ? a.knicke.length + " Knick" + (a.knicke.length > 1 ? "e" : "") +
+      " über " + Math.round(DXF_KNICK * 180 / Math.PI) + "°" : "glatt, ohne Knick"}. `;
+    if(a.ohneHoehe)
+      dxfMelde(text + `<b>Die Linie hat keine Höhen</b> (2D-Polylinie) — die Achse liegt waagerecht auf ` +
+        `${a.pkt[0].z.toFixed(3)} m. Steigung und Höhenlage fehlen damit in IFC und Draufsicht. ` +
+        `Für echte Höhen die Achse in AutoCAD als 3D-Polylinie zeichnen (Befehl 3DPOLY).`, "gelb");
+    else dxfMelde(text + `Höhen ${Math.min(...a.pkt.map(p => p.z)).toFixed(3)} bis ` +
+      `${Math.max(...a.pkt.map(p => p.z)).toFixed(3)} m aus der 3D-Polylinie.`);
+  }
+
+  dxfDatei.addEventListener("change", ev => {
+    const f = ev.target.files && ev.target.files[0];
+    if(!f) return;
+    const leser = new FileReader();
+    leser.onload = () => {
+      let D;
+      try{ D = dxfPolylinien(leser.result); }catch(e){ D = null; }
+      dxfWahl.hidden = true;
+      dxfDatei.value = "";                       // dieselbe Datei soll nach einer Korrektur wieder auslösen
+      if(!D){ dxfMelde(`<b>Datei nicht lesbar.</b> Erwartet wird eine DXF als Text (in AutoCAD: Speichern unter → DXF).`, "schlecht"); return; }
+      if(!D.einheit){ dxfMelde(`<b>Einheit unbekannt.</b> Die Zeichnung sagt nicht, ob sie in m oder mm gezeichnet ist ` +
+        `($INSUNITS). In AutoCAD mit dem Befehl EINHEIT die Einfügeeinheit setzen und neu speichern.`, "schlecht"); return; }
+      if(!D.linien.length){ dxfMelde(`<b>Keine Polylinie gefunden.</b> Gelesen wird der Zeichenbereich: LWPOLYLINE, ` +
+        `POLYLINE und 3D-Polylinie. Linien und Bögen einzeln werden nicht zusammengesetzt — in AutoCAD mit VERBINDEN zu einer Polylinie machen.`, "schlecht"); return; }
+      D.datei = f.name;
+      DXF_GELESEN = D;
+      if(D.linien.length === 1){ dxfNehmen(0); return; }
+      // Mehrere: wählen lassen, keine Vorauswahl
+      selectFuellen("dxf-wahl", [{v: "", t: `– ${D.linien.length} Polylinien, eine wählen –`}].concat(
+        D.linien.map((l, i) => ({v: String(i),
+          t: `${l.layer}${l.schief ? " (nicht in der Grundrissebene)" : ""} · ${(dxfLaenge(l) * D.einheit).toFixed(2)} m · ${l.punkte.length} Punkte · ${l.dreiD ? "3D" : "2D"}`}))), "");
+      dxfWahl.hidden = false;
+      dxfMelde(`In <b>${esc(f.name)}</b> stehen ${D.linien.length} Polylinien — welche ist die Geländerachse?`);
+    };
+    leser.readAsText(f);
+  });
+  dxfWahl.addEventListener("change", () => { if(dxfWahl.value !== "") dxfNehmen(+dxfWahl.value); });
+
   /* ---------- Der Kasten ---------- */
   const dlg = document.createElement("dialog");
   dlg.className = "achsbau";
@@ -9703,10 +9945,17 @@ try{
     try{ a = achseLesen(); }catch(e){
       melde.textContent = e.message; melde.className = "ab-melde schlecht"; return;
     }
+    achseSetzen(a, a.pkt ? "direkt" : null);
+    schliessen();
+  }
+  /* Eine fertige Achse (aus dem Kasten oder aus einer DXF) als Trasse setzen.
+     modus "direkt" erzwingt die Standlinie; null lässt modusAusAchse() nach
+     dem Namen entscheiden (GEL_… = Standlinie). */
+  function achseSetzen(a, modus){
     TCL_DAT = {
       achsen: [a], kurven: [],
       faktor: 1,                       // die Anfangsrichtung steht in Bogenmaß
-      einheit: a.pkt ? "rad (aus Messpunkten)" : "rad (selbst erstellt)",
+      einheit: a.dxf ? "rad (aus DXF)" : a.pkt ? "rad (aus Messpunkten)" : "rad (selbst erstellt)",
       radiusLinks: true,               // positiver Radius ist eine Linkskurve
       /* Der erste gemessene Punkt ist der Nullpunkt — dieselbe Rolle, die
          PORIGIN bei einer TCL spielt. Die Achse selbst rechnet ab 0/0; die
@@ -9715,7 +9964,7 @@ try{
       // Jeder Zwischenpunkt muss in jeder Abtastung vorkommen, siehe die Hülle oben.
       zwangsStationen: a.zwang && a.zwang.length ? a.zwang : null
     };
-    TCL_NAME = a.name;
+    TCL_NAME = a.quelle || a.name;
     TCL_ROH  = null;
     datei.value = "";                  // es gilt jetzt die eigene Achse, nicht die Datei
 
@@ -9728,7 +9977,7 @@ try{
          deshalb vorne, und weglassen muss man sie ausdrücklich. Dieselbe
          Regel wie beim PORIGIN aus der Datei. */
       selectFuellen("tr-nullpunkt",
-        [{v: "porigin", t: `Messpunkt ${a.pkt[0].x.toFixed(3)} / ${a.pkt[0].y.toFixed(3)}`},
+        [{v: "porigin", t: `${a.dxf ? "Polylinienanfang" : "Messpunkt"} ${a.pkt[0].x.toFixed(3)} / ${a.pkt[0].y.toFixed(3)}`},
          {v: "lokal",   t: "örtlich 0 / 0"}], "porigin");
       $("tr-nullpunkt").disabled = false;
     }else{
@@ -9746,11 +9995,10 @@ try{
        darauf noch einmal anzuwenden verschöbe das Geländer um seinen eigenen
        Abstand zur Achse. Deshalb steht hier die Standlinie, unabhängig davon,
        wie die Achse heißt — umstellbar bleibt sie trotzdem. */
-    if(a.pkt) $("tr-modus").value = "direkt"; else modusAusAchse();
+    if(modus) $("tr-modus").value = modus; else modusAusAchse();
 
     trasseFelderZeigen();
     trasseAusTcl();
-    schliessen();
 
     // Aufklapper öffnen, sonst landet das Ergebnis hinter einer zugeklappten Karte
     const karte = document.getElementById("karte-trasse");
