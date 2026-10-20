@@ -1533,7 +1533,7 @@ button, summary, label, select, a, .reiter{cursor:pointer}
        Mappe (hängt das Mappe-Skript an mappe-platz) und das Farbschema. -->
   <aside class="leiste" id="leiste" aria-label="Abschnitte und Mappe">
     <div class="leiste-kopf">
-      <div><b>Gely</b><small>Geländer-Berechnung nach <span id="marke">RiZ-ING 12/2023 · Gruppe Gel</span></small></div>
+      <div><b>Gely</b><small><span id="marke">RiZ-ING 12/2023</span></small></div>
     </div>
     <nav class="abschnitte" id="abschnitte" aria-label="Abschnitte"></nav>
     <div id="mappe-platz"></div>
@@ -2585,11 +2585,11 @@ const VERANK_DB = [VERANK_KEINE,
 
 const REGELWERKE = [
   {id:"riz", kurz:"RiZ-ING", lang:"RiZ-ING", verank:VERANK_RIZ,
-   marke:"RiZ-ING 12/2023 · Gruppe Gel",
+   marke:"RiZ-ING 12/2023 · Gruppe Gel", stand:"RiZ-ING 12/2023",
    typen:TYPEN_RIZ,
    hinweis:"Richtzeichnungen für Ingenieurbauten, Gruppe Gel, Stand Dezember 2023. Straßenbrücken."},
   {id:"db", kurz:"DB Ril", lang:"Ril 804.9060A01", verank:VERANK_DB,
-   marke:"DB Ril 804.9060A01 · gültig ab 01.10.2024",
+   marke:"DB Ril 804.9060A01 · gültig ab 01.10.2024", stand:"DB Ril 804.9060A01 · 10/2024",
    typen:TYPEN_DB,
    hinweis:"DB InfraGO, Konstruktionsgrundsätze für Geländer, gültig ab 01.10.2024. Eisenbahnbrücken – andere Zahlen als die RiZ-ING, nicht austauschbar."}
 ];
@@ -2700,9 +2700,12 @@ function werkwahlZeigen(){
   // Die Kopfmarke nennt das Land mit, sonst steht dort nur der Bund, während
   // nach einer Landesvorgabe gerechnet wird.
   const lf = landFall();
-  $("marke").textContent = lf ? `${w.marke} · ${lf.land.name} ${lf.land.fassung}` : w.marke;
-  // Im HUD steht die Zeile einzeilig und wird abgeschnitten — ganz im Tooltip
-  $("marke").parentNode.title = $("marke").parentNode.textContent;
+  /* Unter dem Namen steht nur der Stand („RiZ-ING 12/2023") — der ganze Satz
+     mit Gruppe und Landesvorgabe passte nicht in die Zeile (Wunsch vom
+     20.10.2026). Ganz steht er im Tooltip; die Landesvorgabe zeigt die
+     Prüfungskarte ohnehin. */
+  $("marke").textContent = w.stand;
+  $("marke").parentNode.title = "Geländer-Berechnung nach " + w.marke + (lf ? ` · ${lf.land.name} ${lf.land.fassung}` : "");
   document.title = "Gely — Geländer-Berechnung nach " + w.lang;
 }
 
