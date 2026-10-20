@@ -1168,6 +1168,24 @@ button, summary, label, select, a, .reiter{cursor:pointer}
 .sonderfeld .sonderfeld-tasten .tat{padding:6px 14px;font-size:12.5px}
 .sonderfeld .fehlt-meldung{margin:8px 0 0}
 
+/* ---------- Bauteil-Info ----------
+   Die Tafel am Zeiger und die Umrandung des Körpers darunter (Skript
+   „Bauteil-Info"). Sie nimmt keine Klicks: Ziehen und Feldklick gehen durch. */
+.bauteil-info{
+  position:fixed;z-index:13;max-width:320px;padding:8px 11px 7px;border-radius:10px;pointer-events:none;
+  background:var(--glas-hoch);border:1px solid var(--glas-kante);color:var(--ink);
+  -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);box-shadow:var(--schatten-hoch);
+  font:12px/1.45 var(--s);letter-spacing:0;text-transform:none;
+}
+.bauteil-info[hidden]{display:none}
+.bauteil-info b{display:block;font:600 12.5px/1.4 var(--z);color:var(--blau);margin-bottom:2px}
+.bauteil-info span{display:block;color:var(--ink-weich)}
+.bauteil-info span.mass{color:var(--ink)}
+#zeichnung svg .bauteil-mark{fill:none;stroke:var(--blau);stroke-width:2;vector-effect:non-scaling-stroke;pointer-events:none}
+/* über die Kennung, sonst gewönne das HUD (#karte-ansicht.hud-buehne .bp-kopf .minitat, weiter unten) */
+#karte-ansicht .bp-kopf #btn-bauteilinfo[aria-pressed=true]{color:var(--blau);border-color:var(--blau)}
+@media print{.bauteil-info{display:none !important}}
+
 /* ---------- Urhebervermerk ---------- klein und leise, am Ende des Inhalts. */
 .urheber{margin:4px 16px 14px;font-family:var(--z);font-size:10.5px;letter-spacing:.04em;color:var(--ink-leise);text-align:right}
 
@@ -1918,6 +1936,8 @@ button, summary, label, select, a, .reiter{cursor:pointer}
           <span id="bp-titel">Ansicht</span>
           <span id="bp-neben"></span>
           <span class="bp-stand" id="ansicht-stand"></span>
+          <button type="button" class="minitat weit" id="btn-bauteilinfo" aria-pressed="true"
+                  title="Bauteil-Info: der Zeiger über einem Bauteil zeigt Profil, Länge und Lage — dieselben Körper und Zahlen wie im Export. Ein Klick schaltet sie ab und wieder an.">Info</button>
           <button type="button" class="minitat weit" id="btn-ansicht-alles"
                   title="Rad zoomt zum Zeiger · mittlere oder linke Taste gedrückt verschiebt · Doppelklick mittlere Taste, Pos1 oder dieser Knopf passt das Bild wieder ein">Einpassen</button>
         </div>
@@ -3973,7 +3993,9 @@ function zeichnen(r){
      die reichen bis unter die Maßkette, und sonst legte ein Klick auf L ein
      Sonderfeld an, statt L zu ändern. Gezeichnet wird dasselbe. */
   const ganzOben = s => s.includes(" data-mass=");
-  ziel.innerHTML = `<svg viewBox="0 0 ${B} ${HB}" role="img" aria-label="Maßstäbliche Ansicht des Geländers">` +
+  /* data-x0, data-y0, data-s: der Maßstab des Blattes, damit die Bauteil-Info
+     Bildpunkte zurück in mm rechnen kann (Skript „Bauteil-Info"). */
+  ziel.innerHTML = `<svg viewBox="0 0 ${B} ${HB}" role="img" aria-label="Maßstäbliche Ansicht des Geländers" data-x0="${x0}" data-y0="${y0}" data-s="${s}">` +
     `<style>.feldklick{fill:transparent;cursor:pointer}.feldklick:hover{fill:var(--bp-mass);opacity:.10}</style>` +
     `${e.filter(s => !ganzOben(s)).join("")}${e.filter(ganzOben).join("")}</svg>`;
   const sonderZahl = r.felder.filter(f => f.sonder).length;
@@ -12982,6 +13004,228 @@ try{
   }
 }catch(e){
   if(window.console) console.warn("Sonderfeld am Feld nicht verfügbar:", e);
+}
+})();
+</script>
+<script>
+/* ---------- Bauteil-Info ----------
+   Seit 20.10.2026. Fährt der Zeiger über ein Bauteil der Ansicht, nennt eine
+   kleine Tafel am Zeiger, was dort gebaut wird: Name, Profil, Länge und Lage —
+   aus r.teile, also dieselben Körper und Zahlen, die in IFC und DXF gehen.
+   Gesucht wird nicht das gezeichnete Element, sondern der Körper unter dem
+   Zeiger, aus den Bildpunkten zurück in mm gerechnet (data-x0, data-y0, data-s
+   am SVG aus zeichnen()): die Zeichnung malt Stäbe und Holme teils aus eigener
+   Rechnung, die Tafel soll aber sagen, was exportiert wird. Liegen mehrere
+   Körper unter dem Zeiger, gilt der kleinste — die Mutter vor der Fußplatte,
+   der Pfosten vor dem Holm. Ein Körper, der nur knapp verfehlt ist (3
+   Bildpunkte), zählt mit, sonst wäre ein Draht nie zu treffen. Der Körper wird
+   im Bild umrandet.
+   Richtung, Querschnitt und Länge wie im IFC-Export: quer bei achse "y",
+   sonst längs, wenn dx ≥ dz und nicht achse "z", sonst stehend.
+   Gezeigt wird nur, was die Ansicht auch zeichnet: nichts unter der Kappe,
+   außer dem Fundament.
+   Abschaltbar über den Knopf „Info" im Kopf der Ansicht; die Wahl merkt sich
+   der Browser. Beim Ziehen, über einem anklickbaren Maß und am Touchschirm
+   bleibt die Tafel weg. */
+(function(){
+try{
+  const hol = id => document.getElementById(id);
+  const fl = hol("zeichnung"), knopf = hol("btn-bauteilinfo"), app = hol("app") || document.body;
+  if(!fl || !knopf) return;
+  let an = true;
+  try{ an = localStorage.getItem("bauteil-info") !== "aus"; }catch(e){}
+  const tafel = document.createElement("div");
+  tafel.className = "bauteil-info"; tafel.id = "bauteil-info"; tafel.hidden = true;
+  tafel.setAttribute("role", "tooltip");
+  app.append(tafel);
+
+  function knopfZeigen(){ knopf.setAttribute("aria-pressed", String(an)); }
+  knopf.addEventListener("click", () => {
+    an = !an;
+    try{ localStorage.setItem("bauteil-info", an ? "an" : "aus"); }catch(e){}
+    knopfZeigen();
+    if(!an) weg();
+  });
+  knopfZeigen();
+
+  const zahl1 = v => (Math.round(v * 10) / 10).toLocaleString("de-DE", {maximumFractionDigits: 1});
+  const mass = v => `${fmt(v)} ${einheit}`;
+  const richtung = q => q.achse === "y" ? "quer" : (q.achse !== "z" && q.dx >= q.dz ? "laengs" : "steht");
+
+  // Profil als Text, der Querschnitt in mm wie auf den Blättern; Länge in der gewählten Einheit
+  function profil(q, t){
+    if(q.art === "bogen"){
+      const p = q.profil || {};
+      return {text: `Rohrbogen ⌀ ${zahl1(p.d)} × ${zahl1(p.wand)} · Radius ${zahl1(q.R)} mm (Rohrachse)`,
+              laenge: Math.PI / 2 * q.R, laengeWort: "Bogenlänge"};
+    }
+    if(q.art === "profil"){
+      if(/HA 85/.test(q.name)) return {text: "Handlaufprofil HA 85", laenge: q.laenge};
+      const teil = String(t.profile || "").split(" · ").find(x => /^Handlauf/.test(x));
+      return {text: "Kantprofil" + (teil ? " " + teil.replace(/^Handlauf\s*/, "") : ""), laenge: q.laenge};
+    }
+    const p = q.profil || {}, ri = richtung(q);
+    const [a, b, laenge] = ri === "quer" ? [q.dx, q.dz, q.dy] : ri === "laengs" ? [q.dy, q.dz, q.dx] : [q.dx, q.dy, q.dz];
+    const gross = Math.max(a, b), klein = Math.min(a, b);
+    let text;
+    if(p.typ === "rechteckhohl") text = `Rechteckhohlprofil ${zahl1(gross)} × ${zahl1(klein)} × ${zahl1(p.wand)}`;
+    else if(p.typ === "kreishohl") text = `Rohr ⌀ ${zahl1(p.d)} × ${zahl1(p.wand)}`;
+    else if(p.typ === "kreis") text = `rund ⌀ ${zahl1(p.d || gross)}`;
+    else if(p.typ === "sechskant") text = `Sechskant SW ${zahl1(p.sw)}`;
+    else if(q.name === "Fundament" || q.name === "Mörtelbett") text = `Block ${zahl1(gross)} × ${zahl1(klein)}`;
+    else text = `Vollprofil ${zahl1(gross)} × ${zahl1(klein)}`;
+    return {text, laenge, laengeWort: ri === "steht" ? "Höhe" : "Länge"};
+  }
+
+  // Wo der Körper sitzt: Pfosten gezählt, Stäbe und Rahmen im Feld, Verankerung am Pfosten, Ohr am Ende
+  function wo(q, r, teile){
+    const cx = q.art === "bogen" ? q.cx : q.x + q.dx / 2;
+    const pfosten = teile.filter(p => p.name === "Pfosten" && !p.ohr && !p.verank)
+                         .sort((p1, p2) => p1.x - p2.x);
+    const naechster = () => {
+      let k = 0;
+      pfosten.forEach((p, i) => { if(Math.abs(p.x + p.dx/2 - cx) < Math.abs(pfosten[k].x + pfosten[k].dx/2 - cx)) k = i; });
+      return k + 1;
+    };
+    if(q.ohr || q.name === "Bogen") return cx < r.L / 2 ? "am Anfang" : "am Ende";
+    if(q.verank) return pfosten.length ? `an Pfosten ${naechster()} von ${pfosten.length}` : "";
+    if(q.name === "Pfosten") return `${pfosten.indexOf(q) + 1} von ${pfosten.length}`;
+    const kuerzest = Math.min(...r.felder.map(f => f.laenge));
+    if(q.art === "quader" && q.dx < kuerzest * 0.9){
+      const fd = r.felder.find(f => cx >= f.von - 1 && cx <= f.bis + 1);
+      if(fd) return `in Feld ${fd.i}`;
+    }
+    return "";
+  }
+
+  /* Die Körper unter dem Punkt (mm), der beste zuerst; tol in mm. Innen schlägt
+     knapp daneben, dann der kleinere. */
+  function finden(teile, x, z, tol){
+    const treffer = [];
+    for(const q of teile){
+      let abstand, flaeche;
+      if(q.art === "bogen"){
+        const w = ((Math.atan2(z - q.cz, x - q.cx) * 180 / Math.PI) + 360) % 360;
+        const von = q.oben ? (q.seite < 0 ? 90 : 0) : (q.seite < 0 ? 180 : 270);
+        // 2° Luft an beiden Enden des Viertels, auch über 0°/360° hinweg
+        if((w - von + 362) % 360 > 94) continue;
+        const d = (q.profil && q.profil.d) || 0;
+        abstand = Math.max(0, Math.abs(Math.hypot(x - q.cx, z - q.cz) - q.R) - d / 2);
+        flaeche = q.R * Math.PI / 2 * d;
+      } else {
+        if(q.z + q.dz <= 0 && q.name !== "Fundament") continue;      // in der Kappe: nicht gezeichnet
+        if(z < 0 && q.name !== "Fundament") continue;
+        const ax = Math.max(q.x - x, 0, x - (q.x + q.dx)), az = Math.max(q.z - z, 0, z - (q.z + q.dz));
+        abstand = Math.hypot(ax, az);
+        flaeche = q.dx * q.dz;
+      }
+      if(abstand > tol) continue;
+      treffer.push({q, innen: abstand === 0, wert: (abstand > 0 ? 1e12 : 0) + flaeche});
+    }
+    return treffer.sort((a, b) => a.wert - b.wert);
+  }
+
+  let markiert = null;
+  function weg(){
+    tafel.hidden = true;
+    if(markiert){ markiert.remove(); markiert = null; }
+  }
+  function markieren(svg, q, x0, y0, s){
+    if(markiert) markiert.remove();
+    const ns = "http://www.w3.org/2000/svg";
+    let el;
+    if(q.art === "bogen"){
+      const a1 = (q.oben ? (q.seite < 0 ? 90 : 0) : (q.seite < 0 ? 180 : 270)) * Math.PI / 180, a2 = a1 + Math.PI / 2;
+      const p = w => `${x0 + (q.cx + q.R * Math.cos(w)) * s} ${y0 - (q.cz + q.R * Math.sin(w)) * s}`;
+      el = document.createElementNS(ns, "path");
+      el.setAttribute("d", `M ${p(a1)} A ${q.R * s} ${q.R * s} 0 0 0 ${p(a2)}`);
+    } else {
+      // Was die Ansicht an der Kappe abschneidet, wird auch hier nur bis zur Kappe umrandet
+      const zU = q.name === "Fundament" ? q.z : Math.max(q.z, 0);
+      el = document.createElementNS(ns, "rect");
+      el.setAttribute("x", x0 + q.x * s); el.setAttribute("y", y0 - (q.z + q.dz) * s);
+      el.setAttribute("width", q.dx * s); el.setAttribute("height", (q.z + q.dz - zU) * s);
+    }
+    el.setAttribute("class", "bauteil-mark");
+    svg.append(el);
+    markiert = el;
+  }
+
+  let wartet = null;
+  function zeigen(ev){
+    const r = typeof letzte !== "undefined" ? letzte : null;
+    const svg = fl.querySelector("svg[data-s]");
+    if(!an || !r || !r.gueltig || !r.teile || !svg || ev.target.closest("text[data-mass]")) return weg();
+    const s = +svg.dataset.s, x0 = +svg.dataset.x0, y0 = +svg.dataset.y0;
+    const ctm = svg.getScreenCTM();
+    if(!ctm || !s) return weg();
+    const pt = new DOMPoint(ev.clientX, ev.clientY).matrixTransform(ctm.inverse());
+    const x = (pt.x - x0) / s, z = (y0 - pt.y) / s;
+    const treffer = finden(r.teile, x, z, 3 / (ctm.a * s));
+    const q = treffer.length ? treffer[0].q : null;
+    const zeile = (tag, text, kl) => { const e = document.createElement(tag); e.textContent = text; if(kl) e.className = kl; tafel.append(e); };
+    if(!q){
+      // Kein Körper, aber ein Feld: das sagt sonst der title der Feldfläche (bei Info an entfernt, siehe unten)
+      const z2 = ev.target.closest("[data-feld]");
+      const fd = z2 && r.felder.find(f => f.i === +z2.dataset.feld);
+      if(!fd) return weg();
+      if(markiert){ markiert.remove(); markiert = null; }
+      tafel.innerHTML = "";
+      zeile("b", `Feld ${fd.i} · ${mass(fd.laenge)}`);
+      zeile("span", "anklicken: Sonderfeld");
+      return legen(ev);
+    }
+    const pr = profil(q, r.t), lage = wo(q, r, r.teile);
+    const ri = q.art === "bogen" || q.art === "profil" ? "laengs" : richtung(q);
+    const ort = ri === "steht"
+      ? `Achse bei x = ${mass(q.x + q.dx / 2)} · Oberkante ${mass(q.z + q.dz)} über Kappe`
+      : (q.art === "bogen" ? `Mitte x = ${mass(q.cx)}, z = ${mass(q.cz)}`
+                           : `x ${mass(q.x)} bis ${mass(q.x + q.dx)} · Mitte ${mass(q.z + q.dz / 2)} über Kappe`);
+    tafel.innerHTML = "";
+    zeile("b", q.name + (lage ? (q.name === "Pfosten" ? " " : " · ") + lage : ""));
+    zeile("span", pr.text);
+    zeile("span", `${pr.laengeWort || "Länge"} ${mass(pr.laenge)}`, "mass");
+    zeile("span", ort);
+    // Was in der Ansicht genau dahinter liegt (Scheibe und Mutter hinter der Schraube, HA 85 am Handlauf)
+    const auch = [...new Set(treffer.slice(1).filter(x => x.innen && x.q.name !== q.name).map(x => x.q.name))];
+    if(auch.length) zeile("span", "an derselben Stelle: " + auch.slice(0, 4).join(", ") + (auch.length > 4 ? " …" : ""));
+    legen(ev);
+    markieren(svg, q, x0, y0, s);
+  }
+  // Rechts unter dem Zeiger; passt es dort nicht, links bzw. darüber
+  function legen(ev){
+    tafel.hidden = false;
+    const b = tafel.offsetWidth, h = tafel.offsetHeight;
+    let lx = ev.clientX + 16, ly = ev.clientY + 18;
+    if(lx + b > innerWidth - 8) lx = ev.clientX - b - 16;
+    if(ly + h > innerHeight - 8) ly = ev.clientY - h - 14;
+    tafel.style.left = Math.round(Math.max(8, Math.min(innerWidth - b - 8, lx))) + "px";
+    tafel.style.top = Math.round(Math.max(8, Math.min(innerHeight - h - 8, ly))) + "px";
+  }
+  fl.addEventListener("pointermove", ev => {
+    if(ev.pointerType === "touch" || ev.buttons){ weg(); return; }
+    if(wartet) return;
+    wartet = requestAnimationFrame(() => { wartet = null; try{ zeigen(ev); }catch(e){ weg(); } });
+  });
+  ["pointerleave", "pointerdown", "wheel"].forEach(n => fl.addEventListener(n, weg, {passive: true}));
+  addEventListener("beforeprint", weg);
+  /* Neu gezeichnet: die Umrandung ist mit dem alten Bild weg, die Tafel nennt
+     einen alten Stand. Und bei Info an verlieren die Feldflächen ihren title —
+     sonst stünde der Tooltip des Browsers neben dieser Tafel; was er sagte,
+     sagt die Tafel über einer leeren Stelle des Feldes. */
+  const titelWeg = () => { if(an) fl.querySelectorAll("[data-feld] > title").forEach(x => x.remove()); };
+  if(typeof zeichnen === "function"){
+    const alt = zeichnen;
+    zeichnen = function(r){ alt(r); markiert = null; tafel.hidden = true; titelWeg(); };
+  }
+  titelWeg();
+  // Wieder aus: die title kommen mit dem nächsten Bild zurück — gleich neu zeichnen. Wieder an: weg damit.
+  knopf.addEventListener("click", () => {
+    if(an) titelWeg();
+    else if(typeof letzte !== "undefined" && letzte){ try{ zeichnen(letzte); }catch(e){} }
+  });
+}catch(e){
+  if(window.console) console.warn("Bauteil-Info nicht verfügbar:", e);
 }
 })();
 </script>
