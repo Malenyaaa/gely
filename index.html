@@ -939,6 +939,12 @@ button.ifc-rot::after{
 .mappe-fuss .zeile{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 .mappe-fuss .zeile[hidden]{display:none}   /* sonst schlägt display:flex das hidden */
 .mappe-fuss button.tat{width:100%}
+/* DXF aus der Mappe: zusammen oder einzeln, dann die drei Formate (Skript „Die anderen Formate aus der Mappe") */
+.mappe-fuss .mappe-dxf{gap:4px}
+.mappe-dxf-titel{font:600 10px var(--z);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-leise);margin-right:4px}
+.mappe-dxf .segment{flex:1;min-width:0}
+.mappe-dxf .segment button{font-size:11.5px;padding:4px 6px}
+.mappe-dxf .minitat{flex:1 1 0;min-width:0;padding:5px 6px;font-size:11.5px}
 .mappe-datei{font-family:var(--z);font-size:10.5px;color:var(--ink-leise);overflow-wrap:anywhere;line-height:1.35;
   /* höchstens zwei Zeilen; der ganze Satz steht im Tooltip */
   display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden}
@@ -6377,6 +6383,9 @@ function dxfPolylinien(text){
    für Zeichnungen um 1 : 20 bis 1 : 50 gedacht; feiner oder gröber stellt man
    sie im CAD über den Linientypfaktor. einheit = 1 für mm, 1/1000 für m.
    Die Körper bleiben durchgezogen (Linienart des Layers). */
+/* Für jedes Geländer dieselben Tabellen, nur die Einheit unterscheidet sich.
+   Darauf baut dxfZusammen() in der Mappe: es übernimmt die Tabellen der ersten
+   Datei für alle. Steht hier einmal etwas je Geländer, muss es dort mit. */
 function dxfTabellen(einheit){
   const m = v => (v * einheit).toFixed(einheit === 1 ? 2 : 6);
   return ["0","SECTION","2","TABLES",
@@ -7078,7 +7087,16 @@ function achsKennung(achse){
   return k.slice(0, ACHSNAME_MAX - hinten - pruef.length - 2) + "-" + k.slice(-hinten) + "-" + pruef;
 }
 
+/* speicherFang: ist er gesetzt, landet die Datei dort statt im Download. Die
+   Mappe schreibt so DXF für jeden Eintrag über dieselben Knöpfe wie sonst
+   (Skript „Mappe", „Die anderen Formate"). Er sitzt hier unten, unter den
+   Umhüllungen von speichern(): Dateiname und Zusätze sind dann schon fertig. */
+let speicherFang = null;
 function speichern(text, dateiname, typ){
+  if(speicherFang) return speicherFang(text, dateiname, typ);
+  herunterladen(text, dateiname, typ);
+}
+function herunterladen(text, dateiname, typ){
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([text], {type:typ}));
   a.download = dateiname;
@@ -10918,6 +10936,16 @@ try{
         '<button type="button" class="mini" id="btn-mappe-verwerfen" title="Die Eingaben von vor dem Bearbeiten nicht mehr anbieten" hidden>Verwerfen</button></div>' +
       '<div class="zeile" data-fehlt-ort><button type="button" class="tat" id="btn-mappe-ifc">IFC 4 schreiben</button></div>' +
       '<p class="mappe-datei" id="mappe-datei"></p>' +
+      // Die anderen Formate (Skript unten, „Die anderen Formate aus der Mappe")
+      '<div class="zeile mappe-dxf" data-fehlt-ort><span class="mappe-dxf-titel" id="mappe-dxf-label">DXF</span>' +
+        '<div class="segment" role="group" aria-labelledby="mappe-dxf-label" id="mappe-dxf-art">' +
+          '<button type="button" data-art="zusammen" aria-pressed="true" title="Alle Geländer in einer Datei je Format, untereinander">zusammen</button>' +
+          '<button type="button" data-art="einzeln" aria-pressed="false" title="Je Geländer eine Datei, durchnummeriert">einzeln</button></div></div>' +
+      '<div class="zeile mappe-dxf" id="mappe-dxf-knoepfe" data-fehlt-ort>' +
+        '<button type="button" class="minitat" data-dxf="ansicht">Ansicht</button>' +
+        '<button type="button" class="minitat" data-dxf="plan">Draufsicht</button>' +
+        '<button type="button" class="minitat" data-dxf="schraeg">Schrägansicht</button></div>' +
+      '<p class="mappe-datei" id="mappe-dxf-info" hidden></p>' +
     '</div>';
   platz.appendChild(kasten);
 
@@ -11425,6 +11453,159 @@ try{
   if(hol("chip-mappe")) hol("chip-mappe").addEventListener("click", () => {
     if(window.leisteOeffnen) window.leisteOeffnen(true);
     kasten.scrollIntoView({block:"nearest"});
+  });
+
+  /* ---------- Die anderen Formate aus der Mappe ----------
+     Seit 20.10.2026 (Wunsch): auch DXF Ansicht, Draufsicht und Schrägansicht
+     für alle Geländer der Mappe — und das aktuelle, wenn es nicht schon darin
+     liegt, wie bei der IFC. Gerechnet wird nichts Neues: je Eintrag wird sein
+     Stand ins Formular geholt (wiederherstellen) und der Knopf seines Weges
+     gedrückt, wie man es selbst täte; die Datei fängt speicherFang ab, statt
+     sie herunterzuladen. So gelten dieselben Sperren, Prüfungen und
+     Dateinamen wie beim einzelnen Export. Danach kommt der Stand von vorher
+     zurück. Was ein Eintrag nicht kann (die Schrägansicht gibt es nur gerade,
+     ein Knopf meldet etwas), steht mit Nummer im gelben Kasten am Knopf.
+       zusammen  eine Datei je Format: Kopf und Tabellen der ersten, darunter
+                 die Körper aller — jedes Geländer unter das vorige versetzt.
+                 Eine Draufsicht auf der Trasse liegt dagegen schon an ihrer
+                 wahren Lage und bleibt dort; gerade und Trasse (mm und m)
+                 kommen dann in zwei Dateien.
+       einzeln   eine Datei je Geländer, der Name durchnummeriert (_Nr1 …).
+     Die Wahl merkt sich der Browser. */
+  const DXF_KNOEPFE = {
+    ansicht: {gerade: "btn-dxf",         trasse: "btn-dxf-ansicht-kurve", name: "DXF Ansicht"},
+    plan:    {gerade: "btn-dxf-plan",    trasse: "btn-dxf-plan-kurve",    name: "DXF Draufsicht"},
+    schraeg: {gerade: "btn-dxf-schraeg", trasse: null,                    name: "DXF Schrägansicht"}
+  };
+  let dxfArt = "zusammen";
+  try{ if(localStorage.getItem("mappe-dxf") === "einzeln") dxfArt = "einzeln"; }catch(e){}
+  const dxfArtZeigen = () => hol("mappe-dxf-art").querySelectorAll("button[data-art]")
+    .forEach(b => b.setAttribute("aria-pressed", String(b.dataset.art === dxfArt)));
+  hol("mappe-dxf-art").addEventListener("click", ev => {
+    const b = ev.target.closest("button[data-art]"); if(!b) return;
+    dxfArt = b.dataset.art;
+    try{ localStorage.setItem("mappe-dxf", dxfArt); }catch(e){}
+    dxfArtZeigen();
+  });
+  dxfArtZeigen();
+
+  // Je Geländer die Datei des Formats, abgefangen. Zurück kommen die Dateien und was nicht ging.
+  function dxfSammeln(format){
+    const jetzt = schnappschuss();
+    /* Was die gedrückten Knöpfe und der Wechsel des Weges an Meldungen
+       hinterlassen, gehört nicht hierher — vorher merken, danach zurück. */
+    const ZEILEN = ["bauweg-meldung", "export-info", "trasse-info"].filter(hol);
+    const zeilenVorher = ZEILEN.map(id => hol(id).innerHTML);
+    // nr: die Nummer in der Mappe — sie steht im Dateinamen bei „einzeln“; das aktuelle zählt dahinter
+    const liste = mappe.map((m, i) => ({wer: `Eintrag ${i + 1}`, nr: i + 1, schnapp: m.schnapp}));
+    if(drinIndex() < 0 && gueltig()) liste.push({wer: "Das aktuelle Geländer", nr: mappe.length + 1, schnapp: jetzt, jetzt: true});
+    const dateien = [], fehler = [];
+    let gefangen = null;
+    speicherFang = (text, dateiname, typ) => { gefangen = {text, dateiname, typ}; };
+    try{
+      for(const e of liste){
+        gefangen = null;
+        wiederherstellen(e.schnapp);
+        const abw = e.jetzt ? [] : abweichungen(e.schnapp);
+        if(abw.length){ fehler.push(`${e.wer}: ließ sich nicht ganz zurückholen (${abw.join(", ")})`); continue; }
+        const weg = e.schnapp.bauweg === "trasse" ? "trasse" : "gerade";
+        const id = DXF_KNOEPFE[format][weg];
+        if(!id){ fehler.push(`${e.wer}: ${DXF_KNOEPFE[format].name} gibt es nur beim geraden Bauwerk`); continue; }
+        const k = hol(id);
+        k.click();
+        if(gefangen) dateien.push(Object.assign({wer: e.wer, nr: e.nr, weg}, gefangen));
+        else {
+          const kk = typeof fehltKasten === "function" ? fehltKasten(k, false) : null;
+          fehler.push(`${e.wer}: ${kk && !kk.hidden ? kk.textContent.replace(/\s+/g, " ").trim() : "wurde nicht geschrieben"}`);
+        }
+        try{ fehltWeg(k); }catch(err){}
+      }
+    } finally {
+      speicherFang = null;
+      wiederherstellen(jetzt);
+      ZEILEN.forEach((id, i) => { hol(id).innerHTML = zeilenVorher[i]; });
+    }
+    return {dateien, fehler};
+  }
+
+  /* DXF zusammenlegen: Kopf und Tabellen der ersten Datei, dann die Körper
+     aller; mit versetzen jedes Geländer um seine Höhe und einen Abstand unter
+     das vorige (y-Gruppencodes 20–28). Die Dateien sind R12 ohne Kennungen
+     (Gruppencode 5) und ohne Blöcke — zusammenlegen heißt hier anhängen. */
+  function dxfZusammen(texte, versetzen){
+    const teile = texte.map(t => {
+      const z = t.split("\n");
+      const a = z.findIndex((v, i) => v.trim() === "ENTITIES" && i > 0 && z[i - 1].trim() === "2");
+      let e = -1;
+      for(let i = z.length - 1; i > a; i--) if(z[i].trim() === "ENDSEC" && z[i - 1].trim() === "0"){ e = i - 1; break; }
+      if(a < 0 || e < 0) throw new Error("Eine DXF hat keinen Abschnitt ENTITIES.");
+      return {kopf: z.slice(0, a + 1), koerper: z.slice(a + 1, e), fuss: z.slice(e)};
+    });
+    const hoehe = k => { let y1 = Infinity, y2 = -Infinity;
+      for(let j = 0; j + 1 < k.length; j += 2){ const c = +k[j]; if(c >= 20 && c <= 28){ const v = parseFloat(k[j + 1]); y1 = Math.min(y1, v); y2 = Math.max(y2, v); } }
+      return {y1, y2}; };
+    const aus = [...teile[0].kopf];
+    let unten = null;
+    for(const t of teile){
+      let dy = 0;
+      if(versetzen){
+        const b = hoehe(t.koerper);
+        if(isFinite(b.y1)){
+          if(unten !== null) dy = unten - Math.max(1000, (b.y2 - b.y1) / 2) - b.y2;
+          unten = b.y1 + dy;
+        }
+      }
+      for(let j = 0; j + 1 < t.koerper.length; j += 2){
+        const c = +t.koerper[j]; let v = t.koerper[j + 1];
+        if(dy && c >= 20 && c <= 28){ const st = (v.split(".")[1] || "").length; v = (parseFloat(v) + dy).toFixed(st); }
+        aus.push(t.koerper[j], v);
+      }
+    }
+    aus.push(...teile[0].fuss);
+    return aus.join("\n");
+  }
+
+  hol("mappe-dxf-knoepfe").addEventListener("click", ev => {
+    const k = ev.target.closest("button[data-dxf]"); if(!k) return;
+    const format = k.dataset.dxf, info = hol("mappe-dxf-info");
+    if(!mappe.length){
+      fehltMelden(k, `<b>Die Mappe ist leer.</b> Ein einzelnes Geländer schreiben die DXF-Knöpfe im Export.`); return;
+    }
+    let erg;
+    try{ erg = dxfSammeln(format); }
+    catch(e){ fehltMelden(k, `<b>${DXF_KNOEPFE[format].name} aus der Mappe ging nicht:</b> ${fehltText(e.message)}`); return; }
+    const {dateien, fehler} = erg;
+    const schreiben = [];
+    if(dxfArt === "einzeln"){
+      dateien.forEach(d => schreiben.push({text: d.text, name: d.dateiname.replace(/(\.[^.]+)$/, `_Nr${d.nr}$1`), typ: d.typ}));
+    } else {
+      // Getrennt nach Einheit und Lage: die Draufsicht auf der Trasse (m, wahre Lage) nicht mit der geraden (mm, örtlich)
+      const gruppen = new Map();
+      for(const d of dateien){
+        const g = format === "plan" ? d.weg : "alle";
+        if(!gruppen.has(g)) gruppen.set(g, []);
+        gruppen.get(g).push(d);
+      }
+      try{
+        for(const [g, ds] of gruppen){
+          const text = ds.length > 1 ? dxfZusammen(ds.map(d => d.text), !(format === "plan" && g === "trasse")) : ds[0].text;
+          const name = ds.length > 1 ? ds[0].dateiname.replace(/(\.[^.]+)$/, `_${ds.length}Gelaender$1`) : ds[0].dateiname;
+          schreiben.push({text, name, typ: ds[0].typ});
+        }
+      }catch(e){ fehltMelden(k, `<b>Die DXF ließen sich nicht zusammenlegen:</b> ${fehltText(e.message)} Mit „einzeln“ geht es.`); return; }
+    }
+    // Mehrere Downloads kurz nacheinander — manche Browser fragen beim zweiten, ob sie dürfen.
+    schreiben.forEach((s, i) => setTimeout(() => herunterladen(s.text, s.name, s.typ), i * 300));
+    if(fehler.length)
+      fehltMelden(k, `<b>${dateien.length ? "Nicht alle Geländer" : "Kein Geländer"} ließen sich schreiben:</b> ` +
+        fehler.map(fehltText).join("; ") + (dateien.length ? ". Die übrigen stehen in der Datei." : "."));
+    else fehltWeg(k);
+    info.hidden = !schreiben.length;
+    info.textContent = schreiben.length
+      ? `${DXF_KNOEPFE[format].name}: ${dateien.length} Geländer in ${schreiben.length} Datei${schreiben.length > 1 ? "en" : ""} — ` +
+        schreiben.map(s => s.name).join(", ")
+      : "";
+    info.title = info.textContent;
   });
 
   /* ---------- Ziehen 1: HTML5 Drag & Drop (Maus) ----------
