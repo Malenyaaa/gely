@@ -3656,7 +3656,8 @@ function zeichnen(r){
      das Geländer wird unverändert gezeichnet, und unten entsteht Platz für die
      Zeile mit den Feldnummern. */
   const B = 1000, H = 222;
-  const links = 48, rechts = 36, oben = 14, unten = 75;
+  // Rechts so viel Rand wie links: dort steht e₂ außen neben der Kette (links e₁ und die Höhe).
+  const links = 48, rechts = 48, oben = 14, unten = 75;
   const nutzB = B - links - rechts, nutzH = H - oben - unten;
   /* Das Ohr ragt über L hinaus – der Ausschnitt wird entsprechend breiter.
      Ohne Ohr bleibt die Spanne genau L, das Bild also unverändert. */
@@ -3898,16 +3899,26 @@ function zeichnen(r){
   /* feld: die Kennung des Eingabefeldes, wenn das Maß eines ist (e1, e2) —
      dann lässt es sich in der Zeichnung anklicken und ändern (Skript „Maße
      in der Zeichnung"). Feldlängen sind keine Eingabe und bleiben ohne. */
-  const kette = (x1, x2, y, text, feld) => {
+  /* aussen: wohin die Zahl kommt, wenn sie zwischen den Strichen keinen Platz
+     hat — {x, anker} außerhalb der Kette, wie in CAD. Nur für e₁ und e₂: sie
+     sind fast immer zu schmal (250 mm sind bei h = 1100 rund 30 Blattpunkte),
+     und ohne Zahl stünde der Randabstand nirgends in der Zeichnung. */
+  const kette = (x1, x2, y, text, feld, aussen) => {
     linie(x1, y, x2, y, mass);
     [x1,x2].forEach(x => linie(x, y-4, x, y+4, mass));
+    const schrift = `fill="var(--bp-mass)" font-size="14" font-family="ui-monospace,monospace"${feld ? ` data-mass="${feld}"` : ""}`;
     if(x2 - x1 > 40)
-      e.push(`<text x="${(x1+x2)/2}" y="${y-7}" text-anchor="middle" fill="var(--bp-mass)" font-size="14" font-family="ui-monospace,monospace"${feld ? ` data-mass="${feld}"` : ""}>${text}</text>`);
+      e.push(`<text x="${(x1+x2)/2}" y="${y-7}" text-anchor="middle" ${schrift}>${text}</text>`);
+    else if(aussen)
+      e.push(`<text x="${aussen.x}" y="${y-7}" text-anchor="${aussen.anker}" ${schrift}>${text}</text>`);
   };
   const yA = yU + 24, yB = yU + 48;
   for(const fd of r.felder) kette(X(fd.von), X(fd.bis), yA, fmt(fd.laenge));
-  if(r.e1 > 0) kette(X(0), X(r.e1), yA, fmt(r.e1), "e1");
-  if(r.e2 > 0) kette(X(r.L-r.e2), X(r.L), yA, fmt(r.e2), "e2");
+  // Außen heißt: vor dem Geländeranfang bzw. hinter dem Ende — und vor bzw. hinter einem Ohr, dessen Kette dort liegt.
+  const randL = Math.min(X(0), ohr && ohr.oL > 0 && ohr.bauL ? X(ohr.kL) : X(0));
+  const randR = Math.max(X(r.L), ohr && ohr.oR > 0 && ohr.bauR ? X(ohr.kR) : X(r.L));
+  if(r.e1 > 0) kette(X(0), X(r.e1), yA, fmt(r.e1), "e1", {x: randL - 5, anker: "end"});
+  if(r.e2 > 0) kette(X(r.L-r.e2), X(r.L), yA, fmt(r.e2), "e2", {x: randR + 5, anker: "start"});
   if(ohr){
     // Je Ende die eigene Länge; ein Ende ohne Ohr bekommt keine Maßkette.
     // bis zur Außenkante, so wie das Maß eingegeben wird
@@ -12582,7 +12593,7 @@ try{
 <script>
 /* ---------- Maße in der Zeichnung ----------
    Seit 16.10.2026. Ein Klick auf ein Maß der Ansicht, das eine Eingabe ist
-   (L, h und — wo sie beschriftet sind — e₁, e₂; Kennung data-mass aus
+   (L, h und — wenn größer als 0 — e₁, e₂; Kennung data-mass aus
    zeichnen()), öffnet an der Stelle ein kleines Feld. Es ist kein zweites
    Feld: jede Eingabe darin geht sofort in das Feld der Karte und löst dort
    input aus, gerechnet wird also wie beim Tippen in der Karte, und die
@@ -12684,7 +12695,7 @@ try{
   function lage(){
     if(!offen || kasten.hidden) return;
     const text = fl.querySelector(`text[data-mass="${offen.feld}"]`);
-    if(!text) return;                     // e₁ ohne Beschriftung: das Feld bleibt stehen
+    if(!text) return;                     // e auf 0 getippt, die Kette ist weg: das Feld bleibt stehen
     const tr = text.getBoundingClientRect();
     if(!tr.width && !tr.height) return;
     const b = kasten.offsetWidth, hk = kasten.offsetHeight;
