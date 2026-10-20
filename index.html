@@ -1363,9 +1363,13 @@ button, summary, label, select, a, .reiter{cursor:pointer}
   .spalten.k-ergebnis .pruef-klappe,.spalten:not(.k-ergebnis) #karte-pruefungen:not(.zu) .pruef-kurz{display:none}
 }
 #karte-pruefungen .karte-kopf{gap:10px}
-.pruef-kurz{flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:7px;font:600 12.5px var(--s);
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:0;text-transform:none}
-.pruef-kurz::before{content:"";flex:none;width:8px;height:8px;border-radius:50%;background:currentColor;box-shadow:0 0 8px currentColor}
+/* Abgeschnitten wird nur der Text im inneren span — am Behälter kappte
+   overflow:hidden den Schein des Punktes zu einem Viereck. Der Punkt wie im Band. */
+.pruef-kurz{flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:9px;padding-left:4px;font:600 12.5px var(--s);
+  white-space:nowrap;letter-spacing:0;text-transform:none}
+.pruef-kurz > span{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.pruef-kurz::before{content:"";flex:none;width:9px;height:9px;border-radius:50%;background:currentColor;
+  box-shadow:0 0 0 3px color-mix(in srgb,currentColor 22%,transparent),0 0 14px currentColor}
 .pruef-kurz:empty{visibility:hidden}
 .pruef-kurz.ok{color:var(--gruen)} .pruef-kurz.warn{color:var(--ocker)} .pruef-kurz.fehler{color:var(--rot)}
 .pruef-klappe{flex:none}
@@ -13733,7 +13737,12 @@ try{
     // Das Urteil aus dem Band, so wie es dort steht
     const st = band && band.querySelector(".zelle.status");
     const f = st && st.querySelector(".fahne");
-    kurz.textContent = f ? f.textContent : "";
+    const text = f ? f.textContent : "";
+    if(kurz.textContent !== text){
+      const sp = document.createElement("span"); sp.textContent = text;
+      kurz.replaceChildren(...(text ? [sp] : []));
+    }
+    kurz.title = text;
     kurz.className = "pruef-kurz " + (st ? ["ok", "warn", "fehler"].find(c => st.classList.contains(c)) || "" : "");
     // Das Band entsteht bei jeder Rechnung neu: die Statuszelle wieder mit der Tastatur erreichbar machen
     if(st){ st.tabIndex = 0; st.setAttribute("role", "button"); st.setAttribute("aria-controls", "pruefungen"); }
