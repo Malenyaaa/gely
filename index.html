@@ -1342,6 +1342,21 @@ button, summary, label, select, a, .reiter{cursor:pointer}
    ist), jede Kachel gleich hoch — Rot und Gelb mit Kopf und einer Zeile,
    Bestandenes in einer Zeile; der ganze Text im Tooltip (zeigePruefungen).
    Im Tab „Prüfungen & Zahlen" ganz. */
+/* Eingeklappt (Skript „Prüfungen einklappen"): nur der Kopf mit dem Urteil — außer im Ergebnis „Prüfungen & Zahlen" */
+@media screen{
+  .spalten:not(.k-ergebnis) #karte-pruefungen.zu > :not(.karte-kopf){display:none}
+  .spalten:not(.k-ergebnis) #karte-pruefungen.zu > .karte-kopf{border-bottom:0}
+  .spalten.k-ergebnis .pruef-klappe,.spalten:not(.k-ergebnis) #karte-pruefungen:not(.zu) .pruef-kurz{display:none}
+}
+#karte-pruefungen .karte-kopf{gap:10px}
+.pruef-kurz{flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:7px;font:600 12.5px var(--s);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:0;text-transform:none}
+.pruef-kurz::before{content:"";flex:none;width:8px;height:8px;border-radius:50%;background:currentColor;box-shadow:0 0 8px currentColor}
+.pruef-kurz:empty{visibility:hidden}
+.pruef-kurz.ok{color:var(--gruen)} .pruef-kurz.warn{color:var(--ocker)} .pruef-kurz.fehler{color:var(--rot)}
+.pruef-klappe{flex:none}
+/* Das Urteil im Band klappt die Prüfungen auf */
+.band .zelle.status{cursor:pointer}
 /* Gleich hoch mit und ohne Landeswahl (bei der DB Ril fällt sie weg) — sonst sprünge die Karte */
 .app.hud #karte-pruefungen .karte-kopf{padding:6px 12px;min-height:41px}
 .app.hud #karte-pruefungen .karte-koerper{padding:8px !important}
@@ -13659,6 +13674,83 @@ try{
   }
 }catch(e){
   if(window.console) console.warn("Ohr am Ende nicht verfügbar:", e);
+}
+})();
+</script>
+<script>
+/* ---------- Prüfungen einklappen ----------
+   Seit 20.10.2026 (Wunsch): die Karte Prüfungen lässt sich ganz einklappen,
+   damit die Ansicht groß ist — im HUD rückt das freie Feld dann bis an das
+   Dock. Eingeklappt bleibt der Kopf, und darin steht das Urteil mit seinem
+   Punkt (dieselbe Fahne wie oben im Band). Aufgeklappt wird über den Knopf
+   im Kopf oder einen Klick auf das Urteil im Band. Die Wahl merkt sich der
+   Browser; ohne Wahl ist die Karte eingeklappt — das Band sagt ja, ob etwas
+   rot ist. Im Abschnitt „Prüfungen & Zahlen" und im Druck steht sie immer
+   ganz da. Nur Anzeige: gerechnet und geprüft wird wie immer. */
+(function(){
+try{
+  const hol = id => document.getElementById(id);
+  const karte = hol("karte-pruefungen"), band = hol("band");
+  const kopf = karte && karte.querySelector(".karte-kopf");
+  if(!karte || !kopf) return;
+  const kurz = document.createElement("span");
+  kurz.className = "pruef-kurz"; kurz.id = "pruef-kurz";
+  const knopf = document.createElement("button");
+  knopf.type = "button"; knopf.className = "minitat pruef-klappe"; knopf.id = "btn-pruef-klappe";
+  knopf.setAttribute("aria-controls", "pruefungen");
+  kopf.querySelector("h2").after(kurz);
+  kopf.append(knopf);
+
+  let zu = true;
+  try{ zu = localStorage.getItem("pruefungen-zu") !== "nein"; }catch(e){}
+  function zeigen(){
+    karte.classList.toggle("zu", zu);
+    knopf.setAttribute("aria-expanded", String(!zu));
+    knopf.textContent = zu ? "aufklappen" : "einklappen";
+    knopf.title = zu ? "Die Prüfungen ganz zeigen" : "Die Prüfungen einklappen — die Ansicht wird größer; das Urteil steht weiter oben im Band";
+    // Das Urteil aus dem Band, so wie es dort steht
+    const st = band && band.querySelector(".zelle.status");
+    const f = st && st.querySelector(".fahne");
+    kurz.textContent = f ? f.textContent : "";
+    kurz.className = "pruef-kurz " + (st ? ["ok", "warn", "fehler"].find(c => st.classList.contains(c)) || "" : "");
+    // Das Band entsteht bei jeder Rechnung neu: die Statuszelle wieder mit der Tastatur erreichbar machen
+    if(st){ st.tabIndex = 0; st.setAttribute("role", "button"); st.setAttribute("aria-controls", "pruefungen"); }
+  }
+  function setzen(neu){
+    zu = neu;
+    try{ localStorage.setItem("pruefungen-zu", zu ? "ja" : "nein"); }catch(e){}
+    zeigen();
+    // Das freie Feld der Bühne misst sich neu (ResizeObserver der Spalten), hier nur anstoßen
+    dispatchEvent(new Event("resize"));
+  }
+  knopf.addEventListener("click", () => setzen(!zu));
+  // Ein Klick (oder Enter/Leertaste) auf das Urteil im Band klappt auf und holt die Karte, wo sie weggeschaltet ist
+  if(band){
+    const auf = () => { setzen(false); if(window.karteHolen) karteHolen(karte); };
+    band.addEventListener("click", ev => { if(ev.target.closest(".zelle.status")) auf(); });
+    band.addEventListener("keydown", ev => {
+      if(!ev.target.closest(".zelle.status") || (ev.key !== "Enter" && ev.key !== " ")) return;
+      ev.preventDefault(); auf();
+    });
+  }
+  /* Wer zu den Prüfungen springt — etwa „Zur Prüfung" im gelben Kasten des
+     IFC-Knopfes bei Rot —, will die Sätze sehen: dann aufklappen. Nicht über
+     karteHolen: das läuft auch bei jedem Abschnittswechsel. */
+  if(typeof zuKarte === "function"){
+    const alt = zuKarte;
+    zuKarte = function(id){
+      const ziel = hol(id);
+      if(id === "karte-pruefungen" || (ziel && karte.contains(ziel))) setzen(false);
+      return alt.apply(this, arguments);
+    };
+  }
+  if(typeof zeichneBand === "function"){
+    const alt = zeichneBand;
+    zeichneBand = function(r){ alt(r); try{ zeigen(); }catch(e){} };
+  }
+  zeigen();
+}catch(e){
+  if(window.console) console.warn("Prüfungen einklappen nicht verfügbar:", e);
 }
 })();
 </script>
