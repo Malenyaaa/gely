@@ -4016,6 +4016,17 @@ function zeichnen(r){
     e.push(`<rect class="feldklick" data-feld="${fd.i}" x="${xv}" y="${oben}" width="${xb - xv}" height="${yN + 8 - oben}">` +
            `<title>Feld ${fd.i} · ${fmt(fd.laenge)} ${einheit} — anklicken: Sonderfeld</title></rect>`);
   }
+  /* Die Enden: vor dem Anfangs- und hinter dem Endpfosten, mindestens 30
+     Blattpunkte breit, ein gebautes Ohr ganz darin. Ein Klick öffnet dort
+     die Tafel für das Geländerohr (Skript „Ohr am Ende", seit 20.10.2026). */
+  {
+    const xa = X(r.achsen[0]), xe = X(r.achsen[r.n]);
+    const l1 = Math.min(X(xVon), xa - 30), r2 = Math.max(X(xBis), xe + 30);
+    e.push(`<rect class="feldklick" data-ende="L" x="${l1}" y="${oben}" width="${xa - l1}" height="${yN + 8 - oben}">` +
+           `<title>Anfang — anklicken: Geländerohr</title></rect>`);
+    e.push(`<rect class="feldklick" data-ende="R" x="${xe}" y="${oben}" width="${r2 - xe}" height="${yN + 8 - oben}">` +
+           `<title>Ende — anklicken: Geländerohr</title></rect>`);
+  }
 
   /* Die Maße, die Eingaben sind (data-mass), liegen über den Feldflächen —
      die reichen bis unter die Maßkette, und sonst legte ein Klick auf L ein
@@ -13234,14 +13245,22 @@ try{
     const q = treffer.length ? treffer[0].q : null;
     const zeile = (tag, text, kl) => { const e = document.createElement(tag); e.textContent = text; if(kl) e.className = kl; tafel.append(e); };
     if(!q){
-      // Kein Körper, aber ein Feld: das sagt sonst der title der Feldfläche (bei Info an entfernt, siehe unten)
+      /* Kein Körper, aber ein Feld oder ein Ende: das sagte sonst der title
+         der Fläche (bei Info an entfernt, siehe unten) */
+      const ende = ev.target.closest("[data-ende]");
       const z2 = ev.target.closest("[data-feld]");
       const fd = z2 && r.felder.find(f => f.i === +z2.dataset.feld);
-      if(!fd) return weg();
+      if(!fd && !ende) return weg();
       if(markiert){ markiert.remove(); markiert = null; }
       tafel.innerHTML = "";
-      zeile("b", `Feld ${fd.i} · ${mass(fd.laenge)}`);
-      zeile("span", "anklicken: Sonderfeld");
+      if(ende){
+        const o = +(document.getElementById(ende.dataset.ende === "L" ? "ohrL" : "ohrR") || {}).value || 0;
+        zeile("b", (ende.dataset.ende === "L" ? "Anfang" : "Ende") + (o > 0 ? ` · Geländerohr ${mass(o)}` : " · ohne Geländerohr"));
+        zeile("span", "anklicken: Geländerohr einstellen");
+      } else {
+        zeile("b", `Feld ${fd.i} · ${mass(fd.laenge)}`);
+        zeile("span", "anklicken: Sonderfeld");
+      }
       return legen(ev);
     }
     const pr = profil(q, r.t), lage = wo(q, r, r.teile);
@@ -13282,7 +13301,7 @@ try{
      einen alten Stand. Und bei Info an verlieren die Feldflächen ihren title —
      sonst stünde der Tooltip des Browsers neben dieser Tafel; was er sagte,
      sagt die Tafel über einer leeren Stelle des Feldes. */
-  const titelWeg = () => { if(an) fl.querySelectorAll("[data-feld] > title").forEach(x => x.remove()); };
+  const titelWeg = () => { if(an) fl.querySelectorAll("[data-feld] > title, [data-ende] > title").forEach(x => x.remove()); };
   if(typeof zeichnen === "function"){
     const alt = zeichnen;
     zeichnen = function(r){ alt(r); markiert = null; tafel.hidden = true; titelWeg(); };
@@ -13295,6 +13314,167 @@ try{
   });
 }catch(e){
   if(window.console) console.warn("Bauteil-Info nicht verfügbar:", e);
+}
+})();
+</script>
+<script>
+/* ---------- Ohr am Ende ----------
+   Seit 20.10.2026 (Wunsch). Ein Klick auf ein Ende der Ansicht (data-ende aus
+   zeichnen(): vor dem Anfangs-, hinter dem Endpfosten) öffnet dort eine kleine
+   Tafel für das Geländerohr dieses Endes, bei Gel 7 auch für dessen
+   Eckradius. Wie das Maßfeld: jede Eingabe geht sofort in die Felder der
+   Karte Enden (ohrL/ohrR, radiusL/radiusR) und wird gerechnet; Enter, Tab
+   oder ein Klick daneben übernimmt, Esc holt die Werte von vorher zurück.
+   „Ohne Ohr" setzt 0, „In der Karte" springt zum Feld.
+   Darunter die Grenze, wie die Prüfung sie rechnet (die halbe lichte Weite
+   des Endfeldes), und der Satz der schwersten roten oder gelben Prüfung zu
+   Ohr oder Eckradius, die dieses Ende betrifft — derselbe Text wie in den
+   Prüfungen. Die Tafel steht fest im Fenster neben dem Ende (tafelLegen). */
+(function(){
+try{
+  const hol = id => document.getElementById(id);
+  const fl = hol("zeichnung"), app = hol("app") || document.body;
+  if(!fl || typeof tafelLegen !== "function" || !hol("ohrL")) return;
+  const tafel = document.createElement("div");
+  tafel.className = "massfeld sonderfeld"; tafel.id = "ohrfeld"; tafel.hidden = true;
+  tafel.setAttribute("role", "dialog"); tafel.setAttribute("aria-label", "Geländerohr");
+  app.append(tafel);
+  let offen = null;                // {seite: "L" | "R", vorher: {kennung: wert}}
+  let pruefListe = [];
+  try{ if(typeof letzte !== "undefined" && letzte) pruefListe = pruefen(letzte); }catch(e){}
+  const zahl1 = v => (Math.round(v * 10) / 10).toLocaleString("de-DE", {maximumFractionDigits: 1});
+  const mitRadius = () => typeof letzte !== "undefined" && letzte && letzte.t && !!letzte.t.bogen;
+
+  function bauen(){
+    const s = offen.seite;
+    tafel.innerHTML =
+      `<p class="sonderfeld-kopf"><b>${s === "L" ? "Anfang" : "Ende"}</b> · Geländerohr ${s === "L" ? "links" : "rechts"}</p>` +
+      `<label for="ohrfeld-ohr">Ohr bis Außenkante</label>` +
+      `<div class="mit-einheit"><input type="number" id="ohrfeld-ohr" step="10" min="0" data-ziel="ohr${s}"><span class="suffix">mm</span></div>` +
+      (mitRadius()
+        ? `<label for="ohrfeld-radius" style="margin-top:8px">Eckradius innen</label>` +
+          `<div class="mit-einheit"><input type="number" id="ohrfeld-radius" step="10" min="0" data-ziel="radius${s}"><span class="suffix">mm</span></div>`
+        : "") +
+      `<p class="massfeld-grenze" id="ohrfeld-grenze"></p>` +
+      `<p class="massfeld-grenze" id="ohrfeld-pruef" hidden></p>` +
+      `<div class="sonderfeld-tasten"><button type="button" class="minitat weit" data-tun="null">Ohne Ohr</button>` +
+        `<button type="button" class="minitat weit" data-tun="karte">In der Karte</button></div>` +
+      `<p class="massfeld-tasten"><kbd>Enter</kbd> übernimmt · <kbd>Esc</kbd> nimmt zurück</p>`;
+    tafel.querySelectorAll("input[data-ziel]").forEach(w => { w.value = hol(w.dataset.ziel).value; });
+  }
+  function grenzeZeigen(){
+    if(!offen) return;
+    const g = hol("ohrfeld-grenze"), pr = hol("ohrfeld-pruef");
+    if(!g || !pr) return;
+    const r = typeof letzte !== "undefined" ? letzte : null;
+    if(!r || !r.gueltig) g.textContent = "Noch kein Geländer — erst L und die Randabstände.";
+    else {
+      // Dieselbe Grenze wie in pruefen(): halbe lichte Weite des Endfeldes, bis zur Außenkante gemessen
+      const t = r.t, pB = (t.qPfosten && t.qPfosten.d) || t.pfosten;
+      const fd = offen.seite === "L" ? r.felder[0] : r.felder[r.n - 1];
+      g.textContent = `Höchstens ${zahl1((fd.laenge - pB) / 2)} mm — die halbe lichte Weite des Endfeldes ` +
+                      `(${zahl1(fd.laenge)} − ${zahl1(pB)} mm).`;
+    }
+    // Die schwerste rote oder gelbe Prüfung zu Ohr oder Eckradius, die nicht nur das andere Ende nennt
+    const hier = offen.seite === "L" ? /\blinks\b|\banfang/i : /\brechts\b|\bende\b/i;
+    const dort = offen.seite === "L" ? /\brechts\b/i : /\blinks\b/i;
+    const passt = p => /Ohr|Eckradius/.test(p.kopf) && !(dort.test(p.text) && !hier.test(p.text));
+    const x = pruefListe.find(p => p.art === "fehler" && passt(p)) || pruefListe.find(p => p.art === "hinweis" && passt(p));
+    pr.hidden = !x;
+    if(x){ pr.innerHTML = `<b>${x.kopf}.</b> ${x.text}`; pr.className = "massfeld-grenze " + (x.art === "fehler" ? "rot" : "gelb"); }
+  }
+  // Neben dem Ende nach außen, sonst nach innen, sonst darüber
+  function lage(){
+    if(!offen || tafel.hidden) return;
+    const z = fl.querySelector(`[data-ende="${offen.seite}"]`);
+    if(!z) return;
+    const q = z.getBoundingClientRect();
+    if(!q.width && !q.height) return;
+    const b = tafel.offsetWidth, h = tafel.offsetHeight, ym = q.top + q.height / 2 - h / 2;
+    const aussen = offen.seite === "L" ? {x: q.left - b - 8, y: ym, seite: true} : {x: q.right + 8, y: ym, seite: true};
+    const innen = offen.seite === "L" ? {x: q.right + 8, y: ym, seite: true} : {x: q.left - b - 8, y: ym, seite: true};
+    tafelLegen(tafel, [aussen, innen, {x: q.left + q.width / 2 - b / 2, y: q.top - h - 8}]);
+  }
+  function setze(id, v){
+    const f = hol(id);
+    if(!f || f.value === String(v)) return;
+    f.value = v;
+    f.dispatchEvent(new Event("input", {bubbles: true}));
+  }
+  function oeffnen(seite){
+    if(offen) schliessen(true);
+    offen = {seite, vorher: {}};
+    ["ohr" + seite, "radius" + seite].forEach(id => { if(hol(id)) offen.vorher[id] = hol(id).value; });
+    bauen();
+    tafel.hidden = false;
+    grenzeZeigen();
+    lage();
+    const w = hol("ohrfeld-ohr");
+    if(w){ w.focus({preventScroll: true}); w.select(); }
+  }
+  function schliessen(behalten){
+    if(!offen) return;
+    const o = offen;
+    offen = null;
+    for(const id in o.vorher){
+      if(!behalten) setze(id, o.vorher[id]);
+      if(hol(id)) hol(id).dispatchEvent(new Event("change", {bubbles: true}));
+    }
+    const fokusDrin = tafel.contains(document.activeElement);
+    tafel.hidden = true;
+    if(fokusDrin) fl.focus({preventScroll: true});
+  }
+
+  // Vor den anderen Behandlern der Zeichnung: die Enden gehören hierher
+  fl.addEventListener("click", ev => {
+    const z = ev.target.closest && ev.target.closest("[data-ende]");
+    if(!z) return;
+    ev.stopImmediatePropagation();
+    oeffnen(z.dataset.ende);
+  }, true);
+  tafel.addEventListener("input", ev => {
+    const w = ev.target.closest("input[data-ziel]");
+    if(!w || !offen) return;
+    setze(w.dataset.ziel, w.value);
+    grenzeZeigen();
+  });
+  tafel.addEventListener("keydown", ev => {
+    if(ev.key === "Enter" && ev.target.tagName !== "BUTTON"){ ev.preventDefault(); schliessen(true); }
+    else if(ev.key === "Escape"){ ev.preventDefault(); ev.stopPropagation(); schliessen(false); }
+  });
+  tafel.addEventListener("click", ev => {
+    const b = ev.target.closest("button[data-tun]");
+    if(!b || !offen) return;
+    const s = offen.seite;
+    if(b.dataset.tun === "null"){ setze("ohr" + s, 0); schliessen(true); }
+    else if(b.dataset.tun === "karte"){ schliessen(true); if(typeof zuKarte === "function") zuKarte("karte-enden", "ohr" + s); }
+  });
+  document.addEventListener("pointerdown", ev => { if(offen && !tafel.contains(ev.target)) schliessen(true); }, true);
+  tafel.addEventListener("focusout", ev => {
+    if(offen && ev.relatedTarget && !tafel.contains(ev.relatedTarget)) schliessen(true);
+  });
+  fl.addEventListener("wheel", () => { if(offen) schliessen(true); }, {passive: true});
+  let breite = innerWidth;
+  addEventListener("resize", () => {
+    if(innerWidth !== breite){ breite = innerWidth; if(offen) schliessen(true); }
+    else lage();
+  });
+  document.addEventListener("scroll", () => {
+    if(!offen) return;
+    const z = fl.querySelector(`[data-ende="${offen.seite}"]`);
+    if(z && tafelAusserhalb(z)) schliessen(true); else lage();
+  }, true);
+  // Rechnet es neu, ziehen Grenze, Prüfsatz und Lage mit
+  if(typeof zeigePruefungen === "function"){
+    const alt = zeigePruefungen;
+    zeigePruefungen = function(liste){ alt(liste); pruefListe = liste || []; };
+  }
+  if(typeof zeichnen === "function"){
+    const alt = zeichnen;
+    zeichnen = function(r){ alt(r); try{ grenzeZeigen(); lage(); }catch(e){} };
+  }
+}catch(e){
+  if(window.console) console.warn("Ohr am Ende nicht verfügbar:", e);
 }
 })();
 </script>
