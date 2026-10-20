@@ -7751,7 +7751,7 @@ function ohneGelaender(){
 }
 function ohneTrasse(){
   return karteSichtbar("karte-trasse")
-    ? {html:`<b>Noch keine Trasse.</b> Erst in der Karte <i>Trasse</i> eine laden — TCL-Export, Achse aus AutoCAD (DXF), <i>Achse selbst erstellen</i> oder eine fertige JSON.`,
+    ? {html:`<b>Noch keine Trasse.</b> Erst in der Karte <i>Trasse</i> eine laden — TCL-Export, <i>Achse selbst erstellen</i> oder eine fertige JSON.`,
        geh:{text:"Zu Trasse", tun:() => zuKarte("karte-trasse")}}
     : {html:`<b>Noch keine Trasse.</b> Oben in der Karte <i>Bauwerk</i> „auf einer Trasse" wählen, dann in der Karte <i>Trasse</i> eine laden.`,
        geh:{text:"Zu Bauwerk", tun:() => zuKarte("karte-eingabe")}};
@@ -9517,7 +9517,12 @@ try{
     '<p class="hilfe" id="dxf-info" style="margin:0;flex:1 1 100%">Eine Polylinie auf der Geländerachse — ' +
     'Pfostenmitte auf Oberkante Kappe, vom Anfang zum Ende, am besten als 3D-Polylinie mit Höhen. ' +
     'Liegt sie auf einem Layer <code>GEL_…</code>, gilt sie als Standlinie ohne Versatz.</p>';
-  leiste.appendChild(dxfZeile);
+  /* Vorerst ausgebaut (20.10.2026, auf Wunsch: geht noch nicht zuverlässig).
+     Die Zeile wird nicht eingehängt; alles Weitere bleibt, wie es ist, und
+     läuft ins Leere. Mit true kommt sie zurück — dann auch den Satz in
+     ohneTrasse() und die README wieder ergänzen. */
+  const DXF_ACHSE_AN = false;
+  if(DXF_ACHSE_AN) leiste.appendChild(dxfZeile);
   const dxfDatei = dxfZeile.querySelector("#dxf-achse"), dxfWahl = dxfZeile.querySelector("#dxf-wahl"),
         dxfInfo = dxfZeile.querySelector("#dxf-info");
   let DXF_GELESEN = null;
