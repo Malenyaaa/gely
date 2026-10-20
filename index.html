@@ -387,7 +387,7 @@ nav.abschnitte a[hidden]{display:none}
   .k-umschalten:not(.k-ergebnis) > section:first-child label{margin-bottom:4px}
   .k-umschalten:not(.k-ergebnis) > section:first-child .k-feldkopf{margin-bottom:4px}
   .k-umschalten:not(.k-ergebnis) > section:first-child .k-feldkopf > label{margin-bottom:0}
-  .k-umschalten:not(.k-ergebnis) > section:first-child :is(input[type=number],input[type=text],select){height:32px}
+  .k-umschalten:not(.k-ergebnis) > section:first-child :is(input[type=number],input[type=text],select,.k-l-trasse){height:32px}
   .k-umschalten:not(.k-ergebnis) > section:first-child .feld{margin-bottom:10px}
   .k-umschalten:not(.k-ergebnis) > section:first-child .feld:last-child{margin-bottom:0}
   .k-umschalten:not(.k-ergebnis) > section:first-child .k-zwei{margin-bottom:10px}
@@ -659,6 +659,17 @@ input.k-abgeleitet{background:var(--karte-tief);color:var(--ink-weich);cursor:no
 label{display:block;font-size:12.5px;margin-bottom:5px;color:var(--ink-weich)}
 label .var{font-family:var(--z);font-style:italic;color:var(--blau)}
 .mit-einheit{position:relative}
+/* L auf der Trasse: statt des gesperrten Feldes ein Knopf zur Karte Trasse, so groß wie ein Feld (Skript „Der Weg") */
+.k-l-trasse{
+  display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;height:36px;padding:0 10px;
+  border:1px solid var(--blau);border-radius:7px;background:var(--blau-hell);color:var(--blau);
+  font:600 12.5px var(--s);cursor:pointer;white-space:nowrap;overflow:hidden;
+}
+.k-l-trasse span:first-child{font-family:var(--z);font-size:14px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;min-width:0}
+.k-l-trasse span:first-child small{font-size:11px;color:var(--ink-leise)}
+.k-l-trasse span:last-child{flex:none}
+.k-l-trasse:hover,.k-l-trasse:focus-visible{background:var(--blau);color:var(--blau-ink)}
+.k-l-trasse:hover span:first-child,.k-l-trasse:focus-visible span:first-child{color:var(--blau-ink)}
 .mit-einheit .suffix{
   position:absolute;right:12px;top:50%;transform:translateY(-50%);
   font-family:var(--z);font-size:12px;color:var(--ink-leise);pointer-events:none;
@@ -7664,9 +7675,14 @@ function karteSichtbar(id){
 }
 /* Die häufigsten Gründe, einmal formuliert. */
 function ohneGelaender(){
+  const erledigt = () => typeof letzte !== "undefined" && letzte && letzte.gueltig;
+  /* Auf der Trasse ist L keine Eingabe (dort steht statt des Feldes ein Knopf
+     zur Trasse) — dann ist die Achse zu kurz oder fehlt, und dorthin geht es. */
+  if($("L") && $("L").readOnly)
+    return {html:`<b>Noch kein Geländer.</b> Die Achse ergibt keine brauchbare Länge — <i>L</i> muss größer sein als die beiden Randabstände zusammen. In der Karte <i>Trasse</i> Achse, Rand und Stationen prüfen.`,
+            geh:{text:"Zu Trasse", tun:() => zuKarte("karte-trasse")}, erledigt};
   return {html:`<b>Noch kein Geländer.</b> Erst die Gesamtlänge <i>L</i> eintragen — sie muss größer sein als die beiden Randabstände zusammen.`,
-          geh:{text:"Zu L", tun:() => zuKarte("karte-eingabe", "L")},
-          erledigt:() => typeof letzte !== "undefined" && letzte && letzte.gueltig};
+          geh:{text:"Zu L", tun:() => zuKarte("karte-eingabe", "L")}, erledigt};
 }
 function ohneTrasse(){
   return karteSichtbar("karte-trasse")
@@ -10539,6 +10555,21 @@ try{
   quelle.className = "k-quelle"; quelle.id = "quelle-L";
   feldL.after(quelle);
 
+  /* ---------- 2a. Auf der Trasse ist L ein Knopf ----------
+     Seit 20.10.2026 (Wunsch): L ist dort keine Eingabe, also steht statt des
+     gesperrten Feldes ein Knopf, der zur Karte Trasse springt — mit der
+     Länge, die aus der Achse kommt. Das Feld selbst bleibt, nur verborgen:
+     seine Kennung und sein Wert werden weiter gelesen. */
+  const zuTrasse = document.createElement("button");
+  zuTrasse.type = "button"; zuTrasse.className = "k-l-trasse"; zuTrasse.id = "L-zu-trasse";
+  zuTrasse.style.display = "none";
+  const lHuelle = hol("L").closest(".mit-einheit") || hol("L");
+  lHuelle.after(zuTrasse);
+  zuTrasse.addEventListener("click", () => {
+    if(typeof zuKarte === "function") zuKarte("karte-trasse");
+    else if(window.karteHolen && trasseKarte) karteHolen(trasseKarte);
+  });
+
   /* ---------- 3. Die Zwischenstände werden eine Schublade ----------
      Kein Reiter: sie sind kein Weg, sondern eine Ablage für Selten-Gebrauchtes.
      Der Behälter tafel-zwischen bleibt, er zieht nur in ein <details> um. */
@@ -10581,6 +10612,12 @@ try{
   function quelleZeigen(){
     if(WEG !== "trasse"){ quelle.innerHTML = ""; return; }
     const da = (typeof TRASSE !== "undefined") && TRASSE && TRASSE.achse;
+    const wert = parseFloat(String(hol("L").value).replace(",", "."));
+    const lText = !da ? "keine Achse"
+                : (isFinite(wert) && wert > 0 ? wert.toLocaleString("de-DE", {maximumFractionDigits: 1}) : "0 – Achse prüfen");
+    zuTrasse.innerHTML = `<span>${lText}${da && wert > 0 ? "<small> mm</small>" : ""}</span><span>Trasse ›</span>`;
+    zuTrasse.title = "L kommt aus der Achse — in der Karte Trasse ändern";
+    zuTrasse.setAttribute("aria-label", `Gesamtlänge L aus der Achse: ${lText}${da && wert > 0 ? " mm" : ""} — zur Karte Trasse`);
     quelle.innerHTML = da
       ? `kommt aus der Achse <b>${TRASSE.achse}</b> — Bogenlänge des Randes. ` +
         `Auf dieser Achse ist <i>L</i> keine Eingabe.`
@@ -10599,6 +10636,11 @@ try{
     if(schublade) schublade.hidden = !t;
     const L = hol("L");
     if(L){ L.readOnly = t; L.classList.toggle("k-abgeleitet", t); }
+    lHuelle.style.display = t ? "none" : "";
+    zuTrasse.style.display = t ? "" : "none";
+    // Die Beschriftung „Gesamtlänge L" gehört zu dem, was gerade da ist
+    const lLabel = feldL.querySelector('label[for="L"], label[for="L-zu-trasse"]');
+    if(lLabel) lLabel.htmlFor = t ? "L-zu-trasse" : "L";
     quelleZeigen();
   }
 
@@ -12756,6 +12798,8 @@ try{
     const feld = text.dataset.mass, f = hol(feld);
     if(!f) return;
     if(offen) schliessen(true);
+    // Gesperrt heißt: keine Eingabe (L auf der Trasse) — dann dorthin, woher der Wert kommt, wie der Knopf statt L
+    if(f.readOnly){ if(feld === "L" && typeof zuKarte === "function") zuKarte("karte-trasse"); return; }
     offen = {feld, vorher: f.value};
     kasten.querySelector(".massfeld-name").innerHTML = NAMEN[feld] || feld;
     wert.value = f.value;
