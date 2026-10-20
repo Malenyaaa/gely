@@ -1188,6 +1188,20 @@ button, summary, label, select, a, .reiter{cursor:pointer}
 .sonderfeld .sonderfeld-tasten .tat{padding:6px 14px;font-size:12.5px}
 .sonderfeld .fehlt-meldung{margin:8px 0 0}
 
+/* ---------- Schritte zurück und vor ----------
+   ↶ ↷ vor den Abschnitten (Skript „Schritte zurück und vor"): im Dock links,
+   auf schmalen Fenstern oben in der Leiste. Gesperrt sehen sie blass aus und
+   sagen beim Klick im gelben Kasten, warum — der steht im Dock über ihm. */
+.verlauf{display:flex;gap:2px;align-items:center;padding:6px 12px 0}
+.verlauf-knopf{width:34px;height:32px;border:1px solid var(--kante);border-radius:8px;background:transparent;
+  color:var(--ink-weich);font:600 17px/1 var(--s);display:inline-flex;align-items:center;justify-content:center}
+.verlauf-knopf:hover,.verlauf-knopf:focus-visible{color:var(--blau);border-color:var(--blau);background:var(--blau-hell)}
+.verlauf-knopf[aria-disabled=true]{opacity:.45}
+.hud-dock .verlauf{padding:0 6px 0 0;margin-right:6px;position:relative}
+.hud-dock .verlauf::after{content:"";position:absolute;right:-1px;top:6px;bottom:6px;width:1px;background:var(--glas-kante)}
+.hud-dock .verlauf-knopf{height:40px;width:36px;border:0;border-radius:10px}
+.hud-dock .verlauf + .fehlt-meldung{position:absolute;left:8px;bottom:calc(100% + 8px);width:320px;margin:0;z-index:2}
+
 /* ---------- Bauteil-Info ----------
    Die Tafel am Zeiger und die Umrandung des Körpers darunter (Skript
    „Bauteil-Info"). Sie nimmt keine Klicks: Ziehen und Feldklick gehen durch. */
@@ -11764,6 +11778,14 @@ try{
 
   window.ifcZusammenlegen = zusammenlegen;      // für die Prüfung von außen
   window.mappeStand = () => ({eintraege: mappe.map(m => m.name), bearbeitet, drin: drinIndex()});   // ebenso
+  /* Für „Rückgängig" (Skript „Schritte zurück und vor"): derselbe Schnappschuss
+     wie hier, kein zweiter Weg. vergleich() ist die volle Kennung — mit Land
+     und Absturzhöhe, die Trasse als Nummer. */
+  window.gelyStand = {
+    lesen: schnappschuss, setzen: wiederherstellen,
+    vergleich: s => JSON.stringify(Object.assign({}, s, {trasse: trasseKennung(s.trasse)})),
+    trasse: s => JSON.stringify(trasseKennung(s.trasse))
+  };
   zeigen();
 }catch(e){
   if(window.console) console.warn("Mappe nicht verfügbar:", e);
@@ -13751,6 +13773,145 @@ try{
   zeigen();
 }catch(e){
   if(window.console) console.warn("Prüfungen einklappen nicht verfügbar:", e);
+}
+})();
+</script>
+<script>
+/* ---------- Schritte zurück und vor ----------
+   Seit 20.10.2026 (HUD-Idee F). Strg+Z nimmt den letzten Schritt zurück,
+   Strg+Y (oder Strg+Umschalt+Z) holt ihn wieder; dazu zwei kleine Knöpfe
+   ↶ ↷ links am Dock — auf schmalen Fenstern oben in der Leiste —, deren
+   Tooltip sagt, was sich ändern würde („h 1.350 → 1.100 mm").
+   Ein Schritt ist ein Stand des Formulars, derselbe Schnappschuss wie in der
+   Mappe (window.gelyStand): Eingaben, Wahlen, Sonderfelder, Trasse. Gemerkt
+   wird, wenn nach einer Rechnung oder einer Wahl 600 ms Ruhe ist und sich der
+   Stand wirklich geändert hat — so wird aus einer getippten Zahl ein Schritt,
+   nicht vier, und was zwischendurch geladen und wieder zurückgeholt wird
+   (die Mappe beim Schreiben der DXF), hinterlässt keinen. Zurück und vor
+   holen den Stand wie „bearbeiten" in der Mappe. Höchstens 100 Schritte.
+   In einem Textfeld (Felder der Sonderfelder) bleibt Strg+Z das des Feldes.
+   Nur Anzeige und Formular: gerechnet wird wie immer. */
+(function(){
+try{
+  const hol = id => document.getElementById(id);
+  const G = window.gelyStand, nav = hol("abschnitte"), app = hol("app");
+  if(!G || !nav || !app) return;
+  const gruppe = document.createElement("div");
+  gruppe.className = "verlauf"; gruppe.id = "verlauf";
+  gruppe.setAttribute("role", "group"); gruppe.setAttribute("aria-label", "Rückgängig und Wiederholen");
+  gruppe.setAttribute("data-fehlt-ort", "");
+  gruppe.innerHTML =
+    '<button type="button" class="verlauf-knopf" id="btn-zurueck" aria-label="Rückgängig">↶</button>' +
+    '<button type="button" class="verlauf-knopf" id="btn-vor" aria-label="Wiederholen">↷</button>';
+  const zurueckK = gruppe.querySelector("#btn-zurueck"), vorK = gruppe.querySelector("#btn-vor");
+  // Die Gruppe steht vor den Abschnitten — die wandern zwischen Leiste und Dock, die Gruppe mit
+  const platzieren = () => { if(gruppe.nextElementSibling !== nav || gruppe.parentNode !== nav.parentNode) nav.before(gruppe); };
+  platzieren();
+  new MutationObserver(platzieren).observe(app, {attributes: true, attributeFilter: ["class"]});
+
+  const verlauf = [];          // {s, v}: Schnappschuss und seine Kennung
+  let pos = -1;
+  const MAX = 100;
+
+  const KURZ = {L:"L", e1:"e₁", e2:"e₂", h:"h", b:"b", absturz:"Absturzhöhe", nHand:"Felder", mHand:"Stäbe je Feld",
+                ohrL:"Ohr links", ohrR:"Ohr rechts", radiusL:"Eckradius links", radiusR:"Eckradius rechts",
+                rohrP:"Rohr Pfosten", rohrHo:"Rohr Holme", rohrHl:"Rohr Handlauf", rohrPw:"Wand Pfosten",
+                rohrHow:"Wand Holme", rohrHlw:"Wand Handlauf", rahmenUnten:"Rahmenunterkante", moertel:"Mörtelfuge"};
+  const OHNE_MM = {nHand: 1, mHand: 1};
+  const WAHLEN = {holme: "Holme", hlArt: "Handlauf", teil: "Teilung", umfang: "Umfang", verank: "Verankerung",
+                  land: "Landesvorgabe", bauweg: "Weg"};
+  const zahl = v => { const n = parseFloat(String(v).replace(",", ".")); return v === "" || v == null ? "leer" : (isFinite(n) ? n.toLocaleString("de-DE", {maximumFractionDigits: 2}) : String(v)); };
+  const typName = s => { const w = REGELWERKE[s.werk]; return w && w.typen[s.typ] ? w.typen[s.typ].kurz : "?"; };
+  // Was sich von einem Stand zum anderen ändert, kurz
+  function beschreiben(von, nach){
+    const t = [];
+    if(von.werk !== nach.werk) t.push(`Regelwerk ${REGELWERKE[von.werk].kurz} → ${REGELWERKE[nach.werk].kurz}`);
+    else if(von.typ !== nach.typ) t.push(`Typ ${typName(von)} → ${typName(nach)}`);
+    for(const id in nach.felder)
+      if(String(von.felder[id]) !== String(nach.felder[id]))
+        t.push(`${KURZ[id] || id} ${zahl(von.felder[id])} → ${zahl(nach.felder[id])}${OHNE_MM[id] || nach.felder[id] === "" ? "" : " mm"}`);
+    for(const k in WAHLEN) if(String(von[k]) !== String(nach[k])) t.push(WAHLEN[k]);
+    if(JSON.stringify(von.sonder) !== JSON.stringify(nach.sonder)) t.push("Sonderfelder");
+    if(G.trasse(von) !== G.trasse(nach)) t.push("Trasse");
+    if(!t.length) return "Eingaben";
+    return t.length > 2 ? `${t.slice(0, 2).join(", ")} und ${t.length - 2} weitere` : t.join(", ");
+  }
+  function knoepfeZeigen(){
+    if(pos > 0){
+      knopfFrei(zurueckK);
+      zurueckK.title = `Rückgängig: ${beschreiben(verlauf[pos].s, verlauf[pos - 1].s)} (Strg+Z)`;
+    } else {
+      knopfSperren(zurueckK, "<b>Nichts zurückzunehmen.</b> Seit dem Laden der Seite gibt es keinen früheren Stand.");
+      zurueckK.title = "Rückgängig — noch nichts zurückzunehmen (Strg+Z)";
+    }
+    if(pos < verlauf.length - 1){
+      knopfFrei(vorK);
+      vorK.title = `Wiederholen: ${beschreiben(verlauf[pos].s, verlauf[pos + 1].s)} (Strg+Y)`;
+    } else {
+      knopfSperren(vorK, "<b>Nichts zu wiederholen.</b> Wiederholen holt zurück, was mit ↶ zurückgenommen wurde.");
+      vorK.title = "Wiederholen — nichts zurückgenommen (Strg+Y)";
+    }
+  }
+  function aufnehmen(){
+    const s = G.lesen(), v = G.vergleich(s);
+    if(pos >= 0 && verlauf[pos].v === v) return;
+    verlauf.length = pos + 1;            // was nach vorn lag, ist mit einer neuen Eingabe weg
+    verlauf.push({s, v});
+    if(verlauf.length > MAX) verlauf.shift();
+    pos = verlauf.length - 1;
+    knoepfeZeigen();
+  }
+  let warten = 0;
+  const bald = () => { clearTimeout(warten); warten = setTimeout(() => { try{ aufnehmen(); }catch(e){} }, 600); };
+  /* richtung -1 oder +1. Zuerst den offenen Stand festhalten — wer eben
+     getippt hat und sofort Strg+Z drückt, will genau diese Eingabe
+     zurücknehmen, nicht die davor (die Ruhezeit ist dann noch nicht um). */
+  function gehe(richtung){
+    clearTimeout(warten);
+    // Offene Tafeln an der Zeichnung übernehmen und schließen, bevor der Stand wechselt
+    if(document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    document.body.dispatchEvent(new PointerEvent("pointerdown", {bubbles: true}));
+    try{ aufnehmen(); }catch(e){}
+    const neu = pos + richtung;
+    if(neu < 0 || neu >= verlauf.length) return false;
+    pos = neu;
+    G.setzen(verlauf[pos].s);
+    // Was das Formular tatsächlich hat, gilt als dieser Stand — sonst würde gleich ein neuer Schritt daraus
+    const s = G.lesen(); verlauf[pos] = {s, v: G.vergleich(s)};
+    knoepfeZeigen();
+    return true;
+  }
+  zurueckK.addEventListener("click", () => gehe(-1));
+  vorK.addEventListener("click", () => gehe(+1));
+  document.addEventListener("keydown", ev => {
+    if(!(ev.ctrlKey || ev.metaKey) || ev.altKey) return;
+    const k = ev.key.toLowerCase();
+    const zurueck = k === "z" && !ev.shiftKey, vor = k === "y" || (k === "z" && ev.shiftKey);
+    if(!zurueck && !vor) return;
+    const ziel = ev.target;
+    if(ziel && (ziel.isContentEditable || ziel.tagName === "TEXTAREA" || (ziel.tagName === "INPUT" && ziel.type === "text"))) return;
+    ev.preventDefault();
+    // Den offenen Stand vorher festhalten — sonst stünde ↶ noch auf „nichts zurückzunehmen"
+    clearTimeout(warten); try{ aufnehmen(); }catch(e){}
+    // Wie ein Klick auf den Knopf — mit dessen gelbem Kasten, wenn es nichts zu tun gibt
+    (zurueck ? zurueckK : vorK).click();
+  });
+  // Ebenso mit der Maus: beim Herunterdrücken, vor der Sperre, die den Klick sonst abfängt
+  gruppe.addEventListener("pointerdown", () => { clearTimeout(warten); try{ aufnehmen(); }catch(e){} });
+  if(typeof alles === "function"){
+    const alt = alles;
+    alles = function(){ const e = alt.apply(this, arguments); bald(); return e; };
+  }
+  /* Was ohne Rechnung den Stand ändert (Umfang, Weg, Rand) — nach jeder Wahl,
+     Eingabe und Änderung nachsehen. Die Hauptfelder rufen alles() über eine
+     beim Laden gemerkte Referenz, nicht über den Namen; der Wrapper oben sieht
+     das Tippen also nicht — darum hier auch input. */
+  document.addEventListener("click", ev => { if(!gruppe.contains(ev.target)) bald(); }, true);
+  document.addEventListener("change", bald, true);
+  document.addEventListener("input", bald, true);
+  aufnehmen();
+}catch(e){
+  if(window.console) console.warn("Schritte zurück und vor nicht verfügbar:", e);
 }
 })();
 </script>
