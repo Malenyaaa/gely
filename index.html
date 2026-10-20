@@ -479,6 +479,9 @@ nav.abschnitte a[hidden]{display:none}
 .band dd small{font-size:11px;font-weight:400;color:var(--ink-leise);margin-left:3px;letter-spacing:0}
 .band .zelle.status{display:flex;flex-direction:column;justify-content:center}
 .band .status .fahne{font-family:var(--s);font-size:13px;font-weight:600;line-height:1.3;white-space:normal;letter-spacing:0}
+/* Einzeilig, damit das Band nicht höher wird und alles darunter verschiebt — der ganze Satz steht
+   im Tooltip und in der Prüfungskarte. Mit Absicht auch ohne HUD: dort klebt das Band ebenso oben. */
+@media screen{.band .status .fahne > span{display:block;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}
 .band .status.ok{background:var(--gruen-hell)}      .band .status.ok .fahne{color:var(--gruen)}
 .band .status.warn{background:var(--ocker-hell)}    .band .status.warn .fahne{color:var(--ocker)}
 .band .status.fehler{background:var(--rot-hell)}    .band .status.fehler .fahne{color:var(--rot)}
@@ -1238,25 +1241,23 @@ button, summary, label, select, a, .reiter{cursor:pointer}
 .app.hud :is(.zuruecksetzen,.minitat,.mini,.k-frage,.neben-wahl){background:transparent}
 
 /* Oben links: der Name. Von der Leiste bleibt hier nur ihr Kopf, alles
-   andere ist ins Dock gezogen. */
+   andere ist ins Dock gezogen. Ohne Zeichen davor (Wunsch vom 20.10.2026)
+   und genau so hoch wie das Band daneben (--kopf-hoehe): beide wachsen
+   nicht mit ihrem Text, die Marke steht einzeilig, ganz im Tooltip. */
+.app.hud{--kopf-hoehe:54px}
 .app.hud .leiste{
-  position:fixed;left:14px;top:12px;width:236px;height:auto;z-index:6;
+  position:fixed;left:14px;top:12px;width:236px;height:var(--kopf-hoehe);z-index:6;
   border-radius:14px;overflow:hidden;display:block;transform:none;
 }
-.app.hud .leiste-kopf{border-bottom:0;padding:9px 12px;gap:10px;min-height:56px}
-.app.hud .leiste-kopf::before{
-  content:"";flex:none;width:30px;height:30px;border-radius:9px;
-  /* ein Geländer als Zeichen: Handlauf, Kappe, drei Pfosten */
-  background:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30' fill='none' stroke='white' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M7 21h16M8 10h14M9 10v11M15 10v11M21 10v11'/%3E%3C/svg%3E") center/30px 30px no-repeat,
-    linear-gradient(150deg,var(--blau),color-mix(in srgb,var(--blau) 55%,#000));
-  box-shadow:0 0 18px var(--glanz);
-}
+.app.hud .leiste-kopf{border-bottom:0;padding:0 14px;gap:10px;height:100%;min-height:0}
+.app.hud .leiste-kopf > div{min-width:0}
 .app.hud .leiste-kopf b{font-size:15px}
-.app.hud .leiste-kopf small{font-size:10.5px}
+.app.hud .leiste-kopf small{font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
-/* Das Band: Messwerte wie Anzeigen, das Urteil mit Leuchtpunkt */
-.app.hud .band{position:sticky;top:12px;margin:12px 14px 0 264px;border-radius:14px;overflow:hidden}
+/* Das Band: Messwerte wie Anzeigen, das Urteil mit Leuchtpunkt. Feste Höhe;
+   das Urteil bekommt mehr Breite und steht einzeilig (ganz im Tooltip). */
+.app.hud .band{position:sticky;top:12px;margin:12px 14px 0 264px;border-radius:14px;overflow:hidden;
+  height:var(--kopf-hoehe);grid-template-columns:repeat(4,minmax(0,1fr)) minmax(0,1.7fr)}
 .app.hud .band .zelle{border-right-color:var(--glas-kante);padding:8px 16px}
 .app.hud .band dt{font:600 9.5px var(--z);letter-spacing:.16em;text-transform:uppercase;color:var(--ink-leise)}
 .app.hud .band dd{font-size:20px}
@@ -1319,12 +1320,24 @@ button, summary, label, select, a, .reiter{cursor:pointer}
 #zeichnung.buehne::after{left:calc(var(--frei-l,300px) + var(--frei-b,600px) - 14px);top:calc(var(--frei-t,90px) + var(--frei-h,400px) - 14px);border-left:0;border-top:0}
 
 /* Die Prüfungen: Kacheln nebeneinander, Rot und Gelb vorn. Neben einer
-   Eingabe knapp (Liste höchstens 22 % der Fensterhöhe, Bestandenes in einer
-   Zeile); im Tab „Prüfungen & Zahlen" ganz. */
-.app.hud #karte-pruefungen .karte-kopf{padding:6px 12px}
+   Eingabe knapp und in fester Größe, damit nichts springt (Wunsch vom
+   20.10.2026): die Liste immer 22 % der Fensterhöhe (rollt, wenn mehr da
+   ist), jede Kachel gleich hoch — Rot und Gelb mit Kopf und einer Zeile,
+   Bestandenes in einer Zeile; der ganze Text im Tooltip (zeigePruefungen).
+   Im Tab „Prüfungen & Zahlen" ganz. */
+/* Gleich hoch mit und ohne Landeswahl (bei der DB Ril fällt sie weg) — sonst sprünge die Karte */
+.app.hud #karte-pruefungen .karte-kopf{padding:6px 12px;min-height:41px}
 .app.hud #karte-pruefungen .karte-koerper{padding:8px !important}
 .app.hud #pruefungen{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px;background:none}
-.app.hud .spalten.k-umschalten:not(.k-ergebnis) #pruefungen{max-height:min(var(--liste-max,22vh),22vh);overflow-y:auto}
+.app.hud .spalten.k-umschalten:not(.k-ergebnis) #pruefungen{height:min(var(--liste-max,22vh),22vh);overflow-y:auto;grid-auto-rows:50px;align-content:start}
+.app.hud .spalten.k-umschalten:not(.k-ergebnis) .pruefung{height:50px;overflow:hidden;align-items:center}
+.app.hud .spalten.k-umschalten:not(.k-ergebnis) .pruefung .punkt{margin-top:0}
+.app.hud .spalten.k-umschalten:not(.k-ergebnis) .pruefung > span:last-child{min-width:0}
+.app.hud .spalten.k-umschalten:not(.k-ergebnis) :is(.p-fehler,.p-hinweis) :is(strong,em){white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.app.hud .spalten.k-umschalten:not(.k-ergebnis) #k-urteil > span{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* Die Eingabespalte hält den Platz für ihren Rollbalken frei: sonst würden
+   alle Felder schmaler, sobald sie rollt, und breiter, sobald nicht mehr. */
+.app.hud .spalten.k-umschalten:not(.k-ergebnis) > section:first-child{overflow-y:auto;scrollbar-gutter:stable;scrollbar-width:thin}
 .app.hud .pruefung{background:var(--karte-tief);border:1px solid var(--kante);border-radius:9px;padding:6px 10px}
 .app.hud .spalten.k-umschalten:not(.k-ergebnis) :is(.p-ok,.p-neutral) > span:last-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .app.hud #k-urteil{padding:7px 14px}
@@ -2671,6 +2684,8 @@ function werkwahlZeigen(){
   // nach einer Landesvorgabe gerechnet wird.
   const lf = landFall();
   $("marke").textContent = lf ? `${w.marke} · ${lf.land.name} ${lf.land.fassung}` : w.marke;
+  // Im HUD steht die Zeile einzeilig und wird abgeschnitten — ganz im Tooltip
+  $("marke").parentNode.title = $("marke").parentNode.textContent;
   document.title = "Gely — Geländer-Berechnung nach " + w.lang;
 }
 
@@ -3574,7 +3589,7 @@ function zeichneBand(r){
     zelle("Felder", r.gueltig ? r.n : "–") +
     zelle("Pfosten", r.gueltig ? r.pfosten : "–") +
     zelle("Füllstäbe gesamt", r.mGes !== undefined ? r.mGes : "–") +
-    `<div class="zelle status ${status}"><dt>Prüfung</dt><dd class="fahne">${fahne}</dd></div>`;
+    `<div class="zelle status ${status}"><dt>Prüfung</dt><dd class="fahne" title="${fahne.replace(/"/g, "&quot;")}"><span>${fahne}</span></dd></div>`;
 }
 
 function zeigeErgebnis(r){
@@ -3611,8 +3626,10 @@ function zeigeErgebnis(r){
 }
 
 function zeigePruefungen(liste){
+  // title: der ganze Satz, falls die Kachel ihn kürzt (HUD neben einer Eingabe)
+  const tip = x => `${x.kopf}. ${x.text}`.replace(/<[^>]*>/g, "").replace(/"/g, "&quot;");
   $("pruefungen").innerHTML = liste.map(x =>
-    `<div class="pruefung p-${x.art}"><span class="punkt"></span><span><strong>${x.kopf}</strong><em>${x.text}</em></span></div>`
+    `<div class="pruefung p-${x.art}" title="${tip(x)}"><span class="punkt"></span><span><strong>${x.kopf}</strong><em>${x.text}</em></span></div>`
   ).join("");
 }
 
@@ -8830,7 +8847,11 @@ try{
     const st = band ? band.querySelector(".zelle.status") : null;
     if(!st){ urteil.textContent = ""; urteil.className = ""; return; }
     const f = st.querySelector(".fahne");
-    urteil.textContent = f ? f.textContent : "";
+    // In einem span, damit es im HUD einzeilig bleiben kann (ganz im Tooltip)
+    const sp = document.createElement("span");
+    sp.textContent = f ? f.textContent : "";
+    urteil.replaceChildren(sp);
+    urteil.title = sp.textContent;
     urteil.className = st.classList.contains("fehler") ? "fehler"
                      : st.classList.contains("warn")   ? "warn"
                      : st.classList.contains("ok")     ? "ok" : "";
