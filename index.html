@@ -376,8 +376,8 @@ nav.abschnitte a[hidden]{display:none}
   .spalten.k-umschalten:not(.k-ergebnis) > section:first-child.k-rollt{
     max-height:var(--links-max,none);overflow-y:auto;scrollbar-width:thin;overscroll-behavior:contain;
     scroll-padding-block:12px;margin-left:-3px;padding:0 0 4px 3px}
-  /* Dichter in den Eingabekarten, damit Bauwerk und Aufbau, Enden und
-     Teilung untereinander ins Fenster passen. Die Hilfetexte rücken mit
+  /* Dichter in den Eingabekarten, damit Enden und Teilung, Aufbau und
+     Fußpunkt untereinander ins Fenster passen. Die Hilfetexte rücken mit
      -6 px an ihr Feld, wie sonst mit -9 px an 13 px Feldabstand: es bleiben
      4 px dazwischen. Eingabefelder 32 statt 36 px hoch, die Knöpfe der
      Wahlbahnen bleiben 30 px. */
@@ -8789,6 +8789,10 @@ try{
   /* ---------- Fußpunkt ---------- */
   const fuss = neueKarte("karte-fuss", "Fußpunkt");
   teilung.after(fuss);
+  /* Der Aufbau steht seit 20.10.2026 im Abschnitt „Aufbau & Fußpunkt" — auch
+     auf der Seite direkt vor dem Fußpunkt, damit „Alle Karten zeigen" die
+     Abschnitte in einem Stück zeigt. Bauwerk passt damit ohne Rollen. */
+  fuss.before(aufbau);
   rein(fuss, paar(hol("feld-verank"), hol("feld-moertel")),
              hol("hilfe-verank"), hol("fuss-details"));
 
@@ -11516,7 +11520,7 @@ try{
 </script>
 <script>
 /* ---------- Flache Eingabekarten ----------
-   Seit 15.10.2026. Bauwerk und Aufbau, Enden und Teilung stehen
+   Seit 15.10.2026. Enden und Teilung, Aufbau und Fußpunkt stehen
    untereinander neben der Ansicht und sollen dort ins Fenster passen, ohne
    dass die Seite rollt. Dafür, ohne an Rechnung, Kennungen oder Exporten
    etwas zu ändern:
@@ -11672,7 +11676,7 @@ try{
    „Zu Trasse", ein gelber Kasten an einem Knopf), holt die Karte vorher
    über karteHolen() nach vorn — also den Abschnitt, der sie enthält.
 
-   NUMMERN NUR IN DER LEISTE. Seit Bauwerk und Aufbau, Enden und Teilung je
+   NUMMERN NUR IN DER LEISTE. Seit Enden und Teilung, Aufbau und Fußpunkt je
    einen Abschnitt teilen, gehören Nummern den Abschnitten, nicht den
    Karten: die Leiste zählt die Eingaben 1, 2, 3 (4 mit der Trasse). Die
    Kartenköpfe tragen nur ihren Namen, und Meldungen nennen eine Karte beim
@@ -11703,9 +11707,9 @@ try{
      die Reihenfolge in einer Liste die auf der Seite (oben zuerst).
 
        Abschnitt            Eingabespalte (links)    daneben (rechts)
-       Bauwerk              Bauwerk, Aufbau          Ansicht, Prüfungen
+       Bauwerk              Bauwerk                  Ansicht, Prüfungen
        Enden & Teilung      Enden, Teilung           Ansicht, Prüfungen
-       Fußpunkt             Fußpunkt                 Ansicht, Prüfungen
+       Aufbau & Fußpunkt    Aufbau, Fußpunkt         Ansicht, Prüfungen
        Trasse               Trasse                   Trassenbild, Ansicht
        Prüfungen & Zahlen   —                        Prüfungen, Zahlen
        Export nach Allplan  —                        Export
@@ -11718,9 +11722,9 @@ try{
      Trassenbild), steht daneben, was zu jeder Eingabe steht (DANEBEN_SONST).
      Die Nummern in der Leiste zählen die Eingaben, wie sie gerade da sind. */
   const ABSCHNITTE = [
-    {name: "Bauwerk",             links: ["karte-eingabe", "karte-aufbau"], rechts: ["karte-ansicht", "karte-pruefungen"]},
+    {name: "Bauwerk",             links: ["karte-eingabe"],                 rechts: ["karte-ansicht", "karte-pruefungen"]},
     {name: "Enden & Teilung",     links: ["karte-enden", "karte-sonder"],   rechts: ["karte-ansicht", "karte-pruefungen"]},
-    {name: "Fußpunkt",            links: ["karte-fuss"],                    rechts: ["karte-ansicht", "karte-pruefungen"]},
+    {name: "Aufbau & Fußpunkt",   links: ["karte-aufbau", "karte-fuss"],    rechts: ["karte-ansicht", "karte-pruefungen"]},
     {name: "Trasse",              links: ["karte-trasse"],                  rechts: ["trassenbild", "karte-ansicht"]},
     {name: "Prüfungen & Zahlen",  links: [],                                rechts: ["karte-pruefungen", "karte-listen"]},
     {name: "Export nach Allplan", links: [],                                rechts: ["karte-export"]},
