@@ -1134,6 +1134,40 @@ button, summary, label, select, a, .reiter{cursor:pointer}
   .inhalt{scroll-behavior:auto}
 }
 
+/* ---------- Maße in der Zeichnung ----------
+   Ein Maß, das eine Eingabe ist (data-mass), zeigt beim Überfahren, dass es
+   sich anklicken lässt; das kleine Feld dazu steht fest im Fenster, über
+   allen Tafeln (z-index über Dock und Mappe, unter dem Schleier der
+   Schublade). Verhalten im Skript „Maße in der Zeichnung". */
+.bp-flaeche svg text[data-mass]{cursor:text}
+.bp-flaeche svg text[data-mass]:hover{fill:var(--blau);text-decoration:underline}
+.massfeld{
+  position:fixed;z-index:12;width:220px;padding:10px 12px 9px;border-radius:12px;
+  background:var(--glas-hoch);border:1px solid var(--glas-kante);color:var(--ink);
+  -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);box-shadow:var(--schatten-hoch);
+  font-family:var(--s);font-size:12.5px;letter-spacing:0;text-transform:none;
+}
+.massfeld[hidden]{display:none}
+.massfeld label{margin-bottom:5px}
+.massfeld input{height:34px}
+.massfeld p{margin:7px 0 0;line-height:1.4}
+.massfeld .massfeld-grenze{font-size:12px;color:var(--ink-weich)}
+.massfeld .massfeld-grenze.rot{color:var(--rot)}
+.massfeld .massfeld-grenze.gelb{color:var(--ocker)}
+.massfeld .massfeld-grenze b{font-weight:600}
+.massfeld .massfeld-tasten{font-size:10.5px;color:var(--ink-leise)}
+.massfeld kbd{font:600 10px var(--z);padding:0 4px;border:1px solid var(--kante-stark);border-radius:4px}
+/* Die Sonderfeld-Tafel am Feld (Skript „Sonderfeld am Feld"): dieselbe Form, breiter */
+.massfeld.sonderfeld{width:310px}
+.sonderfeld .sonderfeld-kopf{margin:0 0 8px;font-size:12.5px;color:var(--ink-weich)}
+.sonderfeld .sonderfeld-kopf b{color:var(--ink)}
+.sonderfeld .segment{margin:0 0 8px;flex-wrap:wrap}
+.sonderfeld .segment button{font-size:11.5px;padding:6px 4px;flex:1 1 40%}
+.sonderfeld select{height:34px}
+.sonderfeld .sonderfeld-tasten{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:9px}
+.sonderfeld .sonderfeld-tasten .tat{padding:6px 14px;font-size:12.5px}
+.sonderfeld .fehlt-meldung{margin:8px 0 0}
+
 /* ---------- Urhebervermerk ---------- klein und leise, am Ende des Inhalts. */
 .urheber{margin:4px 16px 14px;font-family:var(--z);font-size:10.5px;letter-spacing:.04em;color:var(--ink-leise);text-align:right}
 
@@ -2998,6 +3032,16 @@ function rechnen(){
 }
 
 /* ---------- Prüfungen ---------- */
+/* Die zulässige Geländerhöhe eines Typs, als Zahl und als Satz. Eine Stelle
+   für die Prüfung und das Maßfeld in der Zeichnung. Die Mindesthöhe kann von
+   der Absturzhöhe abhängen (Ril 804.9060A01 Abschn. 1(14)). */
+function hoeheBereich(t, absturz){
+  const hMin = t.hRegel ? t.hRegel(absturz) : t.hMin;
+  const hBereich = t.hMax === null || t.hMax === undefined
+      ? `mindestens ${hMin} mm`
+      : (t.hMin === t.hMax ? `genau ${t.hMin} mm` : `${hMin} bis ${t.hMax} mm`);
+  return {hMin, hBereich};
+}
 function pruefen(r){
   const t = r.t, liste = [];
   const p = (art, kopf, text) => liste.push({art, kopf, text});
@@ -3052,11 +3096,7 @@ function pruefen(r){
     p("ok","Randabstand eingehalten",`Mindestens ${t.randMin} mm.`);
   }
 
-  // Mindesthöhe kann von der Absturzhöhe abhängen (Ril 804.9060A01 Abschn. 1(14))
-  const hMin = t.hRegel ? t.hRegel(r.absturz) : t.hMin;
-  const hBereich = t.hMax === null || t.hMax === undefined
-      ? `mindestens ${hMin} mm`
-      : (t.hMin === t.hMax ? `genau ${t.hMin} mm` : `${hMin} bis ${t.hMax} mm`);
+  const {hMin, hBereich} = hoeheBereich(t, r.absturz);
 
   if(t.hRegel){
     if(!r.absturz)
@@ -3855,16 +3895,19 @@ function zeichnen(r){
   /* Unter der Kappe, Teil des Blatts: sie fahren mit dem Geländer mit. Eine
      Zahl erscheint erst, wenn zwischen den Maßstrichen Platz ist — in
      Blattpunkten, also im Zoom dieselbe Beschriftung wie in der Gesamtansicht. */
-  const kette = (x1, x2, y, text) => {
+  /* feld: die Kennung des Eingabefeldes, wenn das Maß eines ist (e1, e2) —
+     dann lässt es sich in der Zeichnung anklicken und ändern (Skript „Maße
+     in der Zeichnung"). Feldlängen sind keine Eingabe und bleiben ohne. */
+  const kette = (x1, x2, y, text, feld) => {
     linie(x1, y, x2, y, mass);
     [x1,x2].forEach(x => linie(x, y-4, x, y+4, mass));
     if(x2 - x1 > 40)
-      e.push(`<text x="${(x1+x2)/2}" y="${y-7}" text-anchor="middle" fill="var(--bp-mass)" font-size="14" font-family="ui-monospace,monospace">${text}</text>`);
+      e.push(`<text x="${(x1+x2)/2}" y="${y-7}" text-anchor="middle" fill="var(--bp-mass)" font-size="14" font-family="ui-monospace,monospace"${feld ? ` data-mass="${feld}"` : ""}>${text}</text>`);
   };
   const yA = yU + 24, yB = yU + 48;
   for(const fd of r.felder) kette(X(fd.von), X(fd.bis), yA, fmt(fd.laenge));
-  if(r.e1 > 0) kette(X(0), X(r.e1), yA, fmt(r.e1));
-  if(r.e2 > 0) kette(X(r.L-r.e2), X(r.L), yA, fmt(r.e2));
+  if(r.e1 > 0) kette(X(0), X(r.e1), yA, fmt(r.e1), "e1");
+  if(r.e2 > 0) kette(X(r.L-r.e2), X(r.L), yA, fmt(r.e2), "e2");
   if(ohr){
     // Je Ende die eigene Länge; ein Ende ohne Ohr bekommt keine Maßkette.
     // bis zur Außenkante, so wie das Maß eingegeben wird
@@ -3874,13 +3917,13 @@ function zeichnen(r){
   }
   linie(X(0), yB, X(r.L), yB, 'stroke="var(--bp-linie)" stroke-width="0.6"');
   [X(0), X(r.L)].forEach(x => linie(x, yB-4, x, yB+4, 'stroke="var(--bp-linie)" stroke-width="0.6"'));
-  e.push(`<text x="${(X(0)+X(r.L))/2}" y="${yB-7}" text-anchor="middle" fill="var(--bp-linie)" font-size="14" font-family="ui-monospace,monospace">L = ${fmt(r.L)} ${einheit}</text>`);
+  e.push(`<text x="${(X(0)+X(r.L))/2}" y="${yB-7}" text-anchor="middle" fill="var(--bp-linie)" font-size="14" font-family="ui-monospace,monospace" data-mass="L">L = ${fmt(r.L)} ${einheit}</text>`);
 
   // ---------- Höhe ----------
   const xh = X(0) - 30;
   linie(xh, y0, xh, yTop, mittel);
   [y0, yTop].forEach(y => linie(xh-4, y, xh+4, y, mittel));
-  e.push(`<text x="${xh-9}" y="${y0-hoehe/2}" text-anchor="middle" fill="var(--bp-linie)" font-size="14" font-family="ui-monospace,monospace" transform="rotate(-90 ${xh-9} ${y0-hoehe/2})">h = ${fmt(r.h)}</text>`);
+  e.push(`<text x="${xh-9}" y="${y0-hoehe/2}" text-anchor="middle" fill="var(--bp-linie)" font-size="14" font-family="ui-monospace,monospace" transform="rotate(-90 ${xh-9} ${y0-hoehe/2})" data-mass="h">h = ${fmt(r.h)}</text>`);
 
   /* ---------- Feldnummern ----------
      Damit man beim Eintragen eines Sonderfeldes nicht abzählen muss. Feld 1 ist
@@ -3912,19 +3955,23 @@ function zeichnen(r){
     const xv = X(fd.von), xb = X(fd.bis);
     if(xb - xv < 2) continue;
     e.push(`<rect class="feldklick" data-feld="${fd.i}" x="${xv}" y="${oben}" width="${xb - xv}" height="${yN + 8 - oben}">` +
-           `<title>Feld ${fd.i} · ${fmt(fd.laenge)} ${einheit} — anklicken, um ein Sonderfeld anzulegen</title></rect>`);
+           `<title>Feld ${fd.i} · ${fmt(fd.laenge)} ${einheit} — anklicken: Sonderfeld</title></rect>`);
   }
 
+  /* Die Maße, die Eingaben sind (data-mass), liegen über den Feldflächen —
+     die reichen bis unter die Maßkette, und sonst legte ein Klick auf L ein
+     Sonderfeld an, statt L zu ändern. Gezeichnet wird dasselbe. */
+  const ganzOben = s => s.includes(" data-mass=");
   ziel.innerHTML = `<svg viewBox="0 0 ${B} ${HB}" role="img" aria-label="Maßstäbliche Ansicht des Geländers">` +
     `<style>.feldklick{fill:transparent;cursor:pointer}.feldklick:hover{fill:var(--bp-mass);opacity:.10}</style>` +
-    `${e.join("")}</svg>`;
+    `${e.filter(s => !ganzOben(s)).join("")}${e.filter(ganzOben).join("")}</svg>`;
   const sonderZahl = r.felder.filter(f => f.sonder).length;
   $("bp-neben").textContent =
     `${r.n} Felder · ${r.pfosten} Pfosten` +
     (r.holme ? ` · ${r.holme} Holm${r.holme>1?"e":""}` : "") +
     (r.mGes ? ` · ${r.mGes} Stäbe` : "") +
     (sonderZahl ? ` · ${sonderZahl} Sonderfeld${sonderZahl>1?"er":""}` : "") +
-    ` · Feld anklicken legt ein Sonderfeld an`;
+    ` · Feld anklicken: Sonderfeld · Maß anklicken: ändern`;
   ansichtAnwenden("zeichnung");              // das SVG ist neu, der Ausschnitt bleibt stehen
 }
 
@@ -12529,6 +12576,401 @@ try{
   umziehen();
 }catch(e){
   if(window.console) console.warn("Bühne und Dock nicht verfügbar:", e);
+}
+})();
+</script>
+<script>
+/* ---------- Maße in der Zeichnung ----------
+   Seit 16.10.2026. Ein Klick auf ein Maß der Ansicht, das eine Eingabe ist
+   (L, h und — wo sie beschriftet sind — e₁, e₂; Kennung data-mass aus
+   zeichnen()), öffnet an der Stelle ein kleines Feld. Es ist kein zweites
+   Feld: jede Eingabe darin geht sofort in das Feld der Karte und löst dort
+   input aus, gerechnet wird also wie beim Tippen in der Karte, und die
+   Zeichnung zieht mit. Enter, Tab oder ein Klick daneben übernimmt, Esc holt
+   den Wert von vorher zurück.
+   Darunter steht, was das Blatt zulässt (hoeheBereich, randMin), bei L die
+   Teilung, die gerade herauskommt — aus der Rechnung, nicht geschätzt. Ist
+   eine Prüfung zu dem Maß rot oder gelb, steht ihr Satz darunter, in ihrer
+   Farbe: derselbe Text wie in den Prüfungen, kein eigener.
+   Das Feld hängt an der App und steht fest im Fenster (tafelLegen): an der
+   Karte der Ansicht läge es im HUD auf der Bühne, also unter Prüfungen und
+   Dock, und auf schmalen Fenstern schnitte die Blaupause es ab. Es liegt
+   außerhalb der Zeichenfläche, damit Rad, Ziehen und Tasten des Zooms es
+   nicht erreichen, und folgt seinem Maß, wenn die Zeichnung neu entsteht. */
+(function(){
+try{
+  const hol = id => document.getElementById(id);
+  const fl = hol("zeichnung"), app = hol("app") || document.body;
+  if(!fl) return;
+
+  /* Wohin eine Tafel an der Zeichnung kommt — für dieses Feld und die
+     Sonderfeld-Tafel. vorschlaege: Lagen {x, y} in Fensterpunkten, die
+     bevorzugte zuerst; es gilt die erste, die hineinpasst, sonst die erste,
+     an den Rand geklemmt. Seitwärts wird immer geklemmt — nur eine Lage
+     neben dem Anker (seite: true) muss auch der Breite nach passen. Der Rand ist im HUD das freie Feld
+     zwischen den Tafeln (ansichtFrei) — je Richtung, soweit die Tafel darin
+     Platz hat, sonst das Fenster. */
+  window.tafelLegen = function(el, vorschlaege){
+    const b = el.offsetWidth, h = el.offsetHeight, R = 8;
+    const feld = {l: R, t: R, r: innerWidth - R, b: innerHeight - R};
+    if(fl.classList.contains("buehne") && typeof ansichtFrei === "function"){
+      const f = ansichtFrei();
+      if(f && f.r - f.l >= b + 2 * R){ feld.l = f.l + R; feld.r = f.r - R; }
+      if(f && f.b - f.t >= h + 2 * R){ feld.t = f.t + R; feld.b = f.b - R; }
+    }
+    const p = vorschlaege.find(q => q.y >= feld.t && q.y + h <= feld.b &&
+                                    (!q.seite || (q.x >= feld.l && q.x + b <= feld.r))) || vorschlaege[0];
+    el.style.left = Math.round(Math.max(feld.l, Math.min(feld.r - b, p.x))) + "px";
+    el.style.top = Math.round(Math.max(feld.t, Math.min(feld.b - h, p.y))) + "px";
+  };
+  // Liegt ein Anker ganz außerhalb des Fensters?
+  window.tafelAusserhalb = function(anker){
+    const q = anker.getBoundingClientRect();
+    return q.bottom < 0 || q.top > innerHeight || q.right < 0 || q.left > innerWidth;
+  };
+
+  const NAMEN = {L: "Gesamtlänge <i>L</i>", h: "Geländerhöhe <i>h</i>", e1: "Randabstand Anfang <i>e₁</i>", e2: "Randabstand Ende <i>e₂</i>"};
+  // Die Prüfungen, die zu einem Maß gehören — erkannt am Kopf, wie er in pruefen() steht
+  const KOPF = {h: "Geländerhöhe", e1: "Randabstand", e2: "Randabstand"};
+  const kasten = document.createElement("div");
+  kasten.className = "massfeld"; kasten.id = "massfeld"; kasten.hidden = true;
+  kasten.setAttribute("role", "dialog"); kasten.setAttribute("aria-label", "Maß ändern");
+  kasten.innerHTML = '<label class="massfeld-name" for="massfeld-wert"></label>' +
+    '<div class="mit-einheit"><input type="number" id="massfeld-wert" step="1" min="0"><span class="suffix">mm</span></div>' +
+    '<p class="massfeld-grenze" id="massfeld-grenze"></p>' +
+    '<p class="massfeld-grenze" id="massfeld-pruef" hidden></p>' +
+    '<p class="massfeld-tasten"><kbd>Enter</kbd> übernimmt · <kbd>Esc</kbd> nimmt zurück</p>';
+  app.append(kasten);
+  const wert = kasten.querySelector("input"), grenze = hol("massfeld-grenze"), pruef = hol("massfeld-pruef");
+  let offen = null;                       // {feld, vorher}
+  // Die Prüfungen der letzten Rechnung, so wie sie angezeigt werden (zeigePruefungen)
+  let pruefListe = [];
+  try{ if(typeof letzte !== "undefined" && letzte) pruefListe = pruefen(letzte); }catch(e){}
+
+  function grenzeZeigen(){
+    if(!offen) return;
+    const r = typeof letzte !== "undefined" ? letzte : null;
+    const t = r && r.t, de = v => v.toLocaleString("de-DE", {maximumFractionDigits: 1});
+    let s = "";
+    if(t && offen.feld === "h") s = `${t.kurz}: ${hoeheBereich(t, r.absturz).hBereich}.`;
+    else if(t && (offen.feld === "e1" || offen.feld === "e2"))
+      s = t.randMin ? `${t.kurz}: mindestens ${t.randMin} mm.` : `${t.kurz}: kein Mindestmaß vorgegeben.`;
+    else if(offen.feld === "L"){
+      if(!r || !r.gueltig) s = "Noch keine Teilung — L muss größer sein als die beiden Randabstände zusammen.";
+      else if(!r.eigenZahl) s = `→ ${r.n} Felder à ${de(r.a)} mm.`;
+      else if(r.eigenZahl < r.n) s = `→ ${r.n} Felder, Regelfeld ${de(r.a)} mm, ${r.eigenZahl} mit eigener Länge.`;
+      else s = `→ ${r.n} Felder, alle mit eigener Länge.`;
+    }
+    grenze.textContent = s;
+    // Die schwerste Prüfung zu diesem Maß, mit ihrem eigenen Satz
+    const kopf = KOPF[offen.feld];
+    const zu = art => kopf && pruefListe.find(p => p.art === art && String(p.kopf).startsWith(kopf));
+    let x = zu("fehler") || zu("hinweis");
+    // Die Randabstand-Prüfung gilt beiden Enden (kleineres e) — nur zeigen, wenn dieses Ende darunter liegt
+    if(x && t && kopf === "Randabstand" && zahl(offen.feld) >= t.randMin) x = null;
+    pruef.hidden = !x;
+    if(x){
+      pruef.innerHTML = `<b>${x.kopf}.</b> ${x.text}`;
+      pruef.className = "massfeld-grenze " + (x.art === "fehler" ? "rot" : "gelb");
+    }
+  }
+  function setze(v){
+    if(!offen) return;
+    const f = hol(offen.feld);
+    f.value = v;
+    f.dispatchEvent(new Event("input", {bubbles: true}));
+  }
+  // Neben dem senkrechten Maß h, sonst unter dem Maß — passt es dort nicht, darüber.
+  function lage(){
+    if(!offen || kasten.hidden) return;
+    const text = fl.querySelector(`text[data-mass="${offen.feld}"]`);
+    if(!text) return;                     // e₁ ohne Beschriftung: das Feld bleibt stehen
+    const tr = text.getBoundingClientRect();
+    if(!tr.width && !tr.height) return;
+    const b = kasten.offsetWidth, hk = kasten.offsetHeight;
+    if(offen.feld === "h") tafelLegen(kasten, [{x: tr.right + 10, y: tr.top + tr.height / 2 - hk / 2}]);
+    else {
+      const x = tr.left + tr.width / 2 - b / 2;
+      tafelLegen(kasten, [{x, y: tr.bottom + 8}, {x, y: tr.top - hk - 8}]);
+    }
+  }
+  function oeffnen(text){
+    const feld = text.dataset.mass, f = hol(feld);
+    if(!f) return;
+    if(offen) schliessen(true);
+    offen = {feld, vorher: f.value};
+    kasten.querySelector(".massfeld-name").innerHTML = NAMEN[feld] || feld;
+    wert.value = f.value;
+    kasten.hidden = false;
+    grenzeZeigen();
+    lage();
+    wert.focus({preventScroll: true});
+    wert.select();
+  }
+  function schliessen(behalten){
+    if(!offen) return;
+    const f = hol(offen.feld);
+    if(f){
+      if(!behalten && f.value !== offen.vorher) setze(offen.vorher);
+      f.dispatchEvent(new Event("change", {bubbles: true}));
+    }
+    offen = null;
+    const fokusDrin = kasten.contains(document.activeElement);
+    kasten.hidden = true;
+    if(fokusDrin) fl.focus({preventScroll: true});
+  }
+
+  fl.addEventListener("click", ev => {
+    const t = ev.target.closest && ev.target.closest("text[data-mass]");
+    if(!t) return;
+    ev.stopPropagation();
+    oeffnen(t);
+  });
+  wert.addEventListener("input", () => { setze(wert.value); grenzeZeigen(); });
+  wert.addEventListener("keydown", ev => {
+    if(ev.key === "Enter"){ ev.preventDefault(); schliessen(true); }
+    else if(ev.key === "Escape"){ ev.preventDefault(); ev.stopPropagation(); schliessen(false); }
+  });
+  // Ein Klick daneben übernimmt (vor allem anderen, damit ein Klick auf ein anderes Maß gleich dieses öffnet)
+  document.addEventListener("pointerdown", ev => { if(offen && !kasten.contains(ev.target)) schliessen(true); }, true);
+  // Tab aus dem Feld heraus übernimmt ebenso. Ohne Ziel (Klick ins Leere der Tafel) bleibt es offen.
+  kasten.addEventListener("focusout", ev => {
+    if(offen && ev.relatedTarget && !kasten.contains(ev.relatedTarget)) schliessen(true);
+  });
+  // Zoomt die Ansicht, übernehmen und schließen.
+  fl.addEventListener("wheel", () => { if(offen) schliessen(true); }, {passive: true});
+  /* Wird das Fenster schmaler oder breiter, schließen — die Tafeln ziehen
+     dann um. Die übrigen resize (auch die, die das HUD selbst auslöst, wenn
+     sich das Dock ändert) und Rollen setzen das Feld nur neu an sein Maß. */
+  let breite = innerWidth;
+  addEventListener("resize", () => {
+    if(innerWidth !== breite){ breite = innerWidth; if(offen) schliessen(true); }
+    else lage();
+  });
+  // Rollt das Maß aus dem Bild (schmale Fenster), stünde das Feld ohne Anker da — dann übernehmen und schließen.
+  document.addEventListener("scroll", () => {
+    if(!offen) return;
+    const text = fl.querySelector(`text[data-mass="${offen.feld}"]`);
+    if(text && tafelAusserhalb(text)) schliessen(true); else lage();
+  }, true);
+  // Rechnet es neu, ziehen Satz und Lage mit: Prüfungen merken, nach dem Zeichnen setzen.
+  if(typeof zeigePruefungen === "function"){
+    const alt = zeigePruefungen;
+    zeigePruefungen = function(liste){ alt(liste); pruefListe = liste || []; };
+  }
+  if(typeof zeichnen === "function"){
+    const alt = zeichnen;
+    zeichnen = function(r){ alt(r); try{ grenzeZeigen(); lage(); }catch(e){} };
+  }
+}catch(e){
+  if(window.console) console.warn("Maße in der Zeichnung nicht verfügbar:", e);
+}
+})();
+</script>
+<script>
+/* ---------- Sonderfeld am Feld ----------
+   Seit 16.10.2026. Ein Klick auf ein Feld der Ansicht öffnet dort eine
+   kleine Tafel: eigene Länge, ohne Füllung, Dehnfuge oder anderer Typ, mit
+   dem Wert dazu. „Übernehmen" (oder Enter) schreibt den Eintrag in dieselbe
+   Liste wie die Karte Teilung (sonder) und rechnet; Esc, Tab oder ein Klick
+   daneben verwirft. „In der Karte" macht, was der Klick vorher tat: Eintrag
+   anlegen und zur Karte springen (sonderAnlegenFuer).
+   Ein Feld kann je Art einen Eintrag haben (sonderFuer). Die Tafel nennt
+   alle Einträge des Feldes und arbeitet immer an dem der gewählten Art:
+   gibt es ihn, ändert sie seinen Wert, sonst kommt ein neuer Eintrag dazu.
+   Die Art eines bestehenden Eintrags ändert sie nie — sonst änderte ein
+   Klick still einen Eintrag, der auch für andere Felder gilt. Gesucht wird
+   der Eintrag erst beim Übernehmen oder Entfernen: die Liste kann sich in
+   der Karte geändert haben, seit die Tafel offen ist. Gehört er mehreren
+   Feldern („1-3"), gilt eine Änderung für alle — das steht dabei; entfernen
+   lässt er sich dann nur in der Karte, sonst verschwänden die anderen
+   Felder still mit. Ein leerer oder unbrauchbarer Wert wird nicht
+   übernommen, sondern gemeldet.
+   Die Tafel steht wie das Maßfeld fest im Fenster (tafelLegen), über dem
+   Feld, damit sie Geländer und Maßkette nicht verdeckt. */
+(function(){
+try{
+  const hol = id => document.getElementById(id);
+  const fl = hol("zeichnung"), app = hol("app") || document.body;
+  if(!fl || typeof sonder === "undefined" || typeof tafelLegen !== "function") return;
+  const EINHEIT = {laenge: "mm Feldlänge", fuge: "mm Einstellmaß Δc"};
+  const ARTNAME = Object.fromEntries(SONDER_ARTEN);
+  const tafel = document.createElement("div");
+  tafel.className = "massfeld sonderfeld"; tafel.id = "sonderfeld"; tafel.hidden = true;
+  tafel.setAttribute("role", "dialog"); tafel.setAttribute("aria-label", "Sonderfeld");
+  app.append(tafel);
+  let offen = null;            // {nr, art, wert, laenge}
+
+  const zahlDe = v => (Math.round(v * 10) / 10).toLocaleString("de-DE", {maximumFractionDigits: 1});
+  const nummern = s => felderLesen(s.felder).nummern;
+  // Alle Einträge, die das Feld nennen, mit ihrem Index
+  const eintraege = nr => sonder.map((s, k) => ({s, k})).filter(x => nummern(x.s).includes(nr));
+  // Der Eintrag der gewählten Art für das Feld — der erste, der gilt (sonderFuer)
+  const eintrag = () => sonder.findIndex(s => s.art === offen.art && nummern(s).includes(offen.nr));
+  // Womit eine Art beginnt: mit dem Wert ihres Eintrags, sonst mit dem, was nichts verschiebt
+  function startWert(art){
+    const k = sonder.findIndex(s => s.art === art && nummern(s).includes(offen.nr));
+    if(k >= 0) return sonder[k].wert;
+    if(art === "laenge") return Math.round(offen.laenge);
+    if(art === "typ") return typeof typIndex !== "undefined" ? typIndex : 0;
+    return 0;
+  }
+
+  function bauen(){
+    const k = eintrag(), s = k >= 0 ? sonder[k] : null;
+    const mehrere = s && nummern(s).length > 1;
+    const alle = eintraege(offen.nr);
+    const arten = SONDER_ARTEN.map(([a, bez]) =>
+      `<button type="button" data-art="${a}" aria-pressed="${a === offen.art}">${bez}</button>`).join("");
+    let wertHtml = "";
+    if(offen.art === "typ")
+      wertHtml = `<select id="sonderfeld-wert">${TYPEN.map((t, i) => `<option value="${i}"${i === +offen.wert ? " selected" : ""}>${t.kurz}</option>`).join("")}</select>`;
+    else if(offen.art !== "leer")
+      wertHtml = `<div class="mit-einheit"><input type="number" id="sonderfeld-wert" step="1" min="0" value="${offen.wert}"><span class="suffix">mm</span></div>`;
+    const liste = alle.map(x => `${x.k + 1}. ${ARTNAME[x.s.art] || x.s.art}` +
+      (sonderWertText(x.s) ? ` ${sonderWertText(x.s)}` : "")).join(" · ");
+    const wozu = s
+      ? (mehrere ? `Eintrag ${k + 1} gilt für die Felder ${fehltText(String(s.felder))} — eine Änderung gilt für alle.`
+                 : `Ändert Eintrag ${k + 1}.`)
+      : (alle.length ? "Kommt als neuer Eintrag dazu; die anderen bleiben." : "");
+    tafel.innerHTML =
+      `<p class="sonderfeld-kopf"><b>Feld ${offen.nr}</b> · ${zahlDe(offen.laenge)} mm</p>` +
+      (alle.length ? `<p class="massfeld-grenze">Eintr${alle.length > 1 ? "äge" : "ag"}: ${liste}</p>` : "") +
+      `<div class="segment sonderfeld-arten" role="group" aria-label="Art des Sonderfeldes">${arten}</div>` +
+      (wozu ? `<p class="massfeld-grenze">${wozu}</p>` : "") +
+      wertHtml +
+      (EINHEIT[offen.art] ? `<p class="massfeld-grenze">${EINHEIT[offen.art]}</p>` : "") +
+      `<p class="fehlt-meldung" id="sonderfeld-meldung" hidden></p>` +
+      `<div class="sonderfeld-tasten"><button type="button" class="tat" data-tun="ok">Übernehmen</button>` +
+        (s && !mehrere ? `<button type="button" class="minitat weit" data-tun="weg">Entfernen</button>` : "") +
+        `<button type="button" class="minitat weit" data-tun="karte">In der Karte</button></div>` +
+      `<p class="massfeld-tasten"><kbd>Enter</kbd> übernimmt · <kbd>Esc</kbd> verwirft</p>`;
+  }
+  /* Über dem Feld, sonst darunter (die Fläche reicht bis unter die Maßkette),
+     sonst rechts oder links daneben — die Tafel soll das Feld nicht verdecken.
+     Passt nichts davon, steht sie über dem Feld, an den Rand geklemmt. */
+  function lage(){
+    if(!offen || tafel.hidden) return;
+    const z = fl.querySelector(`[data-feld="${offen.nr}"]`);
+    if(!z) return;
+    const fr = z.getBoundingClientRect();
+    if(!fr.width && !fr.height) return;
+    const b = tafel.offsetWidth, h = tafel.offsetHeight, x = fr.left + fr.width / 2 - b / 2;
+    const ym = fr.top + fr.height / 2 - h / 2;
+    tafelLegen(tafel, [{x, y: fr.top - h - 8}, {x, y: fr.bottom + 8},
+                       {x: fr.right + 8, y: ym, seite: true}, {x: fr.left - b - 8, y: ym, seite: true}]);
+  }
+  function fokus(){
+    const w = hol("sonderfeld-wert") || tafel.querySelector('[data-tun="ok"]');
+    if(w){ w.focus({preventScroll: true}); if(w.select) w.select(); }
+  }
+  function oeffnen(nr){
+    const fd = letzte && letzte.felder ? letzte.felder.find(f => f.i === nr) : null;
+    const erster = eintraege(nr)[0];
+    offen = {nr, laenge: fd ? fd.laenge : 0, art: erster ? erster.s.art : "laenge"};
+    offen.wert = startWert(offen.art);
+    bauen();
+    tafel.hidden = false;
+    lage();
+    fokus();
+  }
+  function schliessen(){
+    if(!offen) return;
+    const fokusDrin = tafel.contains(document.activeElement);
+    offen = null;
+    tafel.hidden = true;
+    if(fokusDrin) fl.focus({preventScroll: true});
+  }
+  function melden(html){
+    const m = hol("sonderfeld-meldung");
+    m.innerHTML = html; m.hidden = false;
+    lage();                    // die Tafel ist höher geworden
+  }
+  function uebernehmen(){
+    const w = hol("sonderfeld-wert");
+    let wert = 0;
+    if(offen.art === "typ") wert = +w.value;
+    else if(offen.art !== "leer"){
+      const v = parseFloat(String(w.value).replace(",", "."));
+      if(!isFinite(v) || v < 0 || (offen.art === "laenge" && v <= 0))
+        return melden(offen.art === "laenge" ? "<b>Keine Feldlänge.</b> Eine Länge in mm eintragen, größer als 0."
+                                             : "<b>Kein Einstellmaß.</b> Δc in mm eintragen, 0 oder mehr.");
+      wert = v;
+    }
+    const k = eintrag();
+    if(k >= 0) sonder[k].wert = wert;
+    else sonder.push({felder: String(offen.nr), art: offen.art, wert});
+    schliessen();
+    sonderZeigen();
+    alles();
+  }
+  function entfernen(){
+    // Nur ein Eintrag, der allein diesem Feld gehört — gehört er inzwischen mehreren, bleibt er.
+    const k = eintrag();
+    if(k >= 0 && nummern(sonder[k]).length <= 1) sonder.splice(k, 1);
+    schliessen();
+    sonderZeigen();
+    alles();
+  }
+
+  // Vor dem bisherigen Behandler (Eintrag anlegen und springen): die Tafel öffnen.
+  fl.addEventListener("click", ev => {
+    const z = ev.target.closest && ev.target.closest("[data-feld]");
+    if(!z) return;
+    ev.stopImmediatePropagation();
+    oeffnen(+z.dataset.feld);
+  }, true);
+  tafel.addEventListener("click", ev => {
+    const art = ev.target.closest("button[data-art]");
+    if(art){
+      // Dieselbe Art behält, was getippt ist; eine andere beginnt mit dem Wert ihres Eintrags.
+      if(art.dataset.art !== offen.art){
+        offen.art = art.dataset.art;
+        offen.wert = startWert(offen.art);
+        bauen();
+        lage();
+      }
+      fokus();
+      return;
+    }
+    const b = ev.target.closest("button[data-tun]");
+    if(!b) return;
+    if(b.dataset.tun === "ok") uebernehmen();
+    else if(b.dataset.tun === "weg") entfernen();
+    else if(b.dataset.tun === "karte"){ const nr = offen.nr; schliessen(); sonderAnlegenFuer(nr); }
+  });
+  tafel.addEventListener("keydown", ev => {
+    if(ev.key === "Enter" && ev.target.tagName !== "BUTTON"){ ev.preventDefault(); uebernehmen(); }
+    else if(ev.key === "Escape"){ ev.preventDefault(); ev.stopPropagation(); schliessen(); }
+  });
+  document.addEventListener("pointerdown", ev => { if(offen && !tafel.contains(ev.target)) schliessen(); }, true);
+  // Tab aus der Tafel heraus verwirft. Ohne Ziel (bauen() schreibt die Tafel neu) bleibt sie offen.
+  tafel.addEventListener("focusout", ev => {
+    if(offen && ev.relatedTarget && !tafel.contains(ev.relatedTarget)) schliessen();
+  });
+  fl.addEventListener("wheel", () => { if(offen) schliessen(); }, {passive: true});
+  let breite = innerWidth;
+  addEventListener("resize", () => {
+    if(innerWidth !== breite){ breite = innerWidth; if(offen) schliessen(); }
+    else lage();
+  });
+  // Rollt das Feld aus dem Bild (schmale Fenster), stünde die Tafel ohne Anker da — dann verwerfen.
+  document.addEventListener("scroll", () => {
+    if(!offen) return;
+    const z = fl.querySelector(`[data-feld="${offen.nr}"]`);
+    if(z && tafelAusserhalb(z)) schliessen(); else lage();
+  }, true);
+  // Schreibt die Karte ihre Liste neu, stimmt die Tafel nicht mehr — dann zu.
+  if(typeof sonderZeigen === "function"){
+    const alt = sonderZeigen;
+    sonderZeigen = function(){ if(offen) schliessen(); return alt.apply(this, arguments); };
+  }
+  if(typeof zeichnen === "function"){
+    const alt = zeichnen;
+    zeichnen = function(r){ alt(r); try{ lage(); }catch(e){} };
+  }
+}catch(e){
+  if(window.console) console.warn("Sonderfeld am Feld nicht verfügbar:", e);
 }
 })();
 </script>
