@@ -169,7 +169,8 @@
   --kante-stark:rgba(20,60,100,.25);
   --ink:#122233;
   --ink-weich:#4b6177;
-  --ink-leise:#7f92a5;
+  --ink-leise:#566a7e;      /* leise, aber lesbar: >= 4,5:1 auch auf Glas */
+  --feld-rand:#7088a0;      /* Rand der Eingabefelder, >= 3:1 gegen ihren Grund */
   --blau:#0f6fb8;
   --blau-ink:#ffffff;       /* Schrift auf Blau */
   --blau-hell:rgba(15,111,184,.10);
@@ -181,16 +182,12 @@
   --gruen:#14794d;
   --gruen-hell:rgba(20,145,92,.10);
 
-  /* Das HUD: Glastafeln über der Bühne, das Raster darauf, das Leuchten der
-     Akzentfarbe. */
+  /* Das HUD: Glastafeln über der Bühne und das Raster darauf. */
   --glas:rgba(255,255,255,.74);
   --glas-hoch:rgba(255,255,255,.93);
   --glas-kante:rgba(20,60,100,.14);
-  --glas-licht:rgba(255,255,255,.7);
-  --glanz:rgba(15,111,184,.22);
   --raster:rgba(30,80,130,.06);
   --raster-stark:rgba(30,80,130,.11);
-  --schatten-glas:0 18px 40px -22px rgba(20,50,80,.35);
 
   /* Eingabefelder und die Vollton-Knöpfe */
   --eingabe:rgba(255,255,255,.9);
@@ -201,7 +198,10 @@
   /* Die Pille der Wahlbahnen (der Gleiter): Vollton in der Akzentfarbe */
   --gleiter-fuell:var(--blau);
   --gleiter-ink:var(--blau-ink);
-  --gleiter-schatten:0 0 12px var(--glanz);
+  --gleiter-schatten:none;
+
+  /* Der gelbe Kasten „es fehlt etwas" */
+  --fehlt-grund:var(--ocker-hell);
 
   --s:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
   --eng:"Arial Narrow","Helvetica Neue Condensed","Liberation Sans Narrow",var(--s);
@@ -237,7 +237,8 @@
   --kante-stark:rgba(150,205,255,.26);
   --ink:#e8f2fb;
   --ink-weich:#9db6cc;
-  --ink-leise:#6b87a1;
+  --ink-leise:#93a9be;
+  --feld-rand:#557590;
   --blau:#5cc8ff;
   --blau-ink:#04121f;
   --blau-hell:rgba(92,200,255,.13);
@@ -252,11 +253,8 @@
   --glas:rgba(9,27,46,.68);
   --glas-hoch:rgba(12,34,56,.92);
   --glas-kante:rgba(150,205,255,.16);
-  --glas-licht:rgba(255,255,255,.06);
-  --glanz:rgba(92,200,255,.35);
   --raster:rgba(120,180,230,.06);
   --raster-stark:rgba(120,180,230,.12);
-  --schatten-glas:0 18px 50px -18px rgba(0,0,0,.7);
 
   --eingabe:rgba(4,16,28,.55);
   --tat-grund:var(--blau);
@@ -265,7 +263,11 @@
 
   --gleiter-fuell:var(--blau);
   --gleiter-ink:var(--blau-ink);
-  --gleiter-schatten:0 0 14px var(--glanz);
+  --gleiter-schatten:none;
+
+  /* Im Dunkeln ein echtes Gelb mit dunkler Schrift, sonst wirkt der Kasten
+     bräunlich-grau und fällt nicht auf */
+  --fehlt-grund:#e9bd52;
 
   --schatten:0 1px 2px rgba(0,0,0,.4);
   --schatten-hoch:0 2px 4px rgba(0,0,0,.4),0 16px 40px -20px rgba(0,0,0,.9);
@@ -273,9 +275,9 @@
 }
 
 *{box-sizing:border-box}
-html{-webkit-text-size-adjust:100%}
+html{-webkit-text-size-adjust:100%;overflow-x:clip}
 body{
-  margin:0;padding:0;background:var(--grund);color:var(--ink);
+  margin:0;padding:0;background:var(--grund);color:var(--ink);overflow-x:clip;
   font-family:var(--s);font-size:14.5px;line-height:1.5;
   -webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums;
   min-height:100vh;
@@ -457,6 +459,7 @@ nav.abschnitte a[hidden]{display:none}
   font-size:12.5px;cursor:pointer;color:var(--ink);
 }
 .chip:hover{border-color:var(--blau);color:var(--blau)}
+.chip svg.sinn{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round}
 .chip.ueber{border-color:var(--blau);background:var(--blau-hell);color:var(--blau)}
 .chip.nein{border-color:var(--ocker);background:var(--ocker-hell)}
 .schleier{display:none;position:absolute;inset:0;background:rgba(0,0,0,.35);z-index:15}
@@ -469,23 +472,27 @@ nav.abschnitte a[hidden]{display:none}
    beim Rollen fest. Die Zellen sind durch Linien getrennt. */
 .band{
   position:sticky;top:0;z-index:5;margin:0;
-  display:grid;grid-template-columns:repeat(5,minmax(0,1fr));
+  display:flex;overflow:hidden;
   background:var(--rahmen);border-bottom:2px solid var(--kante-stark);box-shadow:var(--rahmen-schatten);
 }
-.band .zelle{padding:9px 16px;border-right:1px solid var(--kante-stark);min-width:0}
+/* Nur Zellen mit Wert stehen da (zeichneBand); das Urteil bekommt mehr Breite */
+.band .zelle{flex:1 1 0;padding:9px 16px;border-right:1px solid var(--kante-stark);min-width:0}
+.band .zelle.status{flex:2 1 0}
 .band .zelle:last-child{border-right:0}
 .band dt{font-size:11px;color:var(--ink-weich);margin:0 0 2px;letter-spacing:.02em}
 .band dd{margin:0;font-family:var(--z);font-size:19px;font-weight:600;letter-spacing:-.02em;line-height:1.15;white-space:nowrap}
 .band dd small{font-size:11px;font-weight:400;color:var(--ink-leise);margin-left:3px;letter-spacing:0}
-.band .zelle.status{display:flex;flex-direction:column;justify-content:center}
-.band .status .fahne{font-family:var(--s);font-size:13px;font-weight:600;line-height:1.3;white-space:normal;letter-spacing:0}
+/* Das Urteil steht ohne Etikett als umrahmter Vermerk, wie auf einem Plan */
+.band .zelle.status{display:flex;flex-direction:column;justify-content:center;align-items:flex-start}
+.band .zelle.status dt{display:none}
+.band .status .fahne{font-family:var(--s);font-size:13px;font-weight:600;line-height:1.25;white-space:normal;letter-spacing:0;
+  border:2px solid currentColor;padding:4px 10px;max-width:100%}
 /* Einzeilig, damit das Band nicht höher wird und alles darunter verschiebt — der ganze Satz steht
    im Tooltip und in der Prüfungskarte. Mit Absicht auch ohne HUD: dort klebt das Band ebenso oben. */
 @media screen{.band .status .fahne > span{display:block;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}
-.band .status.ok{background:var(--gruen-hell)}      .band .status.ok .fahne{color:var(--gruen)}
-.band .status.warn{background:var(--ocker-hell)}    .band .status.warn .fahne{color:var(--ocker)}
-.band .status.fehler{background:var(--rot-hell)}    .band .status.fehler .fahne{color:var(--rot)}
-.band .status dt{opacity:.75}
+.band .status.ok .fahne{color:color-mix(in srgb,var(--gruen) 85%,var(--ink))}   /* auf dem Rahmenton sonst knapp unter 4,5:1 */
+.band .status.warn .fahne{color:var(--ocker);background:var(--ocker-hell)}
+.band .status.fehler .fahne{color:var(--rot);background:var(--rot-hell)}
 
 /* ---------- Raster ----------
    Die Eingabespalte ist 372 px breit, der Rest gehört der Zeichnung. */
@@ -625,10 +632,15 @@ input.k-abgeleitet{background:var(--karte-tief);color:var(--ink-weich);cursor:no
 /* Eine Auswahl im Kartenkopf. Sieht aus wie die Nebenangabe daneben. */
 .karte-kopf .neben-wahl{
   font-family:var(--s);font-size:12px;color:var(--ink-weich);width:auto;height:28px;
-  background:var(--karte-tief);border:1px solid var(--kante);border-radius:var(--r-klein);
+  background:var(--karte-tief);border:1px solid var(--feld-rand);border-radius:var(--r-klein);
   padding:0 8px;max-width:230px;cursor:pointer;
 }
-.karte-kopf .neben-wahl:hover{color:var(--ink);border-color:var(--kante-stark)}
+.karte-kopf .neben-wahl:hover{color:var(--ink);border-color:var(--blau)}
+/* Schmal: die Landeswahl der Prüfungen in eine eigene Zeile, sonst deckt sie den Titel zu */
+@media(max-width:480px){
+  #karte-pruefungen > .karte-kopf{flex-wrap:wrap}
+  #karte-pruefungen > .karte-kopf .neben-wahl{order:3;flex:1 0 100%;max-width:none}
+}
 
 /* ---------- Einklappbare Karte ----------
    Baut auf <details>/<summary> auf. .klappe an die .karte hängen und den
@@ -676,7 +688,7 @@ label .var{font-family:var(--z);font-style:italic;color:var(--blau)}
 }
 input[type=number],input[type=text],select{
   width:100%;height:36px;font-family:var(--z);font-size:14px;color:var(--ink);
-  background:var(--eingabe);border:1px solid var(--kante-stark);border-radius:7px;
+  background:var(--eingabe);border:1px solid var(--feld-rand);border-radius:7px;
   padding:0 44px 0 10px;-moz-appearance:textfield;
 }
 select{font-family:var(--s);font-size:13.5px;padding-right:10px;cursor:pointer}
@@ -717,9 +729,9 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
   position:relative;z-index:1;       /* über dem Gleiter */
   flex:1 1 0;min-width:0;
   background:none;border:0;border-radius:6px;cursor:pointer;color:var(--ink-weich);
-  font-family:var(--z);line-height:1.3;
+  font-family:var(--s);line-height:1.3;
 }
-.typwahl button{font-size:12px;letter-spacing:.02em;padding:7px 2px}
+.typwahl button{font-size:12px;padding:7px 2px}
 .segment button{font-size:12.5px;padding:7px 0}
 .typwahl button:hover,.segment button:hover{color:var(--ink)}
 .typwahl button[aria-pressed=true],.segment button[aria-pressed=true]{
@@ -764,7 +776,6 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
 
 /* ---------- Ergebnisliste ---------- */
 .ergebnis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin:0}
-.ergebnis .posten{border-left:2px solid var(--blau);padding-left:12px}
 .ergebnis dt{font-size:12px;color:var(--ink-weich);margin-bottom:2px}
 .ergebnis dd{margin:0;font-family:var(--z);font-size:17px;font-weight:600}
 .ergebnis dd small{font-size:11px;font-weight:400;color:var(--ink-leise);margin-left:3px}
@@ -814,7 +825,7 @@ input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appear
 table{border-collapse:collapse;width:100%;font-family:var(--z);font-size:13px}
 caption{text-align:left;font-family:var(--s);font-size:12.5px;color:var(--ink-weich);padding-bottom:8px}
 th,td{padding:7px 11px;text-align:right;border-bottom:1px solid var(--kante)}
-th{font-family:var(--s);font-size:11px;font-weight:500;color:var(--ink-weich);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--kante-stark)}
+th{font:500 12px/1.4 var(--s);color:var(--ink-weich);border-bottom:1px solid var(--kante-stark)}
 td:first-child,th:first-child{text-align:left;color:var(--ink-weich)}
 tbody tr:hover td{background:var(--blau-hell)}
 
@@ -853,6 +864,11 @@ button.tat.stumm:hover{filter:none;border-color:var(--blau);color:var(--blau)}
   min-width:24px;height:24px;padding:0 7px;cursor:pointer;
 }
 .minitat.weit{padding:0 12px}
+/* Die kleinen Knöpfe bleiben klein, treffen aber auf mindestens 28 px:
+   eine unsichtbare Fläche um sie herum nimmt den Klick mit an. */
+.minitat,.mini,.zuruecksetzen,.mappe-dxf .segment button{position:relative}
+.minitat::after,.mini::after,.zuruecksetzen::after,.mappe-dxf .segment button::after{content:"";position:absolute;inset:-4px -2px}
+.mini::after{inset:-4px -3px}
 .minitat[hidden]{display:none}
 .minitat:hover{color:var(--blau);border-color:var(--blau);background:var(--blau-hell)}
 .minitat[aria-pressed=true]{color:var(--blau);border-color:var(--blau);background:var(--blau-hell)}
@@ -860,13 +876,24 @@ button.tat.stumm:hover{filter:none;border-color:var(--blau);color:var(--blau)}
    nimmt aber den Klick an, damit er sagen kann, was fehlt. Die Meldung ist
    immer derselbe gelbe Kasten (.fehlt-meldung), siehe fehltMelden() im Skript. */
 button[aria-disabled=true]{opacity:.45;cursor:help}
+/* Die kleinen Knöpfe werden nur leiser, nicht blass — sie bleiben lesbar */
+:is(.minitat,.mini,.verlauf-knopf)[aria-disabled=true]{opacity:1;color:var(--ink-leise);border-style:dashed}
+:is(.minitat,.mini,.verlauf-knopf)[aria-disabled=true]:hover{color:var(--ink-leise);border-color:var(--kante-stark);background:transparent}
 button[aria-disabled=true]:active{transform:none}
+/* Ein Feld, das gerade nicht gilt, bleibt bedienbar und sagt beim Versuch im
+   gelben Kasten, warum (feldSperren() im Skript) */
+:is(input,select)[aria-disabled=true]{background:var(--karte-tief);color:var(--ink-weich);border-style:dashed;cursor:help}
 button.tat[aria-disabled=true]:hover{filter:none;background:var(--tat-grund);color:var(--tat-ink);border-color:transparent}
 button.tat.stumm[aria-disabled=true]:hover{background:var(--karte);color:var(--ink);border-color:var(--kante-stark)}
 .ab-reihe .weg[aria-disabled=true]:hover,
 .ab-preihe .weg[aria-disabled=true]:hover{color:var(--ink-weich);border-color:var(--kante);background:var(--karte-tief)}
-.fehlt-meldung{margin:9px 0 0;padding:8px 10px;border-left:3px solid var(--ocker);
-  background:var(--ocker-hell);color:var(--ink);border-radius:var(--r-klein);font-size:12.5px;line-height:1.5}
+.fehlt-meldung{margin:9px 0 0;padding:8px 10px;border:1px solid var(--ocker);
+  background:var(--fehlt-grund);color:var(--ink);border-radius:var(--r-klein);font-size:12.5px;line-height:1.5}
+/* Im Dunkeln ist der Kasten hell: darin gelten die dunklen Schriftfarben,
+   auch für seine Knöpfe */
+:root[data-theme=dunkel] .fehlt-meldung{
+  --ink:#1d1606;--ink-weich:#3b3014;--karte:#fbefcf;--kante:rgba(60,45,10,.35);--kante-stark:rgba(60,45,10,.55);
+  --blau:#0a568f;--blau-hell:rgba(10,86,143,.14);color-scheme:light}
 .fehlt-meldung .minitat{margin-left:4px}
 /* Ein IFC-Knopf bei Rot: roter Ring und das Urteil in der Ecke. Er bleibt
    drückbar und fragt beim Klick nach (Skript „Rot heißt: so nicht exportieren"). */
@@ -876,7 +903,7 @@ button.ifc-rot::after{
   background:var(--rot);color:#fff;font:600 10.5px/17px var(--s);white-space:nowrap;pointer-events:none}
 /* Ein Hinweis, der vor dem Drücken gelesen werden soll — blau, weil nichts
    fehlt, sondern etwas zu wissen ist (Gelb bleibt für „es fehlt etwas"). */
-.hinweis-kasten{margin:0 0 12px;padding:9px 11px;border-left:3px solid var(--blau);
+.hinweis-kasten{margin:0 0 12px;padding:9px 11px;border:1px solid var(--kante-stark);
   background:var(--blau-hell);color:var(--ink);border-radius:var(--r-klein);font-size:12.5px;line-height:1.55}
 .hinweis-kasten .minitat{margin-left:4px}
 
@@ -941,7 +968,7 @@ button.ifc-rot::after{
 .mappe-fuss button.tat{width:100%}
 /* DXF aus der Mappe: zusammen oder einzeln, dann die drei Formate (Skript „Die anderen Formate aus der Mappe") */
 .mappe-fuss .mappe-dxf{gap:4px}
-.mappe-dxf-titel{font:600 10px var(--z);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-leise);margin-right:4px}
+.mappe-dxf-titel{font:500 12px/1.4 var(--s);color:var(--ink-weich);margin-right:4px}
 .mappe-dxf .segment{flex:1;min-width:0}
 .mappe-dxf .segment button{font-size:11.5px;padding:4px 6px}
 .mappe-dxf .minitat{flex:1 1 0;min-width:0;padding:5px 6px;font-size:11.5px}
@@ -1001,7 +1028,7 @@ button.ifc-rot::after{
 .bp-kopf{
   display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center;
   padding:9px 14px;border-bottom:1px solid color-mix(in srgb,var(--bp-linie) 16%,transparent);
-  font-family:var(--z);font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+  font:500 12px/1.4 var(--s);letter-spacing:0;
   color:var(--bp-mass);position:relative;
 }
 /* Die Fläche nimmt Rad, Tasten, Finger und Tastatur an (Baustein „Ansicht:
@@ -1045,7 +1072,7 @@ dialog.achsbau::backdrop{background:rgba(8,12,18,.42)}
 .ab-melde.schlecht{color:var(--rot)}
 .ab-abschnitt{margin-top:18px}
 .ab-abschnitt:first-child{margin-top:0}
-.ab-abschnitt > h3{font-family:var(--z);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--blau);margin-bottom:9px}
+.ab-abschnitt > h3{font:500 12px/1.4 var(--s);letter-spacing:0;color:var(--blau);margin-bottom:9px}
 .ab-reihe{display:grid;grid-template-columns:1.4fr 1fr 1fr 34px;gap:8px;align-items:center;margin-bottom:7px}
 .ab-reihe.kopf{margin-bottom:5px;font-size:11px;color:var(--ink-weich);font-family:var(--s);letter-spacing:.02em}
 .ab-reihe input,.ab-reihe select{padding:0 10px;font-size:13.5px;height:32px}
@@ -1196,10 +1223,11 @@ button, summary, label, select, a, .reiter{cursor:pointer}
 .verlauf-knopf{width:34px;height:32px;border:1px solid var(--kante);border-radius:8px;background:transparent;
   color:var(--ink-weich);font:600 17px/1 var(--s);display:inline-flex;align-items:center;justify-content:center}
 .verlauf-knopf:hover,.verlauf-knopf:focus-visible{color:var(--blau);border-color:var(--blau);background:var(--blau-hell)}
-.verlauf-knopf[aria-disabled=true]{opacity:.45}
+.verlauf-knopf svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .hud-dock .verlauf{padding:0 6px 0 0;margin-right:6px;position:relative}
 .hud-dock .verlauf::after{content:"";position:absolute;right:-1px;top:6px;bottom:6px;width:1px;background:var(--glas-kante)}
-.hud-dock .verlauf-knopf{height:40px;width:36px;border:0;border-radius:10px}
+.hud-dock .verlauf-knopf{height:40px;width:36px;border:0;border-radius:4px;color:var(--ink)}
+.hud-dock .verlauf-knopf[aria-disabled=true]{color:var(--ink-weich)}
 .hud-dock .verlauf + .fehlt-meldung{position:absolute;left:8px;bottom:calc(100% + 8px);width:320px;margin:0;z-index:2}
 
 /* ---------- Bauteil-Info ----------
@@ -1217,11 +1245,12 @@ button, summary, label, select, a, .reiter{cursor:pointer}
 .bauteil-info span.mass{color:var(--ink)}
 #zeichnung svg .bauteil-mark{fill:none;stroke:var(--blau);stroke-width:2;vector-effect:non-scaling-stroke;pointer-events:none}
 /* über die Kennung, sonst gewönne das HUD (#karte-ansicht.hud-buehne .bp-kopf .minitat, weiter unten) */
-#karte-ansicht .bp-kopf #btn-bauteilinfo[aria-pressed=true]{color:var(--blau);border-color:var(--blau)}
+#karte-ansicht .bp-kopf #btn-bauteilinfo[aria-pressed=true]{color:color-mix(in srgb,var(--blau) 80%,var(--ink));border-color:var(--blau)}
 @media print{.bauteil-info{display:none !important}}
 
 /* ---------- Urhebervermerk ---------- klein und leise, am Ende des Inhalts. */
-.urheber{margin:4px 16px 14px;font-family:var(--z);font-size:10.5px;letter-spacing:.04em;color:var(--ink-leise);text-align:right}
+.app.hud .urheber .lang{display:none}   /* im HUD kein Platz: steht im Tooltip */
+.urheber{margin:4px 16px 14px;font:500 12px/1.4 var(--s);letter-spacing:0;color:var(--ink-leise);text-align:right}
 
 /* ---------- Das HUD: Bühne, Glastafeln, Dock ----------
    Gilt ab 1001 px Fensterbreite, sobald das Skript „Die Bühne und das Dock"
@@ -1259,15 +1288,16 @@ button, summary, label, select, a, .reiter{cursor:pointer}
 .app.hud .spalten > section.k-rollt,
 .app.hud .inhalt.hud-rollt{pointer-events:auto}
 
-/* Glas */
+/* Glas: nur leise, ohne Leuchtkanten und Schatten, eckig wie ein Planrahmen */
 .app.hud :is(.karte,.band,.hud-dock,.hud-mappe,.leiste){
-  background:var(--glas);border:1px solid var(--glas-kante);
-  -webkit-backdrop-filter:blur(14px) saturate(1.3);backdrop-filter:blur(14px) saturate(1.3);
-  box-shadow:var(--schatten-glas),inset 0 1px 0 var(--glas-licht);
+  background:var(--glas);border:1px solid var(--kante-stark);
+  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
+  box-shadow:none;
 }
-.app.hud .karte{border-radius:14px}
+.app.hud .karte{border-radius:4px}
 .app.hud .karte-kopf{border-bottom-color:var(--glas-kante)}
-.app.hud .karte-kopf h2{font:600 10.5px/1.4 var(--z);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-weich)}
+/* Etiketten normal geschrieben, eine Stufe kleiner */
+.app.hud .karte-kopf h2{font:500 12px/1.4 var(--s);letter-spacing:0;text-transform:none;color:var(--ink-weich)}
 .app.hud .klappe > summary.karte-kopf:hover h2{color:var(--blau)}
 .app.hud :is(.zuruecksetzen,.minitat,.mini,.k-frage,.neben-wahl){background:transparent}
 
@@ -1278,29 +1308,26 @@ button, summary, label, select, a, .reiter{cursor:pointer}
 .app.hud{--kopf-hoehe:54px}
 .app.hud .leiste{
   position:fixed;left:14px;top:12px;width:236px;height:var(--kopf-hoehe);z-index:6;
-  border-radius:14px;overflow:hidden;display:block;transform:none;
+  border-radius:0;overflow:hidden;display:block;transform:none;
 }
 .app.hud .leiste-kopf{border-bottom:0;padding:0 14px;gap:10px;height:100%;min-height:0}
 .app.hud .leiste-kopf > div{min-width:0}
 .app.hud .leiste-kopf b{font-size:15px}
 .app.hud .leiste-kopf small{font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
-/* Das Band: Messwerte wie Anzeigen, das Urteil mit Leuchtpunkt. Feste Höhe;
-   das Urteil bekommt mehr Breite und steht einzeilig (ganz im Tooltip). */
-.app.hud .band{position:sticky;top:12px;margin:12px 14px 0 264px;border-radius:14px;overflow:hidden;
-  height:var(--kopf-hoehe);grid-template-columns:repeat(4,minmax(0,1fr)) minmax(0,1.7fr)}
-.app.hud .band .zelle{border-right-color:var(--glas-kante);padding:8px 16px}
-.app.hud .band dt{font:600 9.5px var(--z);letter-spacing:.16em;text-transform:uppercase;color:var(--ink-leise)}
-.app.hud .band dd{font-size:20px}
-.app.hud .band .status{background:transparent}
-.app.hud .band .status .fahne{display:flex;align-items:center;gap:9px;font-size:13px}
-.app.hud .band .status .fahne::before{
-  content:"";flex:none;width:9px;height:9px;border-radius:50%;background:currentColor;
-  box-shadow:0 0 0 3px color-mix(in srgb,currentColor 22%,transparent),0 0 14px currentColor;
-}
-.app.hud .band .status.ok{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--gruen) 35%,transparent)}
-.app.hud .band .status.warn{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ocker) 45%,transparent)}
-.app.hud .band .status.fehler{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--rot) 50%,transparent)}
+/* Das Band ist der Plankopf (Schriftfeld): kräftiger Rahmen, Zellen mit
+   dünner Trennlinie, oben klein das Etikett, darunter groß der Wert. Kein
+   Glas. Feste Höhe; das Urteil steht ohne Etikett als umrahmter Vermerk in
+   der breiteren letzten Zelle und darf zweizeilig werden. */
+.app.hud .band{position:sticky;top:12px;margin:12px 14px 0 264px;border-radius:0;overflow:hidden;
+  height:var(--kopf-hoehe);display:flex;border:2px solid var(--ink);
+  -webkit-backdrop-filter:none;backdrop-filter:none}
+.app.hud .band .zelle{flex:1 1 0;min-width:0;border-right:1px solid color-mix(in srgb,var(--ink) 45%,transparent);padding:5px 12px 6px}
+.app.hud .band .zelle.status{flex:2.4 1 0;flex-direction:row;align-items:center}
+.app.hud .band dt{font:400 11px/1.2 var(--s);letter-spacing:0;text-transform:none;color:var(--ink-weich)}
+.app.hud .band dd{font-size:20px;margin-top:3px}
+.app.hud .band .status .fahne{font-size:13px;margin:0}
+.app.hud .band .status .fahne > span{white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2}
 
 /* Die Spalten: kein eigener Rahmen mehr, sie füllen die Höhe bis über das
    Dock; die rechte steht unten (Prüfungen über dem Dock). */
@@ -1327,10 +1354,12 @@ button, summary, label, select, a, .reiter{cursor:pointer}
 .app.hud #zeichnung.buehne:focus-visible::before,.app.hud #zeichnung.buehne:focus-visible::after{opacity:1;border-width:2.5px}
 #karte-ansicht.hud-buehne .bp-kopf{
   position:absolute;left:var(--frei-l,300px);top:var(--frei-t,90px);width:var(--frei-b,600px);
-  padding:2px 0 4px;border:0;color:var(--blau);font-size:10.5px;letter-spacing:.16em;z-index:1;flex-wrap:nowrap;
+  padding:2px 0 4px;border:0;color:color-mix(in srgb,var(--blau) 80%,var(--ink));font:500 12px/1.4 var(--s);letter-spacing:0;text-transform:none;z-index:1;flex-wrap:nowrap;
 }
-#karte-ansicht.hud-buehne #bp-titel{flex:none}
-#karte-ansicht.hud-buehne #bp-neben{color:var(--ink-leise);letter-spacing:.1em;flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* Die Bedienhilfe („Feld anklicken …") steht hier im Tooltip des Titels */
+#karte-ansicht.hud-buehne #bp-titel{flex:1 1 auto;min-width:0;cursor:help}
+/* Felder und Pfosten stehen schon im Band */
+#karte-ansicht.hud-buehne #bp-neben{display:none}
 #karte-ansicht.hud-buehne .bp-kopf .minitat{color:var(--ink-weich);border-color:var(--glas-kante);background:var(--glas)}
 #karte-ansicht.hud-buehne .bp-kopf .minitat:hover{color:var(--blau);border-color:var(--blau)}
 #karte-ansicht.hud-buehne .bp-stand{color:var(--ink-weich)}
@@ -1363,15 +1392,13 @@ button, summary, label, select, a, .reiter{cursor:pointer}
   .spalten.k-ergebnis .pruef-klappe,.spalten:not(.k-ergebnis) #karte-pruefungen:not(.zu) .pruef-kurz{display:none}
 }
 #karte-pruefungen .karte-kopf{gap:10px}
-/* Abgeschnitten wird nur der Text im inneren span — am Behälter kappte
-   overflow:hidden den Schein des Punktes zu einem Viereck. Der Punkt wie im Band. */
-.pruef-kurz{flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:9px;padding-left:4px;font:600 12.5px var(--s);
-  white-space:nowrap;letter-spacing:0;text-transform:none}
+/* Eingeklappt steht im Kopf nur die Anzahl — das Urteil selbst steht im Band.
+   Abgeschnitten wird nur der Text im inneren span. */
+.pruef-kurz{flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:4px;padding-left:4px;font:400 12.5px var(--s);
+  color:var(--ink-weich);white-space:nowrap;letter-spacing:0;text-transform:none}
 .pruef-kurz > span{min-width:0;overflow:hidden;text-overflow:ellipsis}
-.pruef-kurz::before{content:"";flex:none;width:9px;height:9px;border-radius:50%;background:currentColor;
-  box-shadow:0 0 0 3px color-mix(in srgb,currentColor 22%,transparent),0 0 14px currentColor}
+.pruef-kurz .verstoss{color:var(--rot);font-weight:600}
 .pruef-kurz:empty{visibility:hidden}
-.pruef-kurz.ok{color:var(--gruen)} .pruef-kurz.warn{color:var(--ocker)} .pruef-kurz.fehler{color:var(--rot)}
 .pruef-klappe{flex:none}
 /* Das Urteil im Band klappt die Prüfungen auf */
 .band .zelle.status{cursor:pointer}
@@ -1384,49 +1411,51 @@ button, summary, label, select, a, .reiter{cursor:pointer}
 .app.hud .spalten.k-umschalten:not(.k-ergebnis) .pruefung .punkt{margin-top:0}
 .app.hud .spalten.k-umschalten:not(.k-ergebnis) .pruefung > span:last-child{min-width:0}
 .app.hud .spalten.k-umschalten:not(.k-ergebnis) :is(.p-fehler,.p-hinweis) :is(strong,em){white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.app.hud .spalten.k-umschalten:not(.k-ergebnis) #k-urteil > span{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* Die Eingabespalte hält den Platz für ihren Rollbalken frei: sonst würden
    alle Felder schmaler, sobald sie rollt, und breiter, sobald nicht mehr. */
 .app.hud .spalten.k-umschalten:not(.k-ergebnis) > section:first-child{overflow-y:auto;scrollbar-gutter:stable;scrollbar-width:thin}
 .app.hud .pruefung{background:var(--karte-tief);border:1px solid var(--kante);border-radius:9px;padding:6px 10px}
 .app.hud .spalten.k-umschalten:not(.k-ergebnis) :is(.p-ok,.p-neutral) > span:last-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
-.app.hud #k-urteil{padding:7px 14px}
 .app.hud .pruefung.p-fehler{background:var(--rot-hell);border-color:color-mix(in srgb,var(--rot) 50%,transparent)}
 .app.hud .pruefung.p-hinweis{background:var(--ocker-hell);border-color:color-mix(in srgb,var(--ocker) 50%,transparent)}
-.app.hud .pruefung .punkt{box-shadow:0 0 8px currentColor}
-.app.hud .p-ok .punkt{color:var(--gruen)} .app.hud .p-hinweis .punkt{color:var(--ocker)} .app.hud .p-fehler .punkt{color:var(--rot)}
-.app.hud #k-urteil{display:flex;align-items:center;gap:9px;background:transparent;border-bottom-color:var(--glas-kante)}
-.app.hud #k-urteil::before{content:"";flex:none;width:9px;height:9px;border-radius:50%;background:currentColor;box-shadow:0 0 12px currentColor}
+/* Das Urteil steht im Band; über der Liste wiederholt es sich im HUD nicht */
+.app.hud #k-urteil{display:none}
 
 /* Das Dock unten: Abschnitte, Mappe, Schalter */
 .app.hud .hud-dock{
   position:fixed;left:50%;bottom:12px;transform:translateX(-50%);z-index:9;
-  display:flex;align-items:center;gap:2px;padding:6px;border-radius:16px;max-width:calc(100vw - 28px);
+  display:flex;align-items:center;gap:2px;padding:6px;border-radius:4px;max-width:calc(100vw - 28px);
 }
 .hud-dock nav.abschnitte{display:flex;align-items:center;gap:2px;padding:0}
 .hud-dock nav.abschnitte .gruppe{font-size:0;padding:0;width:1px;align-self:stretch;margin:6px 5px;background:var(--glas-kante)}
 .hud-dock nav.abschnitte .gruppe:first-child{display:none}
 .hud-dock nav.abschnitte a{grid-template-columns:auto auto auto;gap:7px;height:40px;padding:0 11px 0 8px;border-radius:10px;font-size:12.5px}
 .hud-dock nav.abschnitte a .nr{width:22px;height:22px;background:transparent;border-color:var(--glas-kante)}
-.hud-dock nav.abschnitte a .meta{font-size:0;line-height:0}
-.hud-dock nav.abschnitte a .meta .punkt{margin:0;box-shadow:0 0 8px currentColor}
-.hud-dock nav.abschnitte a .meta .punkt.ok{color:var(--gruen)} .hud-dock nav.abschnitte a .meta .punkt.warn{color:var(--ocker)} .hud-dock nav.abschnitte a .meta .punkt.fehler{color:var(--rot)}
+/* Kein Stand im Dock: das Urteil steht im Band */
+.hud-dock nav.abschnitte a .meta{display:none}
 .hud-dock nav.abschnitte a:hover{background:var(--blau-hell)}
 .hud-dock nav.abschnitte a.aktiv{background:var(--blau-hell);color:var(--ink)}
-.hud-dock nav.abschnitte a.aktiv::before{left:22%;right:22%;top:auto;bottom:1px;width:auto;height:2px;border-radius:2px;box-shadow:0 0 10px var(--blau)}
-.hud-dock nav.abschnitte a.aktiv .nr{background:var(--blau);border-color:var(--blau);color:var(--blau-ink);box-shadow:0 0 12px var(--glanz)}
+.hud-dock nav.abschnitte a.aktiv::before{left:22%;right:22%;top:auto;bottom:1px;width:auto;height:2px;border-radius:2px}
+.hud-dock nav.abschnitte a.aktiv .nr{background:var(--blau);border-color:var(--blau);color:var(--blau-ink)}
 .hud-dock #chip-mappe{height:40px;border:0;border-radius:10px;background:transparent;margin-left:11px;position:relative;padding:0 12px}
 .hud-dock #chip-mappe::before{content:"";position:absolute;left:-6px;top:6px;bottom:6px;width:1px;background:var(--glas-kante)}
 .hud-dock #chip-mappe:hover,.hud-dock #chip-mappe[aria-expanded=true]{background:var(--blau-hell);color:var(--blau)}
 .hud-dock .leiste-fuss{border:0;margin:0;padding:0 3px;gap:0}
 .hud-dock .leiste-fuss > span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-.hud-dock .leiste-fuss:first-of-type{margin-left:6px}
-/* Wo Platz ist, steht „Alle Karten" ausgeschrieben neben seinem Schalter (der Farbschalter hat Sonne und Mond) */
-@media(min-width:1501px){.hud-dock #alle-label{position:static;width:auto;height:auto;overflow:visible;clip:auto;
-  font-size:11.5px;color:var(--ink-weich);margin:0 7px 0 4px}}
-/* Zu schmal für alle Namen: erst die Ergebnisse, dann alle außer dem gewählten nur mit Zeichen */
-@media(max-width:1500px){.hud-dock nav.abschnitte a:not(.aktiv):has(.nr[data-sinn]) .name{display:none}}
-@media(max-width:1240px){.hud-dock nav.abschnitte a:not(.aktiv) .name{display:none}}
+.hud-dock .leiste-fuss:has(#alleschalter){margin-left:auto}     /* bricht das Dock um, stehen die Schalter rechts */
+/* „Alle Karten" steht immer ausgeschrieben neben seinem Schalter (der Farbschalter hat Sonne und Mond) */
+.hud-dock #alle-label{position:static;width:auto;height:auto;overflow:visible;clip:auto;
+  font-size:12px;color:var(--ink-weich);margin:0 7px 0 4px}
+/* Die Abschnitte stehen immer mit Namen da. Wird es eng, rücken sie dichter;
+   reicht auch das nicht, bricht das Dock in eine zweite Zeile um. */
+@media(max-width:1500px){
+  .hud-dock nav.abschnitte a{gap:6px;padding:0 8px 0 6px}
+  .hud-dock nav.abschnitte .gruppe{margin:6px 3px}
+}
+@media(max-width:1240px){
+  .hud-dock nav.abschnitte{flex-wrap:wrap;row-gap:2px}
+  .hud-dock nav.abschnitte a{padding:0 7px 0 5px;font-size:12px}
+}
 
 /* Die Exportzeile: erste Zeile des Docks, so breit wie das Dock darunter
    (width:0 + min-width:100% — sie macht das Dock nicht breiter). */
@@ -1436,20 +1465,22 @@ button, summary, label, select, a, .reiter{cursor:pointer}
   order:-1;flex:1 0 100%;width:0;min-width:100%;display:flex;align-items:center;gap:10px;
   padding:3px 4px 7px 10px;border-bottom:1px solid var(--glas-kante);font-size:12px;color:var(--ink-weich);
 }
-.hud-export .titel{flex:none;font:600 9.5px var(--z);letter-spacing:.16em;text-transform:uppercase;color:var(--ink-leise)}
+.hud-export .titel{flex:none;font:500 12px var(--s);letter-spacing:0;text-transform:none;color:var(--ink-weich)}
 .hud-export .name{flex:0 1 auto;min-width:0;font:600 12.5px var(--z);color:var(--blau);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hud-export .rest{flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.hud-export #hud-ifc{flex:none;padding:6px 14px;font-size:12.5px;box-shadow:0 0 16px var(--glanz)}
+.hud-export #hud-ifc{flex:none;padding:6px 14px;font-size:12.5px}
 .hud-export #hud-ifc.ifc-rot{box-shadow:0 0 0 2px var(--rot)}
 
-/* Der Urhebervermerk unten rechts, neben dem Dock */
-.app.hud .urheber{position:fixed;right:16px;bottom:16px;margin:0;padding:0;z-index:8;pointer-events:none}
-.app.hud .urheber .lang{display:none}          /* neben dem Dock ist nur für den Namen Platz */
+/* Der Urhebervermerk oben links in der Tafel mit dem Namen, rechts neben
+   „Gely" — dort verdeckt ihn kein Dock. Er liegt nur darüber und nimmt
+   keinen Klick. */
+.app.hud .urheber{position:fixed;left:14px;top:12px;width:236px;margin:0;padding:12px 14px 0;z-index:7;
+  pointer-events:none;text-align:right;line-height:16px}
 
 /* Die Mappe öffnet sich über dem Dock */
 .app.hud .hud-mappe{
   position:fixed;bottom:calc(var(--dock-platz,116px) - 8px);left:var(--mappe-l,auto);right:auto;width:300px;max-height:calc(100vh - var(--dock-platz,116px) - 100px);
-  overflow:auto;z-index:10;border-radius:14px;display:none;background:var(--glas-hoch);
+  overflow:auto;z-index:10;border-radius:4px;display:none;background:var(--glas-hoch);
 }
 .app.hud.mappe-offen .hud-mappe{display:block}
 .hud-mappe .mappe{background:transparent;border-top:0}
@@ -1469,11 +1500,11 @@ button, summary, label, select, a, .reiter{cursor:pointer}
   .app.menue-offen .leiste{transform:none}
   .app.menue-offen .schleier{display:block}
   .kopfleiste{display:flex}
-  .band{top:47px;grid-template-columns:repeat(3,minmax(0,1fr))}
-  .band .zelle:nth-child(3){border-right:0}
-  .band .zelle{border-top:1px solid var(--kante);padding:7px 12px}
-  .band .zelle:nth-child(-n+3){border-top:0}
-  .band .status{grid-column:span 2}
+  /* Drei Werte je Zeile, das Urteil darunter. Die Trennlinien oben und
+     rechts ragen um 1 px hinaus und werden am Rand abgeschnitten. */
+  .band{top:47px;flex-wrap:wrap}
+  .band .zelle{flex:1 1 30%;border-top:1px solid var(--kante);margin:-1px -1px 0 0;padding:7px 12px}
+  .band .zelle.status{flex:2 1 60%}
   .band dd{font-size:16px}
   .inhalt{scroll-padding-top:150px}
   .export{grid-template-columns:1fr}
@@ -1491,7 +1522,7 @@ button, summary, label, select, a, .reiter{cursor:pointer}
     --gruen:#2b6b50;--gruen-hell:#eaf3ef;
     --eingabe:#fff;--tat-grund:#111;--tat-ink:#fff;--tat-hover-ink:#fff;
     --schatten:none;--schatten-hoch:none;--gleiter-fuell:#fff;--gleiter-ink:#111;--gleiter-schatten:none;
-    --glas:#fff;--glas-hoch:#fff;--glas-kante:#ccc;--glanz:transparent;
+    --glas:#fff;--glas-hoch:#fff;--glas-kante:#ccc;
     color-scheme:light;
   }
   body{background:#fff}
@@ -1599,7 +1630,7 @@ button, summary, label, select, a, .reiter{cursor:pointer}
     <div class="kopfleiste">
       <b>Gely</b><span class="fuell"></span>
       <button type="button" class="chip" id="chip-mappe" title="Mappe öffnen — oder ein Geländer hierher ziehen">Mappe <span class="mappe-zahl" id="chip-zahl" hidden></span></button>
-      <button type="button" class="chip" id="btn-menue" aria-expanded="false" aria-controls="leiste">Abschnitte ☰</button>
+      <button type="button" class="chip" id="btn-menue" aria-expanded="false" aria-controls="leiste">Abschnitte <svg class="sinn" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 4h11M2.5 8h11M2.5 12h11"/></svg></button>
     </div>
 
     <!-- Statusband: klebt oben im Inhalt, siehe Stilblock. -->
@@ -1662,7 +1693,7 @@ button, summary, label, select, a, .reiter{cursor:pointer}
             <div class="mit-einheit"><input type="number" id="absturz" placeholder="z. B. 6000" value="0" step="100" min="0"><span class="suffix">mm</span></div>
           </div>
           <p class="hilfe" id="hilfe-absturz">Bestimmt nach Ril 804.9060A01 Abschn. 1(14) die Mindesthöhe:
-          ab 1,0 m Absturzhöhe ist ein Geländer nötig, bis 12,0 m mit h ≥ 1000 mm, darüber h ≥ 1100 mm.</p>
+          ab 1,0&#8239;m Absturzhöhe ist ein Geländer nötig, bis 12,0&#8239;m mit h ≥ 1000&#8239;mm, darüber h ≥ 1100&#8239;mm.</p>
 
           <div class="feld" id="feld-holme">
             <label id="holm-label">Holme (waagerechte Riegel)</label>
@@ -1674,7 +1705,7 @@ button, summary, label, select, a, .reiter{cursor:pointer}
             <label for="rahmenUnten">Rahmenunterkante über der Kappe</label>
             <div class="mit-einheit"><input type="number" id="rahmenUnten" value="100" step="5" min="50" max="120"><span class="suffix">mm</span></div>
           </div>
-          <p class="hilfe" id="hilfe-rahmen">Gel 6 lässt 50 bis 120 mm zu.</p>
+          <p class="hilfe" id="hilfe-rahmen">Gel 6 lässt 50 bis 120&#8239;mm zu.</p>
 
           <div class="feld" id="feld-handlauf">
             <label id="hl-label">Handlauf</label>
@@ -1840,7 +1871,7 @@ button, summary, label, select, a, .reiter{cursor:pointer}
             <div class="eingabereihe">
               <div>
                 <label for="tr-achse">Achse</label>
-                <select id="tr-achse" disabled style="min-width:150px"
+                <select id="tr-achse" aria-disabled="true" style="min-width:150px"
                         title="Bezugsachse. Ein Export kann mehrere enthalten — hier die wählen, an der das Geländer liegt."></select>
               </div>
               <div>
@@ -1860,7 +1891,7 @@ button, summary, label, select, a, .reiter{cursor:pointer}
               </div>
               <div>
                 <label for="tr-nullpunkt">Nullpunkt</label>
-                <select id="tr-nullpunkt" disabled style="min-width:190px"
+                <select id="tr-nullpunkt" aria-disabled="true" style="min-width:190px"
                         title="PORIGIN aus dem Dateikopf. Die Koordinaten der TCL sind projektlokal — erst mit dem Nullpunkt liegt der Export an seiner Landeskoordinate."></select>
               </div>
               <div>
@@ -1896,7 +1927,7 @@ button, summary, label, select, a, .reiter{cursor:pointer}
             <div id="reihe-gefaelle" class="eingabereihe">
               <div>
                 <label for="tr-gefquelle">Quergefälle</label>
-                <select id="tr-gefquelle" disabled style="min-width:150px"
+                <select id="tr-gefquelle" aria-disabled="true" style="min-width:150px"
                         title="Kurve aus dem Abschnitt CALC, oder ein fester Wert, wenn der Export keine führt."></select>
               </div>
               <div id="feld-gefwert" style="display:none">
@@ -1919,7 +1950,7 @@ button, summary, label, select, a, .reiter{cursor:pointer}
                    „links" liest sich, als wäre die falsche Seite gewählt. -->
               <div id="feld-rand">
                 <label for="trasse-seite">Rand</label>
-                <select id="trasse-seite" disabled style="min-width:150px"
+                <select id="trasse-seite" aria-disabled="true" style="min-width:150px"
                         title="Welcher der beiden Ränder exportiert wird. Entfällt, wenn „Achse ist“ auf „die Standlinie selbst“ steht — dann gibt es nur eine Linie.">
                   <option value="links">links</option>
                   <option value="rechts">rechts</option>
@@ -1978,14 +2009,14 @@ button, summary, label, select, a, .reiter{cursor:pointer}
             <summary class="hilfe">Hinweise und Randbedingungen</summary>
             <div class="hilfe" style="margin-top:8px">
           <p>Durch die Aufrundung liegt <i>a</i> immer unter dem Höchstmaß. Wird dabei das Regelmaß a<sub>min</sub> unterschritten, ist das ein Anpassungsfeld und kein Verstoß – kürzere Felder sind zulässig, längere nicht.</p>
-          <p><b>Geländerohr.</b> Die Richtzeichnungen der Geländertypen bemaßen Anfang und Ende nicht; sie zeigen den Handlauf 50 mm über den Endpfosten hinaus, mehr nicht. Den Geländerabschluss regelt eine eigene Richtzeichnung, Gel 19 „Geländerabschluss“, in zwei Formen. <b>Blatt 1</b> (Gel 4 und Gel 6): der Handlauf läuft ohne Stoß über das erste Feld hinaus, biegt mit R = 167 mm (innen) nach unten und läuft schräg zum Endpfosten zurück, wo er an Flachstählen verschraubt ist; die Neigung ist nicht bemaßt. <b>Blatt 2</b> (Gel 4): der Handlauf fällt im Viertelkreis bis auf einen eigenen Stummel □ 40/70/4 am Fußpunkt, die Füllstäbe laufen im Bogenfeld weiter; der Radius ist dort nicht bemaßt. Das Werkzeug erzeugt diesen Abschluss nicht. Wird ein Ohr eingetragen, setzt das Werkzeug neben den Endpfosten einen eigenen schmalen Rahmen, wie man ihn an ausgeführten Geländern findet: Ober- und Untergurt aus dem Holmprofil, bündig mit dem Feld, außen ein senkrechter Stab aus demselben Profil, dazwischen die Füllung des Typs. Der Handlauf läuft bis an die Außenkante des Ohrs, die Holme des Feldes enden am Endpfosten. <b>Beide Enden sind unabhängig</b> – links 500 und rechts 0 ist ein gültiger Fall. Das Maß ist eine Planungsvorgabe, keine Zahl aus dem Blatt – es zählt von der Endpfostenachse bis zur Außenkante des Ohrs. Bis zum Randabstand <i>e</i> bleibt es innerhalb von L, nur der Rest ragt darüber hinaus. Das Ohr darf höchstens halb so lang sein wie die lichte Weite des Endfeldes, also der lichte Abstand der Pfosten im ersten bzw. letzten Feld; sonst meldet die Prüfung rot. Bei den <b>Gittergeländern</b> (Gel 6, A-GEL 4) gibt es keine Holme, also auch keine Gurte: das Ohr ist ein weiterer Gitterrahmen wie im Feld, an der Pfostenseite mit Laschen bzw. Winkeln angeschraubt, außen vom Rahmen selbst geschlossen. Er hängt nur am Endpfosten und hat keinen eigenen Fuß. Damit er gebaut wird, muss zwischen Pfostenflanke und Außenkante Platz für Luftspalt, zwei Rahmenschenkel und eine Masche sein. Bei Gel 7 ist das Ohr eine <b>Rohrschlaufe</b>: das Handlaufrohr läuft hinaus, biegt mit dem Eckradius (an der Innenseite des Rohrs gemessen) hinunter und mit demselben Radius zurück in den untersten Holm; die übrigen Holme laufen bis an das senkrechte Rohr. Ohne Ohr endet Gel 7 wie nach dem Blatt im Bogen über dem Endpfosten. Der Eckradius ist je Ende einstellbar; das Blatt bemaßt ihn nicht, 300 mm innen ist ein Vorgabewert des Werkzeugs.</p>
-          <p><b>Verankerung.</b> Wie der Pfosten mit der Kappe verbunden ist, steht in eigenen Richtzeichnungen: <b>Gel 12</b> betoniert ihn in eine Aussparung ein, <b>Gel 13</b> stellt ihn auf einen Pfostenschuh über einer einbetonierten Fußplatte, <b>Gel 14</b> auf eine gedübelte Fußplatte im Mörtelbett. Die Ril kennt dasselbe als <b>A-GEL 30</b> für Stahl und <b>A-GEL 35</b> für GFK. Wählbar ist, was zum Regelwerk und zum Werkstoff des Typs passt. <b>Gel 7</b> steht nicht auf einer Kappe: das Blatt setzt jeden Pfosten in ein eigenes <b>Einzelfundament</b> aus Beton, 400 mm breit und 1200 mm tief, und bemaßt die Geländerhöhe 1400 ab dessen Oberkante. Das Werkzeug baut es 400 × 400 mm im Grundriss und stellt den Pfosten auf die Oberkante; die Aussparung, in der das Rohr eingemörtelt ist, und die Bewehrung baut es nicht. Für Gel 7 gibt es nur diesen Fuß oder keinen.</p>
+          <p><b>Geländerohr.</b> Die Richtzeichnungen der Geländertypen bemaßen Anfang und Ende nicht; sie zeigen den Handlauf 50&#8239;mm über den Endpfosten hinaus, mehr nicht. Den Geländerabschluss regelt eine eigene Richtzeichnung, Gel 19 „Geländerabschluss“, in zwei Formen. <b>Blatt 1</b> (Gel 4 und Gel 6): der Handlauf läuft ohne Stoß über das erste Feld hinaus, biegt mit R = 167&#8239;mm (innen) nach unten und läuft schräg zum Endpfosten zurück, wo er an Flachstählen verschraubt ist; die Neigung ist nicht bemaßt. <b>Blatt 2</b> (Gel 4): der Handlauf fällt im Viertelkreis bis auf einen eigenen Stummel □ 40/70/4 am Fußpunkt, die Füllstäbe laufen im Bogenfeld weiter; der Radius ist dort nicht bemaßt. Das Werkzeug erzeugt diesen Abschluss nicht. Wird ein Ohr eingetragen, setzt das Werkzeug neben den Endpfosten einen eigenen schmalen Rahmen, wie man ihn an ausgeführten Geländern findet: Ober- und Untergurt aus dem Holmprofil, bündig mit dem Feld, außen ein senkrechter Stab aus demselben Profil, dazwischen die Füllung des Typs. Der Handlauf läuft bis an die Außenkante des Ohrs, die Holme des Feldes enden am Endpfosten. <b>Beide Enden sind unabhängig</b> – links 500 und rechts 0 ist ein gültiger Fall. Das Maß ist eine Planungsvorgabe, keine Zahl aus dem Blatt – es zählt von der Endpfostenachse bis zur Außenkante des Ohrs. Bis zum Randabstand <i>e</i> bleibt es innerhalb von L, nur der Rest ragt darüber hinaus. Das Ohr darf höchstens halb so lang sein wie die lichte Weite des Endfeldes, also der lichte Abstand der Pfosten im ersten bzw. letzten Feld; sonst meldet die Prüfung rot. Bei den <b>Gittergeländern</b> (Gel 6, A-GEL 4) gibt es keine Holme, also auch keine Gurte: das Ohr ist ein weiterer Gitterrahmen wie im Feld, an der Pfostenseite mit Laschen bzw. Winkeln angeschraubt, außen vom Rahmen selbst geschlossen. Er hängt nur am Endpfosten und hat keinen eigenen Fuß. Damit er gebaut wird, muss zwischen Pfostenflanke und Außenkante Platz für Luftspalt, zwei Rahmenschenkel und eine Masche sein. Bei Gel 7 ist das Ohr eine <b>Rohrschlaufe</b>: das Handlaufrohr läuft hinaus, biegt mit dem Eckradius (an der Innenseite des Rohrs gemessen) hinunter und mit demselben Radius zurück in den untersten Holm; die übrigen Holme laufen bis an das senkrechte Rohr. Ohne Ohr endet Gel 7 wie nach dem Blatt im Bogen über dem Endpfosten. Der Eckradius ist je Ende einstellbar; das Blatt bemaßt ihn nicht, 300&#8239;mm innen ist ein Vorgabewert des Werkzeugs.</p>
+          <p><b>Verankerung.</b> Wie der Pfosten mit der Kappe verbunden ist, steht in eigenen Richtzeichnungen: <b>Gel 12</b> betoniert ihn in eine Aussparung ein, <b>Gel 13</b> stellt ihn auf einen Pfostenschuh über einer einbetonierten Fußplatte, <b>Gel 14</b> auf eine gedübelte Fußplatte im Mörtelbett. Die Ril kennt dasselbe als <b>A-GEL 30</b> für Stahl und <b>A-GEL 35</b> für GFK. Wählbar ist, was zum Regelwerk und zum Werkstoff des Typs passt. <b>Gel 7</b> steht nicht auf einer Kappe: das Blatt setzt jeden Pfosten in ein eigenes <b>Einzelfundament</b> aus Beton, 400&#8239;mm breit und 1200&#8239;mm tief, und bemaßt die Geländerhöhe 1400 ab dessen Oberkante. Das Werkzeug baut es 400 × 400&#8239;mm im Grundriss und stellt den Pfosten auf die Oberkante; die Aussparung, in der das Rohr eingemörtelt ist, und die Bewehrung baut es nicht. Für Gel 7 gibt es nur diesen Fuß oder keinen.</p>
           <p><b>Die Gesamthöhe <i>h</i> schließt den Fuß ein:</b> <i>h</i> = Fuß + Pfosten + Handlauf, gemessen von der Kappenoberkante. <b>Man gibt die Höhe also einmal ein und zieht nichts ab</b> — der Pfosten wird unten um den Fuß gekürzt, und Oberkante Handlauf bleibt, wo sie ohne Verankerung wäre. Höher wird das Geländer durch die Platte nicht. Was mitrückt, sind Holme, Füllung und Rahmen: sie hängen am Pfosten und behalten ihre Lage zu ihm, gestaucht wird nichts. Zwei Folgen davon stehen in den Prüfungen: der Spalt zwischen Kappe und Füllung wird um den Fuß größer, und feste Holmhöhen einer Richtzeichnung gelten für die Geländerhöhe, nicht für die Gesamthöhe — bleibt nach Abzug des Fußes keine der bemaßten Höhen übrig, werden die Holme gleichmäßig geteilt.</p>
-          <p>Bei der Verankerung wird gebaut, was die Richtzeichnung bemaßt, und nur das. Bei Gel 14 sind die vier Dübel mit ihrem Lochbild bemaßt und werden mit Scheibe und Mutter erzeugt; die Ril schreibt die Dübelabstände dagegen „nach statischem Erfordernis" vor und bemaßt sie nicht — dort entstehen nur Mörtelfuge und Fußplatte. Wie tief ein Dübel im Beton sitzt, steht in seiner Zulassung und auf keinem Blatt. Was unter der Kappenoberkante liegt — bei Gel 13 die Fußplatte und ihre vier Anker —, steht im Export, in der Ansicht des Geländers ist dafür kein Platz. Dort hilft die ausklappbare <b>Detailansicht des Fußpunktes</b> unter der Auswahl: derselbe Schnitt, im eigenen Maßstab.</p>
-          <p>Nicht enthalten, weil nicht rechnerisch: Lage der Bewegungs- und Montagefugen nach Gel 9 (5–10 mm bzw. 5–10 mm + Bewegungsmaß). Bei Gel 4 zusätzlich der Abstand der Füllstäbe von 120 mm nach oben und unten, bei Gel 5 die Kurzpfostenhöhe von 80 mm. Ausführung generell nach ZTV-ING Teil 6 Abschnitt 9.</p>
-          <p><b>Wahlmöglichkeiten der Blätter:</b> Gel 3 ein oder zwei Holme je nach Höhe (Grenze 1100), Gel 4 ebenso (Grenze 1200), Gel 5 der ungeteilte Handlauf in 120 oder 80 mm; dort schließen Randstäbe aus Holmprofil die Füllung ab, bündig mit den Holmenden, der Handlauf steht 50 mm darüber hinaus, Gel 6 die Rahmenunterkante 50 bis 120 mm über der Kappe. Bei Gel 7 sind Durchmesser und Wanddicke der Rohre von Pfosten, Holmen und Handlauf einzeln einstellbar – das Blatt sieht für alle 60,3×2,9 mm vor, und jede Abweichung wird gelb gemeldet. Bei Gel 3, 4 und 6 steht auf dem Blatt „z.B. geteilter Handlauf mit Drahtseil“ – deshalb sind dort auch die ungeteilten Profile von Gel 5 wählbar, bemaßt ist auf den Blättern aber nur der geteilte. Nicht abgebildet, weil sie die Geometrie nicht ändern: der verdeckte Stoß bei Gel 7 und die Endverankerung des Drahtseils.</p>
+          <p>Bei der Verankerung wird gebaut, was die Richtzeichnung bemaßt, und nur das. Bei Gel 14 sind die vier Dübel mit ihrem Lochbild bemaßt und werden mit Scheibe und Mutter erzeugt; die Ril schreibt die Dübelabstände dagegen „nach statischem Erfordernis“ vor und bemaßt sie nicht — dort entstehen nur Mörtelfuge und Fußplatte. Wie tief ein Dübel im Beton sitzt, steht in seiner Zulassung und auf keinem Blatt. Was unter der Kappenoberkante liegt — bei Gel 13 die Fußplatte und ihre vier Anker —, steht im Export, in der Ansicht des Geländers ist dafür kein Platz. Dort hilft die ausklappbare <b>Detailansicht des Fußpunktes</b> unter der Auswahl: derselbe Schnitt, im eigenen Maßstab.</p>
+          <p>Nicht enthalten, weil nicht rechnerisch: Lage der Bewegungs- und Montagefugen nach Gel 9 (5–10&#8239;mm bzw. 5–10&#8239;mm + Bewegungsmaß). Bei Gel 4 zusätzlich der Abstand der Füllstäbe von 120&#8239;mm nach oben und unten, bei Gel 5 die Kurzpfostenhöhe von 80&#8239;mm. Ausführung generell nach ZTV-ING Teil 6 Abschnitt 9.</p>
+          <p><b>Wahlmöglichkeiten der Blätter:</b> Gel 3 ein oder zwei Holme je nach Höhe (Grenze 1100), Gel 4 ebenso (Grenze 1200), Gel 5 der ungeteilte Handlauf in 120 oder 80&#8239;mm; dort schließen Randstäbe aus Holmprofil die Füllung ab, bündig mit den Holmenden, der Handlauf steht 50&#8239;mm darüber hinaus, Gel 6 die Rahmenunterkante 50 bis 120&#8239;mm über der Kappe. Bei Gel 7 sind Durchmesser und Wanddicke der Rohre von Pfosten, Holmen und Handlauf einzeln einstellbar – das Blatt sieht für alle 60,3×2,9&#8239;mm vor, und jede Abweichung wird gelb gemeldet. Bei Gel 3, 4 und 6 steht auf dem Blatt „z.B. geteilter Handlauf mit Drahtseil“ – deshalb sind dort auch die ungeteilten Profile von Gel 5 wählbar, bemaßt ist auf den Blättern aber nur der geteilte. Nicht abgebildet, weil sie die Geometrie nicht ändern: der verdeckte Stoß bei Gel 7 und die Endverankerung des Drahtseils.</p>
           <p>Ansicht und Export bilden jeden Typ eigens ab: Holme nach der Höhenregel, Füllstäbe zwischen den Holmen, Kurzpfosten bei Gel 5, Rahmen L60×6 mit Drahtgitter 40×40×4 bei Gel 6, Rohre mit Endbogen bei Gel 7 – die beiden Holme in drei gleichen lichten Abständen zwischen Fuß und Handlauf, an den Stößen verschnitten wie geschweißt –, Handlauf nach Gel 10. Bei Gel 6 sind auch die Laschen 40×40×8 enthalten, die den Rahmen an den Pfosten halten, mit Sechskantschraube M12, Scheibe und Mutter. Nicht modelliert sind Kupplungsstücke, Seilschikanen und das Drahtseil im Handlauf.</p>
-          <p><b>Was die Blätter zeichnen, aber nicht bemaßen.</b> Die Ecken von Pfosten, Holm und Handlauf sind dort gerundet gezeichnet, ohne Maß. Das Werkzeug rundet sie ebenfalls, mit Werten, die aus den Zeichnungen abgegriffen sind: Holm und Handlauf innen 4, außen 8 mm (einfache bzw. doppelte Wanddicke von 4 mm), Pfosten innen 7, außen 12 mm (gezeichnet sind rund 13; 12 ist der größte Außenradius, den DIN EN 10219-2 für kaltgefertigte Hohlprofile mit 5 mm Wand zulässt). Das <b>Oberteil des geteilten Handlaufs ist dachförmig</b>, zur Mitte ansteigend, so wie Gel 10 es im Schnitt zeigt; die Neigung ist ebenfalls nicht bemaßt und mit 13 % je Seite angesetzt. Die Lippen des Unterteils liegen an der Dachfläche an, deshalb ist der Handlauf vom First bis Unterkante <b>59,2 mm</b> hoch und nicht 54. Auch der <b>ungeteilte Handlauf</b> ist auf Gel 5 dachförmig gezeichnet, flacher, mit 9 % je Seite; Schulter 28 und Hals 23 gelten an der Traufe, der First liegt darüber — das 120er-Profil ist damit 56,4 mm hoch statt 51, das 80er 45,6 statt 42 (das 80er ist nirgends im Schnitt gezeichnet und folgt derselben Regel). Die Gesamthöhe <i>h</i> zählt immer bis zum First; der Pfosten ist entsprechend kürzer. Die <b>Ril</b> zeichnet bei den Stahltypen Pfosten, Holm und Handlauf ebenfalls gerundet, ohne Maß; das Werkzeug nimmt dort innen die Wanddicke, außen die doppelte (Handlauf 90×50×3,2: 3,2 / 6,4 mm). Der Ril-Handlauf ist oben flach gezeichnet und bekommt kein Dach. Bei den <b>GFK-Typen</b> sind die Radien bemaßt (A-GEL 41: außen R 5, innen R 2) und so übernommen. Auf deren Handlauf 75×75×6 sitzt das <b>Handlaufprofil HA 85</b>; seine Form stammt aus der bemaßten Endkappe (86 breit, 87 hoch, oben R 70,5, innen R 64,8, Ecken R 5). Es umgreift das Hohlprofil von oben und liegt mit dem inneren Bogen auf dessen Ecken auf — damit steht es 15,3 mm über dem Hohlprofil, der Handlauf ist vom First bis Unterkante 90,3 mm hoch, und der Pfosten wird bei gleichem <i>h</i> entsprechend kürzer. Die Kammern im Inneren von HA 85 sind nicht bemaßt; das Profil ist als Schale gebaut.</p>
+          <p><b>Was die Blätter zeichnen, aber nicht bemaßen.</b> Die Ecken von Pfosten, Holm und Handlauf sind dort gerundet gezeichnet, ohne Maß. Das Werkzeug rundet sie ebenfalls, mit Werten, die aus den Zeichnungen abgegriffen sind: Holm und Handlauf innen 4, außen 8&#8239;mm (einfache bzw. doppelte Wanddicke von 4&#8239;mm), Pfosten innen 7, außen 12&#8239;mm (gezeichnet sind rund 13; 12 ist der größte Außenradius, den DIN EN 10219-2 für kaltgefertigte Hohlprofile mit 5&#8239;mm Wand zulässt). Das <b>Oberteil des geteilten Handlaufs ist dachförmig</b>, zur Mitte ansteigend, so wie Gel 10 es im Schnitt zeigt; die Neigung ist ebenfalls nicht bemaßt und mit 13&#8239;% je Seite angesetzt. Die Lippen des Unterteils liegen an der Dachfläche an, deshalb ist der Handlauf vom First bis Unterkante <b>59,2&#8239;mm</b> hoch und nicht 54. Auch der <b>ungeteilte Handlauf</b> ist auf Gel 5 dachförmig gezeichnet, flacher, mit 9&#8239;% je Seite; Schulter 28 und Hals 23 gelten an der Traufe, der First liegt darüber — das 120er-Profil ist damit 56,4&#8239;mm hoch statt 51, das 80er 45,6 statt 42 (das 80er ist nirgends im Schnitt gezeichnet und folgt derselben Regel). Die Gesamthöhe <i>h</i> zählt immer bis zum First; der Pfosten ist entsprechend kürzer. Die <b>Ril</b> zeichnet bei den Stahltypen Pfosten, Holm und Handlauf ebenfalls gerundet, ohne Maß; das Werkzeug nimmt dort innen die Wanddicke, außen die doppelte (Handlauf 90×50×3,2: 3,2 / 6,4&#8239;mm). Der Ril-Handlauf ist oben flach gezeichnet und bekommt kein Dach. Bei den <b>GFK-Typen</b> sind die Radien bemaßt (A-GEL 41: außen R 5, innen R 2) und so übernommen. Auf deren Handlauf 75×75×6 sitzt das <b>Handlaufprofil HA 85</b>; seine Form stammt aus der bemaßten Endkappe (86 breit, 87 hoch, oben R 70,5, innen R 64,8, Ecken R 5). Es umgreift das Hohlprofil von oben und liegt mit dem inneren Bogen auf dessen Ecken auf — damit steht es 15,3&#8239;mm über dem Hohlprofil, der Handlauf ist vom First bis Unterkante 90,3&#8239;mm hoch, und der Pfosten wird bei gleichem <i>h</i> entsprechend kürzer. Die Kammern im Inneren von HA 85 sind nicht bemaßt; das Profil ist als Schale gebaut.</p>
             </div>
           </details>
         </div>
@@ -2214,8 +2245,8 @@ button, summary, label, select, a, .reiter{cursor:pointer}
                   <i>auf einer Trasse</i>.</p>
                   <p><b>Was in der Datei steht.</b> Linien in mm auf den Layern der Ansicht (PFOSTEN,
                   HANDLAUF, HOLM, FUELLSTAB, RAHMEN, GITTER, OHR, VERANKERUNG, VERBINDUNG); die Standlinie
-                  der Pfosten auf KAPPE, von 100 mm vor dem Anfang bis 100 mm hinter dem Ende, mit der
-                  Neigung; auf BEZUG der Nullpunkt mit drei 1 m langen Achsstrichen (längs waagerecht,
+                  der Pfosten auf KAPPE, von 100&#8239;mm vor dem Anfang bis 100&#8239;mm hinter dem Ende, mit der
+                  Neigung; auf BEZUG der Nullpunkt mit drei 1&#8239;m langen Achsstrichen (längs waagerecht,
                   quer, hoch) — daran lässt sich die Projektion gegen die eigene Zeichnung halten, danach den
                   Layer löschen. <b>Einfügen in Allplan:</b> den Nullpunkt der DXF auf den Punkt setzen, an
                   dem das Geländer beginnt, auf Oberkante Kappe in der Pfostenmitte. Der Nullpunkt liegt am
@@ -2276,7 +2307,7 @@ button, summary, label, select, a, .reiter{cursor:pointer}
                 </ul>
 
                 <p><b>Wo die Querlage wirklich steht.</b> Nicht in der Bauwerksskizze — eine
-                Zahl wie „Breite zwischen den Geländern" ist dort eine Annahme und obendrein
+                Zahl wie „Breite zwischen den Geländern“ ist dort eine Annahme und obendrein
                 meist symmetrisch gedacht. Im Export steht es genauer: die äußerste
                 <code>PARALLEL</code>-Linie der Kappenquerschnitte gegen <code>Yloc</code> ist
                 der Deckenrand, je Seite getrennt. Steht links und rechts nicht derselbe Betrag,
@@ -2295,7 +2326,7 @@ button, summary, label, select, a, .reiter{cursor:pointer}
                 Achsname, Länge, Drehsinn, Stationsbereich, Gefällequelle und die
                 Landeskoordinate des Achsanfangs. Diese Koordinate lässt sich gegen den Lageplan
                 halten, <i>bevor</i> etwas importiert wird. Stimmt eine der Angaben nicht zum
-                Bauwerk, ist etwas falsch gewählt — eine gemeldete Länge von 644 m statt 222 m
+                Bauwerk, ist etwas falsch gewählt — eine gemeldete Länge von 644&#8239;m statt 222&#8239;m
                 hätte einmal zwei zusammengeworfene Achsen sofort verraten.</p>
 
                 <p><b>Achse</b> — ein Export kann mehrere enthalten
@@ -2309,8 +2340,8 @@ button, summary, label, select, a, .reiter{cursor:pointer}
                 in Allplan an der Achse steht.</p>
 
                 <p><b>Querversatz</b> — Abstand von der Achse bis zur
-                Standlinie der Pfosten, quer gemessen. Liegt der Kappenrand bei 7000 mm und soll das
-                Geländer 300 mm einrücken, sind es 6700. Beide Seiten getrennt, weil die Achse nicht
+                Standlinie der Pfosten, quer gemessen. Liegt der Kappenrand bei 7000&#8239;mm und soll das
+                Geländer 300&#8239;mm einrücken, sind es 6700. Beide Seiten getrennt, weil die Achse nicht
                 in Bauwerksmitte liegen muss. Der Wert bestimmt zugleich die Länge: Auf einer Kurve
                 ist der äußere Rand länger als der innere, deshalb bekommen beide Seiten
                 unterschiedliche Längen und Pfostenabstände.</p>
@@ -2330,7 +2361,7 @@ button, summary, label, select, a, .reiter{cursor:pointer}
             </details>
             <div class="eingabereihe">
               <div>
-                <button type="button" class="tat" id="btn-ifc-kurve" disabled>IFC 4 gekrümmt</button>
+                <button type="button" class="tat" id="btn-ifc-kurve" aria-disabled="true">IFC 4 gekrümmt</button>
               </div>
               <div>
                 <button type="button" class="tat stumm" id="btn-dxf-plan-kurve"
@@ -2361,8 +2392,8 @@ button, summary, label, select, a, .reiter{cursor:pointer}
           Hier liegt, was man gelegentlich braucht: die gerechnete Trasse zum Aufheben und eine
           Führungskurve zum Sichtprüfen in Allplan, bevor man das ganze Geländer importiert.</p>
           <div style="display:flex;gap:10px;flex-wrap:wrap">
-            <button type="button" class="tat" id="btn-json" disabled>Trasse als JSON sichern</button>
-            <button type="button" class="tat" id="btn-kurve-dxf" disabled>Führungskurve als DXF</button>
+            <button type="button" class="tat" id="btn-json" aria-disabled="true">Trasse als JSON sichern</button>
+            <button type="button" class="tat" id="btn-kurve-dxf" aria-disabled="true">Führungskurve als DXF</button>
           </div>
           <p class="hilfe" style="margin:8px 0 0">Die <b>Führungskurve</b> enthält beide Standlinien,
           deren Oberkanten und eine Prüflinie auf der Fahrbahn — fünf Layer. Liegt die Prüflinie im
@@ -2379,8 +2410,8 @@ button, summary, label, select, a, .reiter{cursor:pointer}
       </div>
     </section>
   </div>
-  <!-- Urhebervermerk. Im HUD unten rechts neben dem Dock, sonst am Ende des Inhalts. -->
-  <p class="urheber">© 2026 Malenya<span class="lang"> · Alle Rechte vorbehalten</span></p>
+  <!-- Urhebervermerk. Im HUD oben links neben dem Namen, sonst am Ende des Inhalts. -->
+  <p class="urheber" title="© 2026 Malenya · Alle Rechte vorbehalten">© 2026 Malenya<span class="lang"> · Alle Rechte vorbehalten</span></p>
   </main>
 </div>
 
@@ -2657,13 +2688,13 @@ const LAENDER = [
      {id:"ohne", bez:"Straße ohne Geh- und Radweg", typ:0, h:null,
       text:"Der Anwendungsbereich von Gel 3 gilt in Hessen für alle Straßen ohne mitgeführte Geh- und Radwege, nicht nur für Autobahnen und Kraftfahrstraßen (Teil 8 Abschn. 4)."},
      {id:"fuss", bez:"außenliegender Fußgängerstreifen", typ:1, h:1000,
-      text:"Gel 4, Höhe nach der Zuordnung des Verkehrsträgers: außenliegender Fußgängerstreifen h = 1,00 m."},
+      text:"Gel 4, Höhe nach der Zuordnung des Verkehrsträgers: außenliegender Fußgängerstreifen h = 1,00 m."},
      {id:"radweg", bez:"kombinierter Geh- und Radweg", typ:1, h:1200,
-      text:"Gel 4, kombinierter Geh- und Radweg: h = 1,20 m. Liegt im RiZ-Bereich 1000–1300 mm, ist in Hessen aber vorgeschrieben statt frei wählbar."},
-     {id:"tempo50", bez:"Ortsdurchfahrt mit Hochbord, V ≤ 50 km/h", typ:2, h:null,
-      text:"Gel 5 ist in Hessen nur bis V zul ≤ 50 km/h zugelassen (Anordnung eines Hochbordes)."},
+      text:"Gel 4, kombinierter Geh- und Radweg: h = 1,20 m. Liegt im RiZ-Bereich 1000–1300 mm, ist in Hessen aber vorgeschrieben statt frei wählbar."},
+     {id:"tempo50", bez:"Ortsdurchfahrt mit Hochbord, V ≤ 50 km/h", typ:2, h:null,
+      text:"Gel 5 ist in Hessen nur bis V zul ≤ 50 km/h zugelassen (Anordnung eines Hochbordes)."},
      {id:"fluegel", bez:"Schrägflügel / Böschung", typ:null, h:null,
-      text:"Das Geländer ist am Bankettrand über das Kappenende hinaus zu verlängern, bis senkrecht darunter höchstens 0,90 m Wandhöhe steht; alternativ auf dem ganzen Schrägflügel ein Rohrgeländer h = 1,00 m. Bei Überschüttung ≥ 1,50 m gelenkig aufgelagertes Streifenbankett statt Einzelfundamenten.",
+      text:"Das Geländer ist am Bankettrand über das Kappenende hinaus zu verlängern, bis senkrecht darunter höchstens 0,90 m Wandhöhe steht; alternativ auf dem ganzen Schrägflügel ein Rohrgeländer h = 1,00 m. Bei Überschüttung ≥ 1,50 m gelenkig aufgelagertes Streifenbankett statt Einzelfundamenten.",
       nurHinweis:true}
    ]},
 
@@ -2672,7 +2703,7 @@ const LAENDER = [
    faelle:[
      {id:"abschluss", bez:"Geländerabschluss nach Anlage 5", typ:null, h:null,
       endfeldMin:700, ueberstand:250,
-      text:"Anlage 5 zeigt zwei Endausbildungen: Variante 1 der Handlauf schräg auf die Kappe, Variante 2 als Viertelkreis heruntergezogen. Bemaßt sind ≥ 70 cm vom vorletzten zum Endpfosten und 25 cm Überstand hinter dem Endpfosten."}
+      text:"Anlage 5 zeigt zwei Endausbildungen: Variante 1 der Handlauf schräg auf die Kappe, Variante 2 als Viertelkreis heruntergezogen. Bemaßt sind ≥ 70 cm vom vorletzten zum Endpfosten und 25 cm Überstand hinter dem Endpfosten."}
    ]}
 ];
 
@@ -2876,8 +2907,8 @@ function sonderFuer(i, konflikte){
 /* Der Wert eines Eintrags als Text, für Meldungen: „2.000 mm", „Δc 20 mm", „Gel 6". */
 function sonderWertText(s){
   const zahlT = v => (+v || 0).toLocaleString("de-DE", {maximumFractionDigits: 1});
-  if(s.art === "laenge") return `${zahlT(s.wert)} mm`;
-  if(s.art === "fuge")   return `Δc ${zahlT(s.wert)} mm`;
+  if(s.art === "laenge") return `${zahlT(s.wert)} mm`;
+  if(s.art === "fuge")   return `Δc ${zahlT(s.wert)} mm`;
   if(s.art === "typ")    return TYPEN[s.wert] ? TYPEN[s.wert].kurz : "";
   return "";
 }
@@ -3126,8 +3157,8 @@ function rechnen(){
 function hoeheBereich(t, absturz){
   const hMin = t.hRegel ? t.hRegel(absturz) : t.hMin;
   const hBereich = t.hMax === null || t.hMax === undefined
-      ? `mindestens ${hMin} mm`
-      : (t.hMin === t.hMax ? `genau ${t.hMin} mm` : `${hMin} bis ${t.hMax} mm`);
+      ? `mindestens ${hMin} mm`
+      : (t.hMin === t.hMax ? `genau ${t.hMin} mm` : `${hMin} bis ${t.hMax} mm`);
   return {hMin, hBereich};
 }
 function pruefen(r){
@@ -3143,12 +3174,12 @@ function pruefen(r){
       `Die Felder mit eigener Länge belegen bereits die ganze Strecke – für die übrigen bleibt nichts übrig.`);
   } else if(r.aGroesst > t.aMax + 1e-9){
     p("fehler","Pfostenabstand zu groß",
-      `${fmt(r.aGroesst)} ${einheit} über dem Höchstmaß von ${t.aMax} mm.` +
+      `${fmt(r.aGroesst)} ${einheit} über dem Höchstmaß von ${t.aMax} mm.` +
       (r.handTeilung ? " Die Anzahl ist von Hand vorgegeben." : ""));
   } else if(t.aMin && r.aKleinst < t.aMin){
-    p("hinweis","Anpassungsfeld",`${fmt(r.aKleinst)} ${einheit} unter dem Regelmaß von ${t.aMin} mm – kürzere Felder sind zulässig.`);
+    p("hinweis","Anpassungsfeld",`${fmt(r.aKleinst)} ${einheit} unter dem Regelmaß von ${t.aMin} mm – kürzere Felder sind zulässig.`);
   } else {
-    p("ok","Pfostenabstand eingehalten", t.aMin ? `Im Bereich ${t.aMin}–${t.aMax} mm.` : `Höchstens ${t.aMax} mm.`);
+    p("ok","Pfostenabstand eingehalten", t.aMin ? `Im Bereich ${t.aMin}–${t.aMax} mm.` : `Höchstens ${t.aMax} mm.`);
   }
 
   if(r.gueltig && Math.abs(r.schluss) > 0.5)
@@ -3169,7 +3200,7 @@ function pruefen(r){
     p("hinweis", (r.e1Leer && r.e2Leer) ? "Randabstand nicht eingetragen"
                                         : `Randabstand ${r.e1Leer ? "Anfang" : "Ende"} nicht eingetragen`,
       `Ein leeres Feld rechnet wie eine 0: der Endpfosten steht dann auf dem Geländerende, ` +
-      `ohne Abstand davor. ${t.randMin} mm ist das Mindestmaß dieses Typs. ` +
+      `ohne Abstand davor. ${t.randMin} mm ist das Mindestmaß dieses Typs. ` +
       `Eingetragene 0 bleibt zulässig — sie gehört zum Anschluss an ein weiterführendes Geländer.`);
   } else if(r.e1 === 0 && r.e2 === 0 && !r.durchlaufend){
     p("neutral","Kein Randabstand","Die Endpfosten stehen auf Geländeranfang und -ende.");
@@ -3177,23 +3208,23 @@ function pruefen(r){
     /* Gelb, nicht rot (Entscheidung des Nutzers, 14.10.2026): am Bauwerk muss
        der Randabstand manchmal kleiner sein als das Mindestmaß des Blattes. */
     p("hinweis","Randabstand unter dem Mindestmaß",
-      `Das Blatt ${t.blatt} sieht mindestens ${t.randMin} mm vor` +
+      `Das Blatt ${t.blatt} sieht mindestens ${t.randMin} mm vor` +
       (r.durchlaufend ? ` – die Kurzpfosten müssen unter dem Holm stehen` : ``) +
       `. Ein kleinerer Randabstand ist möglich, wenn das Bauwerk ihn verlangt.`);
   } else {
-    p("ok","Randabstand eingehalten",`Mindestens ${t.randMin} mm.`);
+    p("ok","Randabstand eingehalten",`Mindestens ${t.randMin} mm.`);
   }
 
   const {hMin, hBereich} = hoeheBereich(t, r.absturz);
 
   if(t.hRegel){
     if(!r.absturz)
-      p("neutral","Absturzhöhe offen","Ohne Absturzhöhe wird mit dem kleinsten Wert 1000 mm geprüft.");
+      p("neutral","Absturzhöhe offen","Ohne Absturzhöhe wird mit dem kleinsten Wert 1000 mm geprüft.");
     else if(r.absturz < 1000)
-      p("hinweis","Geländer nicht gefordert",`Erst ab 1,0 m Absturzhöhe ist ein Geländer anzuordnen (Abschn. 1(14)).`);
+      p("hinweis","Geländer nicht gefordert",`Erst ab 1,0 m Absturzhöhe ist ein Geländer anzuordnen (Abschn. 1(14)).`);
     else
       p("ok","Mindesthöhe aus Absturzhöhe",
-        `${fmt(r.absturz)} ${einheit} Absturzhöhe ${r.absturz > 12000 ? "über" : "bis"} 12,0 m → h ≥ ${hMin} mm.`);
+        `${fmt(r.absturz)} ${einheit} Absturzhöhe ${r.absturz > 12000 ? "über" : "bis"} 12,0 m → h ≥ ${hMin} mm.`);
   }
 
   if(!r.h){
@@ -3220,10 +3251,10 @@ function pruefen(r){
     }
 
     if(f.h){
-      if(!r.h) p("neutral","Landeshöhe offen",`${lf.land.name} gibt für diesen Fall h = ${f.h} mm vor.`);
-      else if(Math.abs(r.h - f.h) < 0.5) p("ok","Geländerhöhe nach Landesvorgabe",`${f.h} mm, wie ${lf.land.name} sie für diesen Fall vorschreibt.`);
+      if(!r.h) p("neutral","Landeshöhe offen",`${lf.land.name} gibt für diesen Fall h = ${f.h} mm vor.`);
+      else if(Math.abs(r.h - f.h) < 0.5) p("ok","Geländerhöhe nach Landesvorgabe",`${f.h} mm, wie ${lf.land.name} sie für diesen Fall vorschreibt.`);
       else p("fehler","Geländerhöhe weicht von der Landesvorgabe ab",
-             `${lf.land.name} gibt h = ${f.h} mm vor, eingetragen sind ${fmt(r.h)} ${einheit}.`);
+             `${lf.land.name} gibt h = ${f.h} mm vor, eingetragen sind ${fmt(r.h)} ${einheit}.`);
     }
 
     /* Brandenburg, Anlage 5: die beiden bemaßten Werte des Blattes sind
@@ -3233,13 +3264,13 @@ function pruefen(r){
     if(f.endfeldMin && r.gueltig){
       const endfeld = Math.min(r.felder[0].laenge, r.felder[r.n-1].laenge);
       if(endfeld + 1e-9 >= f.endfeldMin)
-        p("ok","Endfeld nach Anlage 5",`Kürzestes Randfeld ${fmt(endfeld)} ${einheit}, gefordert sind ≥ ${f.endfeldMin} mm.`);
+        p("ok","Endfeld nach Anlage 5",`Kürzestes Randfeld ${fmt(endfeld)} ${einheit}, gefordert sind ≥ ${f.endfeldMin} mm.`);
       else
-        p("fehler","Endfeld zu kurz",`Kürzestes Randfeld ${fmt(endfeld)} ${einheit}, Anlage 5 fordert ≥ ${f.endfeldMin} mm vom vorletzten zum Endpfosten.`);
+        p("fehler","Endfeld zu kurz",`Kürzestes Randfeld ${fmt(endfeld)} ${einheit}, Anlage 5 fordert ≥ ${f.endfeldMin} mm vom vorletzten zum Endpfosten.`);
     }
     if(f.ueberstand)
       p("hinweis","Geländerabschluss wird nicht gebaut",
-        `Anlage 5 bemaßt ${f.ueberstand} mm Überstand hinter dem Endpfosten. Das Werkzeug baut diese Endausbildung nicht — ` +
+        `Anlage 5 bemaßt ${f.ueberstand} mm Überstand hinter dem Endpfosten. Das Werkzeug baut diese Endausbildung nicht — ` +
         `Radien und Profilverlauf stehen nicht auf dem Blatt. Das Feld Geländerohr erzeugt einen Rahmen neben dem Endpfosten, keinen abfallenden oder viertelkreisförmigen Abschluss.`);
 
     if(lf.land.warnung) p("hinweis","Fassung prüfen", lf.land.warnung);
@@ -3251,7 +3282,7 @@ function pruefen(r){
     // eingestellt und prüfbar – sonst stünde hier beim Start "eingestellt undefined".
     const ist = t.holme ? holmZahl : 0;
     if(ist === soll)
-      p("ok","Holmanzahl passt", `Bei h ${r.h < t.holme.grenze ? "unter" : "ab"} ${t.holme.grenze} mm sieht ${t.kurz} ${soll} Holm${soll>1?"e":""} vor.`);
+      p("ok","Holmanzahl passt", `Bei h ${r.h < t.holme.grenze ? "unter" : "ab"} ${t.holme.grenze} mm sieht ${t.kurz} ${soll} Holm${soll>1?"e":""} vor.`);
     else
       p("hinweis","Holmanzahl abweichend", `${t.kurz} sieht bei h = ${fmt(r.h)} ${einheit} ${soll} Holm${soll>1?"e":""} vor, eingestellt ${ist}.`);
   }
@@ -3265,21 +3296,21 @@ function pruefen(r){
       for(let i = 1; i < kanten.length; i++) groesst = Math.max(groesst, kanten[i] - kanten[i-1]);
       if(groesst > t.holmAbstand + 1e-9)
         p("fehler","Holmabstand zu groß",
-          `Größter Abstand ${fmt(groesst)} ${einheit}, zulässig sind ${t.holmAbstand} mm ` +
+          `Größter Abstand ${fmt(groesst)} ${einheit}, zulässig sind ${t.holmAbstand} mm ` +
           `(Lauffläche → Knieholmachse und Knieholmachse → OK Handlauf).`);
       else
-        p("ok","Holmabstände eingehalten",`Größter Abstand ${fmt(groesst)} ${einheit}, zulässig ${t.holmAbstand} mm.`);
+        p("ok","Holmabstände eingehalten",`Größter Abstand ${fmt(groesst)} ${einheit}, zulässig ${t.holmAbstand} mm.`);
     }
   }
   if(t.holmFest && r.h && !t.holmFest(r.h))
     p("hinweis","Holmhöhen nicht tabelliert",
-      `${t.kurz} gibt die Holmhöhen nur für h = 1000 und h = 1100 mm an. ` +
+      `${t.kurz} gibt die Holmhöhen nur für h = 1000 und h = 1100 mm an. ` +
       `Bei h = ${fmt(r.h)} ${einheit} wird gleichmäßig geteilt – das ist eine Annahme, keine Vorgabe des Regelwerks.`);
 
   if(t.gitter){
     const g = t.gitter;
     if(rahmenUnten < g.untenMin || rahmenUnten > g.untenMax)
-      p("fehler","Rahmenunterkante unzulässig",`Zulässig sind ${g.untenMin} bis ${g.untenMax} mm über der Kappe.`);
+      p("fehler","Rahmenunterkante unzulässig",`Zulässig sind ${g.untenMin} bis ${g.untenMax} mm über der Kappe.`);
     else
       p("ok","Rahmenunterkante eingehalten",`${fmt(rahmenUnten)} ${einheit} über der Kappe.`);
   }
@@ -3309,15 +3340,15 @@ function pruefen(r){
   } else if(wPruef === undefined){
     p("neutral","Füllstäbe offen","Füllstabbreite b eintragen.");
   } else if(wPruef > t.wMax + 1e-9){
-    p("fehler","Lichte Weite zu groß",`${fmt(wPruef)} ${einheit} über dem Grenzwert von ${t.wMax} mm.` +
+    p("fehler","Lichte Weite zu groß",`${fmt(wPruef)} ${einheit} über dem Grenzwert von ${t.wMax} mm.` +
       (r.handTeilung && zahl("mHand") > 0 ? " Die Stabanzahl ist von Hand vorgegeben." : ""));
   } else {
-    p("ok","Lichte Weite eingehalten",`Höchstens ${t.wMax} mm.`);
+    p("ok","Lichte Weite eingehalten",`Höchstens ${t.wMax} mm.`);
   }
 
   if(t.gitter && t.gitter.masche)
     p("neutral","Füllung im Rahmen",
-      `Maschenweite höchstens ${t.gitter.masche} mm, Drahtdurchmesser ${t.gitter.draht} mm.`);
+      `Maschenweite höchstens ${t.gitter.masche} mm, Drahtdurchmesser ${t.gitter.draht} mm.`);
 
   // Sonderfelder: nur die tatsächlich wirksamen melden
   if(r.gueltig && sonder.length){
@@ -3361,7 +3392,7 @@ function pruefen(r){
         const dcMax = Math.max(...fugen.map(w => w || 0));
         if(r.w + dcMax > t.wMax + 1e-9)
           p("fehler","Lichte Weite an der Dehnfuge zu groß",
-            `Bei voll geöffneter Fuge ${fmt(r.w + dcMax)} ${einheit} über dem Grenzwert von ${t.wMax} mm.`);
+            `Bei voll geöffneter Fuge ${fmt(r.w + dcMax)} ${einheit} über dem Grenzwert von ${t.wMax} mm.`);
       }
     }
     const leere = r.felder.filter(f => f.sonder && f.sonder.leer !== undefined).length;
@@ -3463,7 +3494,7 @@ function pruefen(r){
         const s = stabTeilung(t, lichte, r.b, 0);
         if(s && s.w > t.wMax + 1e-9)
           p("fehler","Lichte Weite im Ohr zu groß",
-            `${fmt(s.w)} ${einheit} über dem Grenzwert von ${t.wMax} mm. Ohr kürzen ` +
+            `${fmt(s.w)} ${einheit} über dem Grenzwert von ${t.wMax} mm. Ohr kürzen ` +
             `oder einen Füllstab von Hand vorsehen.`);
       } else if(t.gitter && !drin.length){
         p("hinweis","Ohr ohne Füllung",
@@ -3543,7 +3574,7 @@ function pruefen(r){
     if(V.duebel === undefined && V.platte)
       p("neutral","Dübel nicht dargestellt",
         `${V.blatt} bemaßt die Dübelabstände nicht, sie stehen dort „nach statischem ` +
-        `Erfordernis". Gebaut sind Mörtelfuge und Fußplatte, nicht die Verankerungsmittel.`);
+        `Erfordernis“. Gebaut sind Mörtelfuge und Fußplatte, nicht die Verankerungsmittel.`);
 
     if(V.anker)
       p("neutral","Was in der Kappe steckt",
@@ -3603,7 +3634,7 @@ function pruefen(r){
   if(t.fussleiste)
     p("neutral","Fußleiste",
       `${werk.lang} verlangt eine Fußleiste, wenn Verkehrswege unter oder neben dem Bauwerk verlaufen: ` +
-      `Höhe ≥ ${t.fussleiste.hoehe} mm, Spalt zur Kappe ≤ ${t.fussleiste.spalt} mm. Sie wird hier nicht mit erzeugt.`);
+      `Höhe ≥ ${t.fussleiste.hoehe} mm, Spalt zur Kappe ≤ ${t.fussleiste.spalt} mm. Sie wird hier nicht mit erzeugt.`);
 
   r.fehler  = liste.filter(x => x.art === "fehler").length;
   r.hinweis = liste.filter(x => x.art === "hinweis").length;
@@ -3637,11 +3668,13 @@ function zeichneBand(r){
   const aText = !r.gueltig ? "–"
       : (r.aGroesst - r.aKleinst > 0.5 ? `${fmt(r.aKleinst)} – ${fmt(r.aGroesst)}` : fmt(r.a));
 
+  // Eine Zelle ohne Wert (etwa Füllstäbe bei einem Typ ohne Füllstäbe) wird gar nicht erst gezeigt
+  const mitWert = (bez, wert, zusatz) => (wert === "–" || wert === undefined) ? "" : zelle(bez, wert, zusatz);
   $("band").innerHTML =
-    zelle("Pfostenabstand a", aText, r.gueltig ? einheit : "") +
-    zelle("Felder", r.gueltig ? r.n : "–") +
-    zelle("Pfosten", r.gueltig ? r.pfosten : "–") +
-    zelle("Füllstäbe gesamt", r.mGes !== undefined ? r.mGes : "–") +
+    mitWert("Pfostenabstand a", aText, r.gueltig ? einheit : "") +
+    mitWert("Felder", r.gueltig ? r.n : "–") +
+    mitWert("Pfosten", r.gueltig ? r.pfosten : "–") +
+    mitWert("Füllstäbe gesamt", r.mGes !== undefined ? r.mGes : "–") +
     `<div class="zelle status ${status}"><dt>Prüfung</dt><dd class="fahne" title="${fahne.replace(/"/g, "&quot;")}"><span>${fahne}</span></dd></div>`;
 }
 
@@ -3693,18 +3726,18 @@ function zeigeVorgaben(r){
   $("vorgaben-kopf").textContent = `Vorgaben aus ${werk.lang}`;
   $("vorgaben-typ").textContent = `${t.kurz} · Blatt ${t.blatt}`;
   const hText = t.hMax === null || t.hMax === undefined
-      ? (t.hRegel ? `≥ 1000 mm, ab 12,0 m Absturzhöhe ≥ 1100 mm` : `mindestens ${t.hMin} mm`)
-      : (t.hMin === t.hMax ? `${t.hMin} mm` : `${t.hMin} bis ${t.hMax} mm`);
+      ? (t.hRegel ? `≥ 1000 mm, ab 12,0 m Absturzhöhe ≥ 1100 mm` : `mindestens ${t.hMin} mm`)
+      : (t.hMin === t.hMax ? `${t.hMin} mm` : `${t.hMin} bis ${t.hMax} mm`);
   $("vorgaben").innerHTML =
-    z("Pfostenabstand", `${t.aMin ? t.aMin + " bis " : "bis "}${t.aMax} mm`) +
-    z("Randabstand min", t.randMin ? `${t.randMin} mm` : "keiner") +
-    z("Pfostenbreite", `${t.pfosten} mm`) +
+    z("Pfostenabstand", `${t.aMin ? t.aMin + " bis " : "bis "}${t.aMax} mm`) +
+    z("Randabstand min", t.randMin ? `${t.randMin} mm` : "keiner") +
+    z("Pfostenbreite", `${t.pfosten} mm`) +
     z("Geländerhöhe", hText) +
-    z("Füllung", t.fuell ? `Füllstäbe, lichte Weite ≤ ${t.wMax} mm`
-        : (t.gitter ? `Gitter im Rahmen, Masche ≤ ${t.gitter.masche} mm` : "Holme")) +
-    z("Holme", t.holme ? (t.holme.grenze ? `${t.holme.regel(1000)} unter / ${t.holme.regel(t.holme.grenze)} ab ${t.holme.grenze} mm Höhe` : `${t.holme.wahl[0]} fest`) : "–") +
-    (t.holmAbstand ? z("Holmabstand max", `${t.holmAbstand} mm`) : "") +
-    (t.fussleiste ? z("Fußleiste", `≥ ${t.fussleiste.hoehe} mm hoch, Spalt ≤ ${t.fussleiste.spalt} mm`) : "") +
+    z("Füllung", t.fuell ? `Füllstäbe, lichte Weite ≤ ${t.wMax} mm`
+        : (t.gitter ? `Gitter im Rahmen, Masche ≤ ${t.gitter.masche} mm` : "Holme")) +
+    z("Holme", t.holme ? (t.holme.grenze ? `${t.holme.regel(1000)} unter / ${t.holme.regel(t.holme.grenze)} ab ${t.holme.grenze} mm Höhe` : `${t.holme.wahl[0]} fest`) : "–") +
+    (t.holmAbstand ? z("Holmabstand max", `${t.holmAbstand} mm`) : "") +
+    (t.fussleiste ? z("Fußleiste", `≥ ${t.fussleiste.hoehe} mm hoch, Spalt ≤ ${t.fussleiste.spalt} mm`) : "") +
     (t.hlAufsatz ? z("Handlaufprofil", t.hlAufsatz) : "") +
     z("Profile", t.profile) +
     // Die Verankerung steht auf einem eigenen Blatt, deshalb mit dessen Nummer
@@ -3726,14 +3759,16 @@ function landVorgaben(){
   return z(`${lf.land.name}`, lf.land.fassung) +
          z("Fall", f.bez) +
          (f.typ !== null && f.typ !== undefined ? z("Typ nach Land", TYPEN_RIZ[f.typ].kurz) : "") +
-         (f.h ? z("Höhe nach Land", `${f.h} mm`) : "") +
-         (f.endfeldMin ? z("Endfeld min", `${f.endfeldMin} mm`) : "");
+         (f.h ? z("Höhe nach Land", `${f.h} mm`) : "") +
+         (f.endfeldMin ? z("Endfeld min", `${f.endfeldMin} mm`) : "");
 }
 
 /* ---------- Zeichnung ---------- */
 function zeichnen(r){
   const ziel = $("zeichnung"), t = r.t;
   $("bp-titel").textContent = `Ansicht · ${t.kurz} ${t.name}`;
+  // Die Bedienhilfe auch dort, wo die Zeile daneben ausgeblendet ist (breite Fenster)
+  $("bp-titel").title = r.gueltig ? "In der Zeichnung: Feld anklicken – Sonderfeld · Maß anklicken – Wert ändern" : "";
 
   if(!r.gueltig){
     ziel.innerHTML = `<p class="bp-leer">Sobald L − e₁ − e₂ größer als 0 ist, wird hier maßstäblich gezeichnet.</p>`;
@@ -7210,8 +7245,8 @@ function holmwahlZeigen(){
   $("holmwahl").innerHTML = t.holme.wahl.map(k =>
     `<button type="button" data-k="${k}" aria-pressed="${k === holmZahl}">${k} Holm${k>1?"e":""}</button>`).join("");
   $("hilfe-holme").textContent = t.holme.grenze
-    ? `${t.kurz}: ein Holm bei h unter ${t.holme.grenze} mm, zwei ab ${t.holme.grenze} mm.`
-    : (t.kurzpfosten ? "Holm auf Oberkante der Kurzpfosten, 80 mm über der Kappe."
+    ? `${t.kurz}: ein Holm bei h unter ${t.holme.grenze} mm, zwei ab ${t.holme.grenze} mm.`
+    : (t.kurzpfosten ? "Holm auf Oberkante der Kurzpfosten, 80 mm über der Kappe."
                      : `${t.kurz} ist mit ${t.holme.wahl[0]} Holmen festgelegt.`);
 }
 
@@ -7247,7 +7282,7 @@ function typWechsel(i){
   $("feld-b").style.display = t.fuell ? "" : "none";
   $("hilfe-b").style.display = t.fuell ? "" : "none";
   $("hilfe-b").textContent = t.qStab && t.qStab.d
-    ? `Rundrohr ${t.qStab.d}/${t.qStab.d - 2*t.qStab.wand} – in der Ansicht ${t.bStd} mm breit.`
+    ? `Rundrohr ${t.qStab.d}/${t.qStab.d - 2*t.qStab.wand} – in der Ansicht ${t.bStd} mm breit.`
     : t.fuell
       ? `Flachstahl ${t.bStd}×${t.stabTiefe || 30}, schmale Seite sichtbar. ` +
         `Um 90° gedreht eingebaut ${t.stabTiefe || 30} eintragen.`
@@ -7272,7 +7307,7 @@ function typWechsel(i){
   $("feld-rahmen").style.display = rahmenFrei ? "" : "none";
   $("hilfe-rahmen").style.display = rahmenFrei ? "" : "none";
   if(t.gitter){
-    $("hilfe-rahmen").textContent = `${t.kurz} lässt ${t.gitter.untenMin} bis ${t.gitter.untenMax} mm zu.`;
+    $("hilfe-rahmen").textContent = `${t.kurz} lässt ${t.gitter.untenMin} bis ${t.gitter.untenMax} mm zu.`;
     const ist = zahl("rahmenUnten");
     if(!rahmenFrei || ist < t.gitter.untenMin || ist > t.gitter.untenMax)
       $("rahmenUnten").value = t.gitter.unten;
@@ -7684,11 +7719,14 @@ function fehltMelden(knopf, m){
   if(geh.length) [...k.querySelectorAll(":scope > button.minitat")].slice(-geh.length)
     .forEach((b, i) => b.addEventListener("click", geh[i].tun));
   k._erledigt = m.erledigt || null;
+  k._von = knopf;                                      // wer ihn zuletzt geöffnet hat
   k.hidden = false;
 }
 function fehltWeg(knopf){
   const k = fehltKasten(knopf, false);
-  if(k) k.hidden = true;
+  /* Teilen sich mehrere Felder einen Kasten, schließt nur, wer ihn geöffnet hat —
+     oder wer den Ort selbst übergibt, oder wenn der Öffner nicht mehr da ist */
+  if(k && (!k._von || k._von === knopf || knopf === k._fuer || !k._von.isConnected)) k.hidden = true;
 }
 function knopfSperren(knopf, grund){
   knopf.disabled = false;
@@ -7712,6 +7750,61 @@ document.addEventListener("click", ev => {
   ev.stopImmediatePropagation();
   fehltMelden(b, typeof b._fehlt === "function" ? b._fehlt() : b._fehlt);
 }, true);
+
+/* Dasselbe für Felder (Auswahllisten, Eingaben), die gerade nicht gelten:
+     feldSperren(feld, grund)  das Feld bleibt erreichbar, sieht aber leiser aus
+                               (aria-disabled). Wer es öffnen, darin tippen oder
+                               es ändern will, bekommt den gelben Kasten mit grund;
+                               die Änderung wird nicht übernommen.
+     feldFrei(feld)            hebt das auf und räumt den Kasten weg. */
+function feldSperren(feld, grund){
+  if(!feld) return;
+  feld.disabled = false;
+  feld.setAttribute("aria-disabled", "true");
+  if(feld.tagName === "INPUT") feld.readOnly = true;
+  feld._fehlt = grund;
+  feld._wert = feld.value;
+  // Steht schon ein Kasten dieses Felds offen, bekommt er den neuen Grund
+  const k = fehltKasten(feld, false);
+  if(k && !k.hidden && k._von === feld) fehltMelden(feld, typeof grund === "function" ? grund() : grund);
+}
+function feldFrei(feld){
+  if(!feld) return;
+  feld.disabled = false;
+  if(feld.getAttribute("aria-disabled") !== "true") return;
+  feld.removeAttribute("aria-disabled");
+  if(feld.tagName === "INPUT") feld.readOnly = false;
+  feld._fehlt = null;
+  fehltWeg(feld);
+}
+{
+  const gesperrt = t => t && t.closest && t.closest(':is(input,select)[aria-disabled="true"]');
+  const melden = f => { if(f._fehlt) fehltMelden(f, typeof f._fehlt === "function" ? f._fehlt() : f._fehlt); };
+  // Die Liste klappt nicht auf; der Fokus darf trotzdem hinein
+  document.addEventListener("mousedown", ev => {
+    const f = gesperrt(ev.target); if(!f || !f._fehlt) return;
+    if(f.tagName === "SELECT"){ ev.preventDefault(); f.focus(); }
+    melden(f);
+  }, true);
+  // Mit der Tastatur: nur Tasten abfangen, die den Wert ändern oder die Liste öffnen
+  const aendert = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " ", "Enter", "Backspace",
+                   "Delete", "Home", "End", "PageUp", "PageDown"];
+  document.addEventListener("keydown", ev => {
+    const f = gesperrt(ev.target); if(!f || !f._fehlt) return;
+    if(ev.ctrlKey || ev.metaKey || ev.altKey) return;
+    if(!(ev.key.length === 1 || aendert.includes(ev.key))) return;
+    ev.preventDefault();
+    melden(f);
+  }, true);
+  document.addEventListener("focusin", ev => { const f = gesperrt(ev.target); if(f) f._wert = f.value; }, true);
+  // Kommt eine Änderung doch durch (etwa per Mausrad), wird sie zurückgenommen
+  document.addEventListener("change", ev => {
+    const f = gesperrt(ev.target); if(!f || !f._fehlt) return;
+    ev.stopImmediatePropagation();
+    if(f._wert !== undefined) f.value = f._wert;
+    melden(f);
+  }, true);
+}
 function fehltPruefen(){
   document.querySelectorAll(".fehlt-meldung:not([hidden])").forEach(k => {
     try{ if(k._erledigt && k._erledigt()) k.hidden = true; }catch(e){}
@@ -7753,7 +7846,7 @@ function ohneTrasse(){
   return karteSichtbar("karte-trasse")
     ? {html:`<b>Noch keine Trasse.</b> Erst in der Karte <i>Trasse</i> eine laden — TCL-Export, <i>Achse selbst erstellen</i> oder eine fertige JSON.`,
        geh:{text:"Zu Trasse", tun:() => zuKarte("karte-trasse")}}
-    : {html:`<b>Noch keine Trasse.</b> Oben in der Karte <i>Bauwerk</i> „auf einer Trasse" wählen, dann in der Karte <i>Trasse</i> eine laden.`,
+    : {html:`<b>Noch keine Trasse.</b> Oben in der Karte <i>Bauwerk</i> „auf einer Trasse“ wählen, dann in der Karte <i>Trasse</i> eine laden.`,
        geh:{text:"Zu Bauwerk", tun:() => zuKarte("karte-eingabe")}};
 }
 ["btn-ifc-kurve","btn-dxf-plan-kurve","btn-json","btn-kurve-dxf"].forEach(i => knopfSperren($(i), ohneTrasse));
@@ -8185,11 +8278,24 @@ function trasseFelderZeigen(){
               : "geladen");
 }
 
+/* Warum eine Auswahl der Trasse gerade nicht gilt — für den gelben Kasten
+   (feldSperren). Nie disabled: die Liste bleibt erreichbar und sagt es. */
+const TR_GRUND = {
+  achse: `<b>Keine lesbare Achse geladen.</b> Erst eine TCL-Datei aus Allplan Civil laden — Achsen und Kurven kommen aus der Datei.`,
+  rand: `<b>Noch keine Trasse berechnet.</b> Den Rand gibt es erst, wenn aus der geladenen Achse eine Trasse entsteht — was dem im Weg steht, sagt die Meldung zur Datei.`,
+  standlinie: `<b>Die Achse ist die Standlinie selbst.</b> Es gibt nur diese eine Linie, keinen zweiten Rand.`,
+  ohnePorigin: `<b>Die Datei nennt keinen Nullpunkt (PORIGIN).</b> Die Koordinaten bleiben projektlokal; eine andere Wahl gibt es hier nicht.`,
+  eigeneAchse: `<b>Diese Achse hat keine Landeskoordinate.</b> Aus Geraden und Bögen erstellt, liegt sie örtlich bei 0 / 0. Einen Nullpunkt bekommt sie, wenn sie aus gemessenen Punkten erstellt wird.`
+};
+["tr-achse","tr-gefquelle"].forEach(i => feldSperren($(i), TR_GRUND.achse));
+feldSperren($("tr-nullpunkt"), TR_GRUND.achse);
+feldSperren($("trasse-seite"), TR_GRUND.rand);
+
 function trasseAbschalten(meldung){
   TRASSE = null;
   $("tcl-info").textContent = meldung;
   trasseFelderZeigen();
-  $("trasse-seite").disabled = true;
+  feldSperren($("trasse-seite"), TR_GRUND.rand);
   ["btn-ifc-kurve","btn-dxf-plan-kurve","btn-json","btn-kurve-dxf"].forEach(i => knopfSperren($(i), ohneTrasse));
   $("feld-rand").style.display = "";      // ohne Trasse wieder sichtbar
   knopfBeschriften();
@@ -8203,14 +8309,14 @@ function tclEinlesen(){
     TCL_DAT = tclLesen(TCL_ROH);
   }catch(e){
     TCL_DAT = null;
-    ["tr-achse","tr-gefquelle"].forEach(i => $(i).disabled = true);
+    ["tr-achse","tr-gefquelle"].forEach(i => feldSperren($(i), TR_GRUND.achse));
     trasseAbschalten("Nicht lesbar: " + e.message);
     return;
   }
   selectFuellen("tr-achse",
     TCL_DAT.achsen.map(a => ({v: a.name, t: `${a.name} — ${a.sEnde.toFixed(2)} m`})),
     TCL_DAT.achsen[0].name);
-  $("tr-achse").disabled = false;
+  feldFrei($("tr-achse"));
 
   const kurven = TCL_DAT.kurven.map(k => ({v: k.name, t: `${k.name} (${k.punkte.length})`}));
   kurven.push({v: "konstant", t: "konstant …"});
@@ -8219,7 +8325,7 @@ function tclEinlesen(){
   const passend = TCL_DAT.kurven.find(k => k.name === "HT_GEF")
                || TCL_DAT.kurven.find(k => /GEF|QUER/i.test(k.name));
   selectFuellen("tr-gefquelle", kurven, passend ? passend.name : "konstant");
-  $("tr-gefquelle").disabled = false;
+  feldFrei($("tr-gefquelle"));
 
   // Nullpunkt: gibt die Datei einen her, wird er angewendet. Ihn wegzulassen ist
   // die Ausnahme und muss ausgewählt werden, nicht umgekehrt.
@@ -8229,7 +8335,7 @@ function tclEinlesen(){
          {v: "lokal",   t: "lokal 0 / 0"}]
       : [{v: "lokal",   t: "kein PORIGIN in der Datei"}],
     P ? "porigin" : "lokal");
-  $("tr-nullpunkt").disabled = !P;
+  if(P) feldFrei($("tr-nullpunkt")); else feldSperren($("tr-nullpunkt"), TR_GRUND.ohnePorigin);
 
   $("tr-svon").value = ""; $("tr-sbis").value = "";
   modusAusAchse();
@@ -8308,12 +8414,12 @@ function trasseAusTcl(){
       if(st > 1) txt += ` Ausrundung bei Station ${ru.s}: ${st.toFixed(1)} mm vernachlässigt.`;
     }
     $("tcl-info").textContent = txt;
-    $("trasse-seite").disabled = false;
+    feldFrei($("trasse-seite"));
     ["btn-ifc-kurve","btn-dxf-plan-kurve","btn-json","btn-kurve-dxf"].forEach(i => knopfFrei($(i)));
     // Bei einer Standlinienachse gibt es keine zwei Ränder – das Feld verschwindet ganz,
     // statt gesperrt mit einem Restwert stehen zu bleiben. Welche Seite geschrieben wird,
     // steht auf dem Knopf.
-    $("trasse-seite").disabled = direkt;
+    if(direkt) feldSperren($("trasse-seite"), TR_GRUND.standlinie);
     $("feld-rand").style.display = direkt ? "none" : "";
     $("trasse-info").textContent = direkt
       ? `Standlinie ist die Achse "${T.name}" selbst — es gibt keinen zweiten Rand. ` +
@@ -8375,7 +8481,7 @@ function trasseJsonAnwenden(o){
   if(!o.seiten || !o.seiten.links || !o.seiten.rechts) throw new Error("seiten fehlen");
   if(o.einheit && o.einheit !== "mm") throw new Error("erwartet wird mm, geladen: " + o.einheit);
   TRASSE = o;
-  $("trasse-seite").disabled = false;
+  feldFrei($("trasse-seite"));
   $("feld-rand").style.display = "";   // aus einer JSON kommen immer beide Ränder
   knopfFrei($("btn-ifc-kurve"));
   knopfFrei($("btn-dxf-plan-kurve"));
@@ -8396,7 +8502,7 @@ $("trasse-datei").addEventListener("change", ev => {
       trasseJsonAnwenden(JSON.parse(leser.result));
     }catch(e){
       TRASSE = null;
-      $("trasse-seite").disabled = true;
+      feldSperren($("trasse-seite"), TR_GRUND.rand);
       knopfSperren($("btn-ifc-kurve"), ohneTrasse);
       knopfSperren($("btn-dxf-plan-kurve"), ohneTrasse);
       $("trasse-info").textContent = "Datei nicht lesbar: " + e.message;
@@ -9696,7 +9802,7 @@ try{
               '<div class="feld"><label for="ab-pname-hilfe">&nbsp;</label>' +
                 '<p class="hilfe" id="ab-pname-hilfe" style="margin:0">Steht im Namen der Exportdatei. ' +
                 'Bei mehreren Geländern an einem Bauwerk je Geländer ein eigener Name — sonst kommt das ' +
-                'zweite als „… (1).ifc" herunter.</p></div>' +
+                'zweite als „… (1).ifc“ herunter.</p></div>' +
             '</div>' +
           '</div>' +
         '</div>' +
@@ -9787,14 +9893,15 @@ try{
   const zahl = el => { const v = parseFloat(String(el.value).replace(",", ".")); return isFinite(v) ? v : NaN; };
 
   /* Ein Bogen braucht einen Radius, eine Gerade nicht — das Feld wird dann
-     gesperrt statt bloß leer gelassen, sonst sieht es aus, als fehle etwas. */
+     gesperrt statt bloß leer gelassen, sonst sieht es aus, als fehle etwas.
+     Gesperrt heißt: es bleibt erreichbar und sagt beim Versuch, warum. */
   function felderRichten(){
     planWirt.querySelectorAll(".ab-reihe").forEach(d => {
       const bogen = d.querySelector(".p-typ").value !== "LINE";
       const rf = d.querySelector(".p-r");
-      rf.disabled = !bogen;
-      rf.style.opacity = bogen ? "" : ".4";
       if(!bogen) rf.value = "";
+      if(bogen) feldFrei(rf);
+      else feldSperren(rf, `<b>Eine Gerade hat keinen Radius.</b> Nur ein Bogen braucht einen — dafür vorne in der Zeile „Bogen nach links“ oder „Bogen nach rechts“ wählen.`);
     });
     /* Das Mindeste bleibt stehen. Der ×-Knopf wird dann gesperrt, sagt aber
        beim Klick, warum — siehe knopfSperren() im Hauptskript. */
@@ -10272,9 +10379,9 @@ try{
     datei.value = "";                  // es gilt jetzt die eigene Achse, nicht die Datei
 
     selectFuellen("tr-achse", [{v: a.name, t: `${a.name} — ${a.sEnde.toFixed(2)} m`}], a.name);
-    $("tr-achse").disabled = false;
+    feldFrei($("tr-achse"));
     selectFuellen("tr-gefquelle", [{v: "konstant", t: "konstant …"}], "konstant");
-    $("tr-gefquelle").disabled = false;
+    feldFrei($("tr-gefquelle"));
     if(a.pkt){
       /* Die Lage ist der Grund, aus dem jemand Koordinaten misst — sie steht
          deshalb vorne, und weglassen muss man sie ausdrücklich. Dieselbe
@@ -10282,10 +10389,10 @@ try{
       selectFuellen("tr-nullpunkt",
         [{v: "porigin", t: `${a.dxf ? "Polylinienanfang" : "Messpunkt"} ${a.pkt[0].x.toFixed(3)} / ${a.pkt[0].y.toFixed(3)}`},
          {v: "lokal",   t: "örtlich 0 / 0"}], "porigin");
-      $("tr-nullpunkt").disabled = false;
+      feldFrei($("tr-nullpunkt"));
     }else{
       selectFuellen("tr-nullpunkt", [{v: "lokal", t: "örtlich 0 / 0 — selbst erstellte Achse"}], "lokal");
-      $("tr-nullpunkt").disabled = true;
+      feldSperren($("tr-nullpunkt"), TR_GRUND.eigeneAchse);
     }
     $("tr-svon").value = ""; $("tr-sbis").value = "";
 
@@ -11052,12 +11159,12 @@ try{
     hol("kachel-weg").textContent = trasseDa()
       ? (TRASSE.achse + (TRASSE._direkt ? "" : " · Rand " + seiteJetzt()))
       : "gerade";
-    hol("kachel-L").textContent = L ? zahlT(L.L) + " mm" : "L fehlt";
+    hol("kachel-L").textContent = L ? zahlT(L.L) + " mm" : "L fehlt";
     hol("kachel-mini").innerHTML = L ? miniZeichnung(L.n, L.m) : miniZeichnung(1, 0);
     hol("kachel-fakten").textContent = L
-      ? `${L.n} Felder à ${zahlT(L.a)} mm · ${L.pfosten} Pfosten` +
+      ? `${L.n} Felder à ${zahlT(L.a)} mm · ${L.pfosten} Pfosten` +
         (L.mGes ? ` · ${L.m} Stäbe je Feld` : "") +
-        ` · h = ${zahlT(L.h)} mm` +
+        ` · h = ${zahlT(L.h)} mm` +
         (L.teile ? ` · ${L.teile.length} Körper` : "")
       : "Erst die Gesamtlänge L eintragen — sie muss größer sein als die beiden Randabstände zusammen.";
     const drin = drinIndex();
@@ -11105,7 +11212,7 @@ try{
                    felder: {}, wahlen: {}, listen: {}, seite: seiteJetzt()};
         TR_FELDER.forEach(id => t.felder[id] = wert(id));
         TR_WAHLEN.forEach(id => t.wahlen[id] = wert(id));
-        TR_LISTEN.forEach(id => { const e = hol(id); t.listen[id] = {html: e.innerHTML, wert: e.value, aus: e.disabled}; });
+        TR_LISTEN.forEach(id => { const e = hol(id); t.listen[id] = {html: e.innerHTML, wert: e.value, aus: e.getAttribute("aria-disabled") === "true", grund: e._fehlt || null}; });
         s.trasse = t;
       } else {
         s.trasse = {art: "json", trasse: TRASSE, seite: seiteJetzt()};
@@ -11189,7 +11296,8 @@ try{
       TCL_DAT = t.dat; TCL_ROH = t.roh; TCL_NAME = t.name;
       if(hol("tcl-datei")) hol("tcl-datei").value = "";
       if(hol("trasse-datei")) hol("trasse-datei").value = "";
-      TR_LISTEN.forEach(id => { const e = hol(id), l = t.listen[id]; e.innerHTML = l.html; e.value = l.wert; e.disabled = l.aus; });
+      TR_LISTEN.forEach(id => { const e = hol(id), l = t.listen[id]; e.innerHTML = l.html; e.value = l.wert;
+        if(l.aus) feldSperren(e, l.grund || TR_GRUND.achse); else feldFrei(e); });
       TR_WAHLEN.forEach(id => { if(hol(id)) hol(id).value = t.wahlen[id]; });
       TR_FELDER.forEach(id => { if(hol(id)) hol(id).value = t.felder[id]; });
       if(hol("trasse-seite")) hol("trasse-seite").value = t.seite;
@@ -12041,7 +12149,7 @@ try{
     const L = typeof letzte !== "undefined" ? letzte : null;
     switch(el.id){
       case "karte-eingabe":
-        return L && L.t ? (L.t.kurz + (L.gueltig ? " · " + zahl(L.L) + " mm" : " · L fehlt")) : "";
+        return L && L.t ? (L.t.kurz + (L.gueltig ? " · " + zahl(L.L) + " mm" : " · L fehlt")) : "";
       case "karte-pruefungen": {
         const rot = document.querySelectorAll("#pruefungen .p-fehler").length;
         const gelb = document.querySelectorAll("#pruefungen .p-hinweis").length;
@@ -12995,11 +13103,11 @@ try{
     let s = "";
     if(t && offen.feld === "h") s = `${t.kurz}: ${hoeheBereich(t, r.absturz).hBereich}.`;
     else if(t && (offen.feld === "e1" || offen.feld === "e2"))
-      s = t.randMin ? `${t.kurz}: mindestens ${t.randMin} mm.` : `${t.kurz}: kein Mindestmaß vorgegeben.`;
+      s = t.randMin ? `${t.kurz}: mindestens ${t.randMin} mm.` : `${t.kurz}: kein Mindestmaß vorgegeben.`;
     else if(offen.feld === "L"){
       if(!r || !r.gueltig) s = "Noch keine Teilung — L muss größer sein als die beiden Randabstände zusammen.";
-      else if(!r.eigenZahl) s = `→ ${r.n} Felder à ${de(r.a)} mm.`;
-      else if(r.eigenZahl < r.n) s = `→ ${r.n} Felder, Regelfeld ${de(r.a)} mm, ${r.eigenZahl} mit eigener Länge.`;
+      else if(!r.eigenZahl) s = `→ ${r.n} Felder à ${de(r.a)} mm.`;
+      else if(r.eigenZahl < r.n) s = `→ ${r.n} Felder, Regelfeld ${de(r.a)} mm, ${r.eigenZahl} mit eigener Länge.`;
       else s = `→ ${r.n} Felder, alle mit eigener Länge.`;
     }
     grenze.textContent = s;
@@ -13712,8 +13820,8 @@ try{
 /* ---------- Prüfungen einklappen ----------
    Seit 20.10.2026 (Wunsch): die Karte Prüfungen lässt sich ganz einklappen,
    damit die Ansicht groß ist — im HUD rückt das freie Feld dann bis an das
-   Dock. Eingeklappt bleibt der Kopf, und darin steht das Urteil mit seinem
-   Punkt (dieselbe Fahne wie oben im Band). Aufgeklappt wird über den Knopf
+   Dock. Eingeklappt bleibt der Kopf, und darin steht die Anzahl der
+   Prüfungen (das Urteil selbst steht oben im Band). Aufgeklappt wird über den Knopf
    im Kopf oder einen Klick auf das Urteil im Band. Die Wahl merkt sich der
    Browser; ohne Wahl ist die Karte eingeklappt — das Band sagt ja, ob etwas
    rot ist. Im Abschnitt „Prüfungen & Zahlen" und im Druck steht sie immer
@@ -13739,16 +13847,21 @@ try{
     knopf.setAttribute("aria-expanded", String(!zu));
     knopf.textContent = zu ? "aufklappen" : "einklappen";
     knopf.title = zu ? "Die Prüfungen ganz zeigen" : "Die Prüfungen einklappen — die Ansicht wird größer; das Urteil steht weiter oben im Band";
-    // Das Urteil aus dem Band, so wie es dort steht
+    /* Eingeklappt nur die Anzahl: das Urteil steht oben im Band, hier stünde
+       es doppelt. Gibt es Verstöße, sagt ein Zusatz wie viele. */
     const st = band && band.querySelector(".zelle.status");
-    const f = st && st.querySelector(".fahne");
-    const text = f ? f.textContent : "";
+    const liste = document.querySelectorAll("#pruefungen .pruefung");
+    const rot = document.querySelectorAll("#pruefungen .p-fehler").length;
+    const anzahl = liste.length ? `${liste.length} ${liste.length === 1 ? "Prüfung" : "Prüfungen"}` : "";
+    const zusatz = anzahl && rot ? `davon ${rot} ${rot === 1 ? "Verstoß" : "Verstöße"}` : "";
+    const text = anzahl + (zusatz ? ", " + zusatz : "");
     if(kurz.textContent !== text){
-      const sp = document.createElement("span"); sp.textContent = text;
-      kurz.replaceChildren(...(text ? [sp] : []));
+      const teile = [];
+      if(anzahl){ const sp = document.createElement("span"); sp.textContent = anzahl + (zusatz ? "," : ""); teile.push(sp); }
+      if(zusatz){ const sp = document.createElement("span"); sp.className = "verstoss"; sp.textContent = zusatz; teile.push(sp); }
+      kurz.replaceChildren(...teile);
     }
     kurz.title = text;
-    kurz.className = "pruef-kurz " + (st ? ["ok", "warn", "fehler"].find(c => st.classList.contains(c)) || "" : "");
     // Das Band entsteht bei jeder Rechnung neu: die Statuszelle wieder mit der Tastatur erreichbar machen
     if(st){ st.tabIndex = 0; st.setAttribute("role", "button"); st.setAttribute("aria-controls", "pruefungen"); }
   }
@@ -13784,6 +13897,11 @@ try{
     const alt = zeichneBand;
     zeichneBand = function(r){ alt(r); try{ zeigen(); }catch(e){} };
   }
+  // Die Anzahl hängt an der Liste, und die entsteht erst nach dem Band
+  if(typeof zeigePruefungen === "function"){
+    const alt = zeigePruefungen;
+    zeigePruefungen = function(liste){ alt(liste); try{ zeigen(); }catch(e){} };
+  }
   zeigen();
 }catch(e){
   if(window.console) console.warn("Prüfungen einklappen nicht verfügbar:", e);
@@ -13815,8 +13933,8 @@ try{
   gruppe.setAttribute("role", "group"); gruppe.setAttribute("aria-label", "Rückgängig und Wiederholen");
   gruppe.setAttribute("data-fehlt-ort", "");
   gruppe.innerHTML =
-    '<button type="button" class="verlauf-knopf" id="btn-zurueck" aria-label="Rückgängig">↶</button>' +
-    '<button type="button" class="verlauf-knopf" id="btn-vor" aria-label="Wiederholen">↷</button>';
+    '<button type="button" class="verlauf-knopf" id="btn-zurueck" aria-label="Rückgängig"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5.5 3 2.5 6l3 3"/><path d="M2.5 6h7a4 4 0 0 1 0 8H7"/></svg></button>' +
+    '<button type="button" class="verlauf-knopf" id="btn-vor" aria-label="Wiederholen"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m10.5 3 3 3-3 3"/><path d="M13.5 6h-7a4 4 0 0 0 0 8H9"/></svg></button>';
   const zurueckK = gruppe.querySelector("#btn-zurueck"), vorK = gruppe.querySelector("#btn-vor");
   // Die Gruppe steht vor den Abschnitten — die wandern zwischen Leiste und Dock, die Gruppe mit
   const platzieren = () => { if(gruppe.nextElementSibling !== nav || gruppe.parentNode !== nav.parentNode) nav.before(gruppe); };
@@ -13843,7 +13961,7 @@ try{
     else if(von.typ !== nach.typ) t.push(`Typ ${typName(von)} → ${typName(nach)}`);
     for(const id in nach.felder)
       if(String(von.felder[id]) !== String(nach.felder[id]))
-        t.push(`${KURZ[id] || id} ${zahl(von.felder[id])} → ${zahl(nach.felder[id])}${OHNE_MM[id] || nach.felder[id] === "" ? "" : " mm"}`);
+        t.push(`${KURZ[id] || id} ${zahl(von.felder[id])} → ${zahl(nach.felder[id])}${OHNE_MM[id] || nach.felder[id] === "" ? "" : " mm"}`);
     for(const k in WAHLEN) if(String(von[k]) !== String(nach[k])) t.push(WAHLEN[k]);
     if(JSON.stringify(von.sonder) !== JSON.stringify(nach.sonder)) t.push("Sonderfelder");
     if(G.trasse(von) !== G.trasse(nach)) t.push("Trasse");
