@@ -2527,7 +2527,8 @@ html :is(:focus-visible,#pult-gibt-es-nicht):focus-visible{transition:none !impo
    Öffnen in 200 ms vom Feld her nach unten auf (clip-path, der Text wird nicht
    gestaucht), beim Schließen blendet sie in 100 ms aus; per Tastatur geöffnet
    (pult-still) steht sie sofort da; bei reduzierter Bewegung nur Überblenden.
-   Geht die Liste nach oben auf, rollt sie trotzdem von oben nach unten.
+   Ob sie unter oder über dem Feld aufgeht, legt pult.js vor dem Öffnen fest
+   (data-pult-auf, Höhe --pult-liste-h); über dem Feld rollt sie nach oben auf.
    Ältere Browser behalten die normale Liste. */
 @supports (appearance: base-select){
 @media screen{
@@ -2540,8 +2541,12 @@ html :is(:focus-visible,#pult-gibt-es-nicht):focus-visible{transition:none !impo
 
   ::picker(select){
     border:1px solid var(--ink-weich);border-radius:0;background:var(--karte);color:var(--ink);
-    padding:2px 0;margin:2px 0;box-shadow:none;font:400 13px/1.35 var(--s);max-height:min(60vh,420px);
+    padding:2px 0;margin:2px 0;box-shadow:none;font:400 13px/1.35 var(--s);max-height:var(--pult-liste-h,min(60vh,420px));
+    position-area:block-end span-inline-end;position-try-fallbacks:flip-inline;
     opacity:1;clip-path:inset(0 0 0 0)}
+  select[data-pult-auf=oben]::picker(select){position-area:block-start span-inline-end}
+  /* noch keine Richtung gesetzt: der Browser kippt selbst */
+  select:not([data-pult-auf])::picker(select){position-try-fallbacks:flip-block,flip-inline}
   html:not(.pult-still):not(.pult-laden) ::picker(select){
     transition:opacity 100ms ease-out,overlay 100ms allow-discrete,display 100ms allow-discrete}
   html:not(.pult-still):not(.pult-laden) select:open::picker(select){
@@ -2550,6 +2555,8 @@ html :is(:focus-visible,#pult-gibt-es-nicht):focus-visible{transition:none !impo
   select:not(:open)::picker(select){opacity:0}
   /* Start: oben ein schmaler Streifen am Feld; bei reduzierter Bewegung ganz offen, nur eingeblendet */
   @starting-style{ select:open::picker(select){opacity:0;clip-path:inset(0 0 calc(100% * var(--pult-weg)) 0)} }
+  /* über dem Feld: unten am Feld ein schmaler Streifen, rollt nach oben auf */
+  @starting-style{ select[data-pult-auf=oben]:open::picker(select){clip-path:inset(calc(100% * var(--pult-weg)) 0 0 0)} }
 
   select option{display:flex;align-items:center;gap:8px;padding:4px 10px;min-height:26px;font:inherit;background:transparent;color:var(--ink)}
   select option::checkmark{display:none}
@@ -16126,13 +16133,11 @@ body:has(.pult-achse) #karte-ansicht.hud-buehne .d3-achsen{position:fixed;left:1
      knapp 100 MB Puffer — darüber wird nicht gebaut. */
   const GRENZE_KOERPER = 10000;
   function netzBauen(r){
-    const t0 = performance.now();
     const zahl0 = typeof ifcKoerperZahl === "function" ? ifcKoerperZahl(trasseDa()) : null;
     if(zahl0 > GRENZE_KOERPER)
       return {fehler: `Dieses Geländer hat ${zahl0.toLocaleString("de-DE")} Körper – zu viele für die 3D-Ansicht ` +
                       `(sie zeigt bis ${GRENZE_KOERPER.toLocaleString("de-DE")}). Die 2D-Ansicht, die IFC und die DXF sind davon nicht betroffen.`};
     const text = ifcText(r);
-    const tIfc = performance.now() - t0;
     if(!text) return {fehler: nurVerankerung()
       ? "Mit „nur Verankerung“ gibt es hier keinen Körper: Dieses Geländer hat keine Verankerung, die als Körper exportiert wird."
       : "Die IFC hat keinen Körper."};
@@ -16250,9 +16255,8 @@ body:has(.pult-achse) #karte-ansicht.hud-buehne .d3-achsen{position:fixed;left:1
       stuecke.push({a, b: tri.length / 9, lo: sl, hi: sh});
     });
 
-    const zahl = {koerper: item.length, straenge: st.length, dreiecke: tri.length/9, kanten: kant.length/84};
     return {O, lo, hi, V: new Float32Array(V), tri: new Float32Array(tri), triN: new Float32Array(triN),
-            kant: new Float32Array(kant), flaechen: fl2, stuecke, zahl, ms: performance.now() - t0, msIfc: tIfc,
+            kant: new Float32Array(kant), flaechen: fl2, stuecke,
             achsen: [ifcAchse([1,0,0]), ifcAchse([0,1,0]), ifcAchse([0,0,1])]};
   }
 
@@ -16549,10 +16553,7 @@ void main(){ gl_FragColor = vec4(uK, 1.0); }`;
       attr(PK, "aC", puf.kant, 2, st, 48);
       gl.drawArrays(gl.TRIANGLES, 0, puf.nKant);
     }
-    return {art: "gl", malen, gl, info: () => {
-      const d = gl.getExtension("WEBGL_debug_renderer_info");
-      return d ? gl.getParameter(d.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
-    }};
+    return {art: "gl", malen};
   }
 
   /* ---------- Rückfall: Canvas 2D, Maleralgorithmus ----------
@@ -16642,7 +16643,7 @@ void main(){ gl_FragColor = vec4(uK, 1.0); }`;
       }
       streichen();
     }
-    return {art: "2d", malen, info: () => "Canvas 2D"};
+    return {art: "2d", malen};
   }
   const rgb = f => `rgb(${Math.round(f[0]*255)},${Math.round(f[1]*255)},${Math.round(f[2]*255)})`;
 
@@ -16780,7 +16781,6 @@ void main(){ gl_FragColor = vec4(uK, 1.0); }`;
 
   /* ---------- Zeichnen bei Bedarf ---------- */
   let geplant = false;
-  const messung = {bauen: 0, bild: 0, bilder: 0};
   function anfordern(){
     if(geplant || !Z.an) return;
     geplant = true;
@@ -16795,9 +16795,7 @@ void main(){ gl_FragColor = vec4(uK, 1.0); }`;
       Z.netz = null;
       if(!Z.grund){
         try{ Z.netz = netzBauen(Z.r); }catch(e){ Z.netz = {fehler: "Die 3D-Ansicht konnte die IFC nicht aufbauen (" + e.message + ")."}; console.error(e); }
-        messung.neubauten = (messung.neubauten || 0) + 1;
         if(Z.netz && Z.netz.fehler){ Z.grund = {satz: Z.netz.fehler}; Z.netz = null; }
-        else if(Z.netz){ messung.bauen = Z.netz.ms; messung.ifc = Z.netz.msIfc; }
       }
       // Ein anderer Typ, Umfang oder Weg ist ein anderes Bild: dann einpassen
       const typ = Z.r && Z.r.t ? Z.r.t.kurz + (trasseDa() ? " T" : "") + (nurVerankerung() ? " V" : "") : null;
@@ -16809,13 +16807,11 @@ void main(){ gl_FragColor = vec4(uK, 1.0); }`;
     }
     if(!maler) malerWechseln(false);
     groesse();
-    const t0 = performance.now();
     if(gleiten) gleitSchritt();
     if(!kreuz.hidden && Z.dreh) kreuzZeigen(Z.dreh);      // nach einer Größenänderung wandert die Bildmitte
     achsenZeichnen();
     try{ maler.malen(W, H, DPR, stilLesen()); }
     catch(e){ console.error(e); if(maler.art === "gl"){ malerWechseln(true); return; } }
-    messung.bild = performance.now() - t0; messung.bilder++;
     if(schwung) schwungSchritt();
     if(gleiten) anfordern();
   }
@@ -16866,11 +16862,9 @@ void main(){ gl_FragColor = vec4(uK, 1.0); }`;
   /* Strahl gegen die Dreiecke (Möller–Trumbore), Hüllquader zuerst. Liefert
      den vordersten Treffer in Ansichtskoordinaten oder null. Gemeinsam für
      WebGL und den Rückfall auf Canvas 2D. */
-  const messTreffer = {ms: 0, quader: 0, dreiecke: 0};
   function treffen(px, py){
     const N = Z.netz;
     if(!N || !Z.s || !W) return null;
-    const t0 = performance.now();
     const k = kamera(W, H);
     const P = add(k.T, add(mul(k.r, (px - W/2)/k.s), mul(k.u, -(py - H/2)/k.s)));
     let o, d;
@@ -16878,7 +16872,7 @@ void main(){ gl_FragColor = vec4(uK, 1.0); }`;
     else { const weit = len(sub(N.hi, N.lo)) + len(k.T) + 10; o = add(P, mul(k.e, weit)); d = mul(k.e, -1); }
     const inv = [1/d[0], 1/d[1], 1/d[2]];
     const T = N.tri;
-    let best = Infinity, nq = 0, nd = 0;
+    let best = Infinity;
     for(const q of N.stuecke){
       // Strahl gegen Quader (Slab)
       let tmin = 0, tmax = best;
@@ -16889,7 +16883,6 @@ void main(){ gl_FragColor = vec4(uK, 1.0); }`;
         if(tmin > tmax) break;
       }
       if(tmin > tmax) continue;
-      nq++;
       for(let i = q.a; i < q.b; i++){
         const j = 9*i;
         const e1x = T[j+3]-T[j], e1y = T[j+4]-T[j+1], e1z = T[j+5]-T[j+2];
@@ -16905,11 +16898,9 @@ void main(){ gl_FragColor = vec4(uK, 1.0); }`;
         const vv = f*(d[0]*qx + d[1]*qy + d[2]*qz);
         if(vv < 0 || uu + vv > 1) continue;
         const t = f*(e2x*qx + e2y*qy + e2z*qz);
-        nd++;
         if(t > 1e-6 && t < best) best = t;
       }
     }
-    messTreffer.ms = performance.now() - t0; messTreffer.quader = nq; messTreffer.dreiecke = nd;
     if(!isFinite(best)) return null;
     return add(add(o, mul(d, best)), N.O);
   }
@@ -17166,27 +17157,8 @@ void main(){ gl_FragColor = vec4(uK, 1.0); }`;
   });
   nachRechnung(typeof letzte !== "undefined" ? letzte : null);
 
-  // Für Prüfungen von außen
-  window.gely3d = {
-    an: () => setzen(true), aus: () => setzen(false), blick, projektion, einpassen,
-    ohneWebGL: () => { if(maler && maler.art === "2d") return; malerWechseln(true); },
-    zustand: () => ({an: Z.an, maler: maler ? maler.art : null, renderer: maler ? maler.info() : null,
-                     th: Z.th, ph: Z.ph, s: Z.s, T: Z.T.slice(), perspektive: Z.perspektive,
-                     netz: Z.netz ? Z.netz.zahl : null, grund: Z.grund ? Z.grund.satz : null, messung: Object.assign({}, messung)}),
-    malenJetzt: () => { Z.an && bild(); return Object.assign({}, messung); },
-    // sofort neu bauen statt nach der Wartezeit (für Messungen)
-    neuBauen: () => { clearTimeout(neubauUhr); Z.schmutzig = true; Z.an && bild(); return Object.assign({}, messung); },
-    drehen, schieben, zoomen,
-    achsenkreuz: () => achsenBild.hasAttribute("hidden") ? null : achsTeile.map(T => ({x2: +T.l.getAttribute("x2"), y2: +T.l.getAttribute("y2"), hinten: T.g.classList.contains("hinten"), rect: T.g.getBoundingClientRect().toJSON()})),
-    treffen: (px, py) => { const p = treffen(px, py); return {p, ms: messTreffer.ms, quader: messTreffer.quader, dreiecke: messTreffer.dreiecke}; },
-    kreuz: () => kreuz.hidden ? null : [parseFloat(kreuz.style.left), parseFloat(kreuz.style.top)], drehpunkt: () => Z.dreh,
-    // ein Punkt des Netzes (Anteil 0…1 der Punktliste), in Ansichtskoordinaten, für Prüfungen
-    netzPunkt: f => { const N = Z.netz; if(!N) return null; const i = Math.min(N.V.length/3 - 1, Math.floor(f * N.V.length/3));
-      return [N.V[3*i] + N.O[0], N.V[3*i+1] + N.O[1], N.V[3*i+2] + N.O[2]]; },
-    // Weltpunkt (mm) → Punkt im Canvas (CSS-Pixel), für Prüfungen
-    bildpunkt: p => { const k = kamera(W, H), q = sub(p, Z.netz ? Z.netz.O : [0,0,0]), d = sub(q, k.eye);
-      const f = Z.perspektive ? k.s*k.D / -dot(d, k.e) : k.s; return [W/2 + dot(d, k.r)*f, H/2 - dot(d, k.u)*f]; }
-  };
+  // Schnittstelle für die Befehlszeile: an, aus, Blick und neu malen nach einem Wechsel des Aussehens
+  window.gely3d = { an: () => setzen(true), aus: () => setzen(false), blick, malenJetzt: () => { Z.an && bild(); } };
   }catch(e){
     kaputt = true;
     aufraeumen.forEach(f => { try{ f(); }catch(x){} });
@@ -18412,8 +18384,6 @@ try{
       eing.setSelectionRange(eing.value.length, eing.value.length);
     }
   });
-  // Für Prüfungen von außen: eine Zeile ausführen wie getippt
-  window.pultBefehl = s => { still(); return ausfuehren(s); };
 
   /* Ein Maß anklicken: im Pult fragt die Befehlszeile (vor der Maß-Tafel,
      die nur auf schmalen Fenstern bleibt). */
@@ -18479,7 +18449,6 @@ try{
     setTimeout(() => { try{ markenAlle(false); }catch(e){} }, 0);   // andere Knopfbreiten — nach dem Gleiten der eigenen Wahl messen
     try{ if(window.gely3d && gely3d.malenJetzt) gely3d.malenJetzt(); }catch(e){}
   }
-  window.pultSkin = s => skinSetzen(s, true);
   skinWahl.addEventListener("click", ev => {
     const b = ev.target.closest && ev.target.closest("button[data-skin]");
     if(b) skinSetzen(b.dataset.skin, true);
@@ -18509,6 +18478,33 @@ try{
     const alle = [...nav.querySelectorAll("a")];
     wurzel.dataset.pultRichtung = alle.indexOf(a) < alle.findIndex(x => x.classList.contains("aktiv")) ? "hoch" : "runter";
   }, true);
+  /* Klapplisten: vor dem Öffnen festlegen, ob die Liste unter oder über dem
+     Feld aufgeht — dann weiß das CSS, von welcher Seite sie aufrollt. Der
+     Browser kippt sie sonst selbst und sagt nicht, wohin. Unten, wenn sie dort
+     ganz Platz hat; sonst auf der Seite mit mehr Platz, die Höhe auf diesen
+     Platz begrenzt (der Rest rollt in der Liste). */
+  const listeKannAufrollen = typeof CSS !== "undefined" && CSS.supports && CSS.supports("appearance", "base-select");
+  function listeRichten(sel){
+    if(!listeKannAufrollen || !sel || sel.multiple || sel.size > 1) return;
+    // Fensterhöhe ohne waagerechten Rollbalken; Luft für Rand, Abstand und Polster der Liste
+    const fh = document.documentElement.clientHeight || innerHeight;
+    const r = sel.getBoundingClientRect(), luft = 12;
+    const unten = fh - r.bottom - luft, oben = r.top - luft;
+    const zeilen = [...sel.querySelectorAll("option")].filter(o => !o.hidden).length;
+    const gruppen = sel.querySelectorAll("optgroup").length;
+    const hoch = Math.min(fh * 0.6, 420), noetig = Math.min(hoch, zeilen * 26 + gruppen * 23 + 8);
+    const nachOben = noetig > unten && oben > unten;
+    const auf = nachOben ? "oben" : "unten";
+    const h = Math.max(60, Math.floor(Math.min(hoch, nachOben ? oben : unten))) + "px";
+    // nur bei Änderung schreiben: Beobachter der Spalten sehen sonst bei jedem Öffnen eine neue Lage
+    if(sel.dataset.pultAuf !== auf) sel.dataset.pultAuf = auf;
+    if(sel.style.getPropertyValue("--pult-liste-h") !== h) sel.style.setProperty("--pult-liste-h", h);
+  }
+  // focusin deckt auch Öffnen ohne Zeiger und Taste ab (etwa per Bildschirmleser)
+  if(listeKannAufrollen) ["pointerdown", "keydown", "focusin"].forEach(n => document.addEventListener(n, ev => {
+    const s = ev.target && ev.target.closest && ev.target.closest("select");
+    if(s && !s.matches(":open")) listeRichten(s);
+  }, true));
   // Kandidaten; eine Bahn, die das Werkzeug mit einem eigenen Gleiter versieht, bekommt keine zweite Markierung
   const MARKEN = "#umfangwahl, .d3-schalter, .pult-skin .segment, .d3-leiste .segment";
   const bewegtJetzt = () => !wurzel.classList.contains("pult-still") && !wurzel.classList.contains("pult-laden");
