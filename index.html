@@ -17088,6 +17088,17 @@ try{
     'aria-describedby="pult-frage" title="Befehl tippen, Enter führt aus. hilfe listet alle Befehle."></label>';
   app.append(bz);
   const verlaufEl = bz.querySelector(".pult-verlauf"), frage = bz.querySelector(".pult-frage"), eing = bz.querySelector("input");
+  /* Ein Klick irgendwo in die Befehlszeile, auch in den Verlauf, setzt den
+     Cursor ans Ende der Eingabe — man kann sofort tippen. Nicht an der Kante
+     (die zieht) und nicht, wenn gerade Text markiert wurde (zum Kopieren). */
+  bz.addEventListener("click", ev => {
+    if(ev.target === eing || ev.target.closest(".pult-kante, button, a")) return;
+    const sel = window.getSelection && window.getSelection();
+    if(sel && !sel.isCollapsed && bz.contains(sel.anchorNode)) return;
+    eing.focus({preventScroll: true});
+    const n = eing.value.length; try{ eing.setSelectionRange(n, n); }catch(e){}
+  });
+  bz.style.cursor = "text";
   /* ---------- Höhe der Befehlszeile ----------
      Die Kante oben zieht die Befehlszeile höher oder flacher (Zeiger, oder
      mit Fokus Pfeil hoch/runter; Doppelklick: zurück auf drei Zeilen).
