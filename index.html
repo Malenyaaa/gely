@@ -15341,7 +15341,9 @@ try{
 /* Auf der Bühne über der Leiste im freien Feld; wo die Seite unten links schon
    ein 2D-Achskreuz hat, an dessen Stelle (es ist in 3D ausgeblendet) */
 #karte-ansicht.hud-buehne .d3-achsen{left:var(--frei-l,300px);bottom:auto;top:calc(var(--frei-t,90px) + var(--frei-h,400px) - 112px)}
-body:has(.pult-achse) #karte-ansicht.hud-buehne .d3-achsen{left:18px;top:auto;bottom:calc(var(--pult-unten,0px) + var(--pult-rechts-h,0px) + 12px)}
+/* Genau Platz und Größe des 2D-Achskreuzes (58 × 58, links 14, unten über der Statuszeile) */
+body:has(.pult-achse) #karte-ansicht.hud-buehne .d3-achsen{position:fixed;left:14px;top:auto;width:58px;height:58px;
+  bottom:calc(var(--pult-unten,0px) + var(--pult-rechts-h,0px) + 14px)}
 .d3-kreuz::before,.d3-kreuz::after{content:"";position:absolute;background:var(--d3-kante,var(--bp-linie))}
 .d3-kreuz::before{left:calc(50% - .75px);top:0;width:1.5px;height:100%}
 .d3-kreuz::after{top:calc(50% - .75px);left:0;height:1.5px;width:100%}
@@ -15395,7 +15397,7 @@ body:has(.pult-achse) #karte-ansicht.hud-buehne .d3-achsen{left:18px;top:auto;bo
   const SVGNS = "http://www.w3.org/2000/svg";
   const achsenBild = document.createElementNS(SVGNS, "svg");
   achsenBild.setAttribute("class", "d3-achsen");
-  achsenBild.setAttribute("viewBox", "-34 -34 68 68");
+  achsenBild.setAttribute("viewBox", "-29 -29 58 58");
   achsenBild.setAttribute("aria-hidden", "true");
   const achsTeile = ["x", "y", "z"].map(a => {
     const g = document.createElementNS(SVGNS, "g");
@@ -16673,13 +16675,15 @@ void main(){ gl_FragColor = vec4(uK, 1.0); }`;
      auch in der Perspektive, deshalb ohne Fluchtung. Hinten (vom Betrachter
      weg) gestrichelt und leiser; hinten zuerst gezeichnet. */
   function achsenZeichnen(){
-    const N = Z.netz;
-    achsenBild.toggleAttribute("hidden", !N);     // SVG kennt .hidden nicht — das Attribut trägt die Regel im Stil
-    if(!N) return;
+    /* Immer sichtbar, solange 3D an ist — auch ohne Geländer. Ohne Netz gelten
+       die Achsen ungedreht (wie beim geraden Bauwerk); die Lage kommt aus dem Blick. */
+    const A = Z.netz && Z.netz.achsen ? Z.netz.achsen : [[1,0,0],[0,1,0],[0,0,1]];
+    achsenBild.removeAttribute("hidden");
     const {e, r, u} = achsen();
-    const LANG = 22, SCHRIFT = 29;
+    // Arme bis an den Rand des 58er-Kastens (Ursprung in der Mitte), Buchstaben knapp darüber hinaus
+    const LANG = 27, SCHRIFT = 33;
     const teile = achsTeile.map((T, i) => {
-      const a = N.achsen[i];
+      const a = A[i];
       return {T, x: dot(a, r), y: -dot(a, u), z: dot(a, e)};
     });
     teile.sort((p, q) => p.z - q.z).forEach(({T, x, y, z}) => {
