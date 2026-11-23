@@ -1775,7 +1775,8 @@ html{scrollbar-color:var(--kante-stark) transparent}
 ::-webkit-scrollbar{width:10px;height:10px}
 ::-webkit-scrollbar-thumb{border-radius:0;border:2px solid transparent;background-clip:padding-box}
 
-/* Keine Überblendungen, keine Federn, kein Eindrücken */
+/* Grundsatz: still. Alles, was das Werkzeug selbst bewegt (Wackeln, Federn, Einblenden), ist hier
+   aus; die wenigen gezielten Bewegungen des Pults stehen unten im Abschnitt „Bewegung“. */
 *,*::before,*::after{transition:none !important;animation:none !important}
 button:active:not(:disabled),summary.karte-kopf:active,.typwahl button:active,.segment button:active,button.gross:active{transform:none !important}
 .mappe-liste li.neu{background:transparent}
@@ -2421,6 +2422,103 @@ button.ifc-rot::after{border-radius:0}
   :root[data-skin=paletten] .app.hud.pult-dicht .spalten > section:first-child .karte-koerper{padding-top:2px}
   .app.hud.pult-dicht .spalten > section:first-child .hinweis-kasten{line-height:1.42;padding:7px 9px;margin-bottom:8px}
 }
+
+/* ===========================================================================
+   BEWEGUNG
+   Kurz, ease-out, nur transform/opacity und Farben. Gilt nur, solange die
+   Seite nicht lädt (Klasse pult-laden) und nichts per Tastatur oder
+   Befehlszeile ausgelöst wird (Klasse pult-still, beides von pult.js an
+   <html>). Was sehr oft ausgelöst wird, bewegt sich nicht: das Menü, das
+   Tippen, Tastenkürzel, die Ziehkante, Zoomen und Drehen, Zahlenfelder.
+     Drücken                 100 ms   Knopf sinkt 1 px (Paletten: Kante kippt)
+     Hover                   100 ms   nur Farbe, nur mit echter Maus
+     Auswahl in Wahlbahnen   180 ms   Markierung gleitet zum neuen Knopf
+     Schalter                160 ms   Riegel gleitet
+     Abschnitt, Ergebnis     180 ms   Karte blendet ein und rückt 6–12 px nach
+     Mappe, gelber Kasten,
+     Prüfungen aufklappen    160 ms   einblenden, 4 px nachrücken
+   Bei reduzierter Bewegung: keine Wege, nur Überblenden (120 ms).
+   =========================================================================== */
+:root{
+  --dauer-mikro:100ms;
+  --dauer-kurz:160ms;
+  --dauer-lang:180ms;
+  --kurve-raus:cubic-bezier(0.23, 1, 0.32, 1);
+  --kurve-weg:cubic-bezier(0.77, 0, 0.175, 1);
+  --pult-weg:1;          /* Faktor für Wege; bei reduzierter Bewegung 0 */
+}
+@media (prefers-reduced-motion: reduce){
+  :root{--dauer-mikro:0ms;--dauer-kurz:120ms;--dauer-lang:120ms;--pult-weg:0}
+}
+
+@media screen{
+/* Drücken: alle Knöpfe außer dem Menü (Hauptnavigation, zu oft) */
+html:not(.pult-still):not(.pult-laden) :is(button.tat,.minitat,.mini,.zuruecksetzen,.verlauf-knopf,.chip,.k-frage,.segment button,.typwahl button,.k-l-trasse,button.gross){
+  transition:background-color var(--dauer-mikro) ease-out,color var(--dauer-mikro) ease-out,
+             border-color var(--dauer-mikro) ease-out,transform var(--dauer-mikro) var(--kurve-raus),
+             translate var(--dauer-mikro) var(--kurve-raus) !important}
+html:not(.pult-still):not(.pult-laden):not([data-skin=paletten]) :is(button.tat,.minitat,.mini,.zuruecksetzen,.verlauf-knopf,.chip,.k-frage,.k-l-trasse,button.gross):active:not([aria-disabled=true]){
+  transform:translateY(calc(1px * var(--pult-weg))) !important}
+/* Paletten: die Kante kippt beim Drücken und beim Wählen — knapp */
+html[data-skin=paletten]:not(.pult-still):not(.pult-laden) :is(button:not(#chip-mappe)){
+  transition:border-color 80ms ease-out,background-color 80ms ease-out,box-shadow 80ms ease-out,
+             translate 80ms var(--kurve-raus),color var(--dauer-mikro) ease-out !important}
+/* Menü: nur die Farbe der Auswahl folgt, ohne Weg */
+html:not(.pult-still):not(.pult-laden) :is(nav.abschnitte a,.hud-dock #chip-mappe){
+  transition:background-color var(--dauer-mikro) ease-out,color var(--dauer-mikro) ease-out !important}
+/* Wahlbahnen mit Gleiter (Regelwerk, Typ, Holme, Handlauf, Teilung, Einheit, Weg). Nicht beim Ziehen
+   (.zieht) und nicht, wenn das Werkzeug die Pille hinsetzt (Inline transition: none) */
+html:not(.pult-still):not(.pult-laden):not([data-skin=paletten]) :not(.zieht) > .gleiter:not([style*="transition: none"]){
+  transition:translate var(--dauer-lang) var(--kurve-weg),width var(--dauer-lang) var(--kurve-weg) !important}
+/* Übrige Wahlbahnen ohne eigenen Gleiter (Umfang, 2D|3D, Aussehen, Projektion): eigene Markierung (pult.js) */
+.pult-marke{position:absolute;top:0;bottom:0;left:0;width:0;z-index:0;pointer-events:none;background:var(--gleiter-fuell)}
+:root[data-skin=paletten] .pult-marke{display:none}
+:root:not([data-skin=paletten]) .pult-mit-marke > button[aria-pressed=true]{background:transparent !important}
+.pult-mit-marke > button{position:relative;z-index:1}
+
+/* Schalter: der Riegel gleitet */
+html:not(.pult-still):not(.pult-laden) .schalter .knopf{
+  transition:transform var(--dauer-kurz) var(--kurve-weg),background-color var(--dauer-kurz) ease-out !important}
+html:not(.pult-still):not(.pult-laden) .schalter{transition:background-color var(--dauer-kurz) ease-out,border-color var(--dauer-kurz) ease-out !important}
+@media (prefers-reduced-motion: reduce){
+  /* Keine Wege: Riegel und Gleiter springen, nur die Farbe blendet über */
+  html:not(.pult-still):not(.pult-laden) .schalter .knopf{transition:background-color 120ms ease-out !important}
+  html:not(.pult-still):not(.pult-laden):not([data-skin=paletten]) :not(.zieht) > .gleiter:not([style*="transition: none"]){transition:none !important}
+}
+
+/* Abschnittswechsel: die Karte in der Spalte blendet ein und rückt aus der Richtung der Wahl nach */
+html:not(.pult-still):not(.pult-laden) .app.hud .spalten.k-umschalten:not(.k-ergebnis) > section:first-child > *{
+  transition:opacity var(--dauer-lang) var(--kurve-raus),transform var(--dauer-lang) var(--kurve-raus) !important}
+@starting-style{
+  html:not(.pult-still):not(.pult-laden) .app.hud .spalten.k-umschalten:not(.k-ergebnis) > section:first-child > *{
+    opacity:0;transform:translateY(calc(6px * var(--pult-weg)))}
+  html[data-pult-richtung=hoch]:not(.pult-still):not(.pult-laden) .app.hud .spalten.k-umschalten:not(.k-ergebnis) > section:first-child > *{
+    transform:translateY(calc(-6px * var(--pult-weg)))}
+}
+/* Ergebnis-Blatt: kommt von der Spalte her über den Modellraum */
+html:not(.pult-still):not(.pult-laden) .app.hud .spalten.k-ergebnis > section:last-child > *{
+  transition:opacity var(--dauer-lang) var(--kurve-raus),transform var(--dauer-lang) var(--kurve-raus) !important}
+@starting-style{
+  html:not(.pult-still):not(.pult-laden) .app.hud .spalten.k-ergebnis > section:last-child > *{
+    opacity:0;transform:translateX(calc(12px * var(--pult-weg)))}
+}
+/* Mappe, gelber Kasten, aufgeklappte Prüfungen: dezent einblenden */
+html:not(.pult-still):not(.pult-laden) :is(.app.hud.mappe-offen .hud-mappe,.fehlt-meldung,#karte-pruefungen > .karte-koerper){
+  transition:opacity var(--dauer-kurz) var(--kurve-raus),transform var(--dauer-kurz) var(--kurve-raus) !important}
+@starting-style{
+  html:not(.pult-still):not(.pult-laden) :is(.app.hud.mappe-offen .hud-mappe,.fehlt-meldung,#karte-pruefungen > .karte-koerper){
+    opacity:0;transform:translateY(calc(4px * var(--pult-weg)))}
+}
+/* Info und die Toggles im Kopf der Ansicht: die Farbe folgt */
+html:not(.pult-still):not(.pult-laden) #karte-ansicht .bp-kopf :is(.minitat,.segment button){
+  transition:background-color var(--dauer-mikro) ease-out,color var(--dauer-mikro) ease-out,border-color var(--dauer-mikro) ease-out !important}
+/* Fokusrahmen erscheinen sofort */
+/* Fokusrahmen erscheinen sofort — gewinnt über alle Regeln oben (die Kennung in :is hebt die Gewichtung) */
+html :is(:focus-visible,#pult-gibt-es-nicht):focus-visible{transition:none !important}
+}
+.pult-marke{transform-origin:0 0}
+/* Paletten: der Menü-Knopf „Mappe" sinkt beim Drücken nicht — das Menü bleibt ohne Weg */
+:root[data-skin=paletten] .hud-dock #chip-mappe:active{translate:none !important}
 </style>
 </head>
 <body>
@@ -16981,6 +17079,29 @@ try{
   const st = document.documentElement.style;
   const de = (v, n) => Number(v).toLocaleString("de-DE", {maximumFractionDigits: n == null ? 1 : n});
 
+  /* ---------- Bewegung: wann still ----------
+     pult-laden: beim ersten Aufbau bewegt sich nichts (bis kurz nach load).
+     pult-still: was per Tastatur oder Befehlszeile ausgelöst wird, springt
+     sofort — gesetzt bei jedem Tastendruck, kurz danach wieder weg. Die
+     Regeln dazu stehen in pult.css, Abschnitt „Bewegung". */
+  const wurzel = document.documentElement;
+  wurzel.classList.add("pult-laden");
+  const ladenAus = () => setTimeout(() => wurzel.classList.remove("pult-laden"), 400);
+  if(document.readyState === "complete") ladenAus(); else addEventListener("load", ladenAus, {once: true});
+  let stillBis = 0;
+  function still(ms){
+    wurzel.classList.add("pult-still");
+    clearTimeout(stillBis);
+    stillBis = setTimeout(() => wurzel.classList.remove("pult-still"), ms || 300);
+  }
+  // Tastatur: still, solange eine Taste gedrückt ist, und kurz nach dem Loslassen (Leertaste und Enter klicken erst beim Loslassen)
+  document.addEventListener("keydown", () => still(60000), true);
+  document.addEventListener("keyup", () => still(250), true);
+  addEventListener("blur", () => { if(wurzel.classList.contains("pult-still")) still(250); });
+  // Ein Klick ohne Maus (Tastatur, Bildschirmleser) bewegt nichts
+  document.addEventListener("click", ev => { if(ev.isTrusted && ev.detail === 0) still(250); }, true);
+  const ruhig = window.matchMedia ? matchMedia("(prefers-reduced-motion: reduce)") : {matches: false};
+
   /* ---------- Platz in der Spalte ---------- */
   const ro = window.ResizeObserver ? new ResizeObserver(() => nachziehen()) : null;
   const platz = document.createElement("div");
@@ -17653,16 +17774,27 @@ try{
       return true;
     }});
   const HL_WORT = {geteilt: "geteilt", ungeteilt: "ungeteilt", "120": "ungeteilt", ungeteiltklein: "ungeteiltKlein", "80": "ungeteiltKlein"};
+  const HL_KURZ = {geteilt: "geteilt", ungeteilt: "120", ungeteiltKlein: "80"};
+  // Die Handlauf-Knöpfe, wie das Werkzeug sie gerade zeigt — gesperrte (knopfSperren) gelten nicht als Wahl
+  const hlKnoepfe = () => [...document.querySelectorAll("#handlaufwahl button")];
+  const hlFrei = b => b.getAttribute("aria-disabled") !== "true";
   def({name: "handlauf", kurz: "hl", gruppe: "aufbau", syntax: "handlauf geteilt|120|80", hilfe: "Handlauf, wo der Typ die Wahl lässt.", min: 1,
-    werte: () => { const w = typ().handlauf && typ().handlauf.wahl; return w ? w.map(x => ({geteilt: "geteilt", ungeteilt: "120", ungeteiltKlein: "80"})[x[0]] || x[0]) : []; },
+    werte: () => giltFeld("feld-handlauf") ? hlKnoepfe().filter(hlFrei).map(b => HL_KURZ[b.dataset.art] || b.dataset.art) : [],
+    gesperrt: () => giltFeld("feld-handlauf") ? hlKnoepfe().filter(b => !hlFrei(b)).map(b => HL_KURZ[b.dataset.art] || b.dataset.art) : [],
     aktuell: () => hlSatz(typ()).replace("Handlauf ", "") || "keine Wahl",
-    nimm: (tk, i) => tk[i] && HL_WORT[NORM(tk[i])] ? 1 : 0,
+    nimm: (tk, i) => tk[i] && (HL_WORT[NORM(tk[i])] || !finde(tk[i])) ? 1 : 0,
     run(a){
       const t = typ(), w = t.handlauf && t.handlauf.wahl;
       if(!w || !giltFeld("feld-handlauf")){ sagen(`handlauf gilt nur bei ${TYPEN.filter(x => x.handlauf && x.handlauf.wahl).map(x => x.kurz).join(", ")} — Typ ist ${t.kurz}.`, "gelb"); return false; }
       const art = HL_WORT[NORM(a[0])];
       const b = art && document.querySelector(`#handlaufwahl button[data-art="${art}"]`);
-      if(!b){ sagen(`handlauf ${a[0]} — ${t.kurz} kennt ${w.map(x => x[1]).join(" · ")}. Beispiel: hl ${this.werte()[0]}`, "rot"); return false; }
+      if(!b){
+        const ws = this.werte();
+        sagen(ws.length ? `„${a[0]}“ ist kein Handlauf. Bei ${t.kurz} wählbar: ${ws.join(" · ")}. Beispiel: hl ${ws[0]}`
+                        : `„${a[0]}“ ist kein Handlauf — bei ${t.kurz} ist gerade keiner wählbar.`, "rot");
+        return false;
+      }
+      if(gesperrt(b, `Handlauf ${HL_KURZ[art] || art}`)) return false;
       const vorher = pruefListe.slice();
       b.click();
       sagen(`${hlSatz(typ())}.`);
@@ -18011,6 +18143,8 @@ try{
       sagen(`${d.syntax}${d.kurz ? `   Kürzel: ${d.kurz}` : ""} — ${d.hilfe}`);
       const w = d.werte ? d.werte() : [];
       if(w.length) sagen(`Erlaubt${d.name === "typ" || d.name === "holme" || d.name === "handlauf" || d.name === "verank" ? ` bei ${typ().kurz}` : ""}: ${w.join(" · ")}`);
+      const gs = d.gesperrt ? d.gesperrt() : [];
+      if(gs.length){ const b0 = [...document.querySelectorAll("#handlaufwahl button")].find(b => b.getAttribute("aria-disabled") === "true" && b._fehlt); const m = b0 ? (typeof b0._fehlt === "function" ? b0._fehlt() : b0._fehlt) : null; sagen(`Gesperrt: ${gs.join(" · ")}${m ? " — " + tagFrei(typeof m === "string" ? m : m.html) : ""}`, "gelb"); }
       if(d.aktuell) sagen(`Jetzt <${d.aktuell()}>`);
       const g = d.feld ? grenze(d.feld) : d.name === "holme" && typ().holme ? hol("hilfe-holme").textContent.trim() : "";
       if(g) sagen(g);
@@ -18129,7 +18263,7 @@ try{
     }
   });
   // Für Prüfungen von außen: eine Zeile ausführen wie getippt
-  window.pultBefehl = s => ausfuehren(s);
+  window.pultBefehl = s => { still(); return ausfuehren(s); };
 
   /* Ein Maß anklicken: im Pult fragt die Befehlszeile (vor der Maß-Tafel,
      die nur auf schmalen Fenstern bleibt). */
@@ -18141,6 +18275,10 @@ try{
     if(!d) return;
     ev.stopPropagation();
     fragen(d);
+    // Die Frage taucht dezent auf — nur beim Klick, nie beim Tippen
+    if(!wurzel.classList.contains("pult-laden") && frage.animate)
+      frage.animate([{opacity: 0, transform: ruhig.matches ? "none" : "translateY(3px)"}, {opacity: 1, transform: "none"}],
+                    {duration: 140, easing: "cubic-bezier(0.23, 1, 0.32, 1)"});
   }, true);
   // Neu gezeichnet: die Markierung am gefragten Maß wieder setzen
   if(typeof zeichnen === "function"){
@@ -18185,6 +18323,7 @@ try{
     skinWahl.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.skin === s)));
     if(merken){ try{ localStorage.setItem("gely-aussehen", s); }catch(e){} }
     dispatchEvent(new Event("resize"));
+    setTimeout(() => { try{ markenAlle(false); }catch(e){} }, 0);   // andere Knopfbreiten — nach dem Gleiten der eigenen Wahl messen
     try{ if(window.gely3d && gely3d.malenJetzt) gely3d.malenJetzt(); }catch(e){}
   }
   window.pultSkin = s => skinSetzen(s, true);
@@ -18205,6 +18344,66 @@ try{
     if(hud() && hol("alleschalter") && hol("alleschalter").getAttribute("aria-checked") === "true") hol("alleschalter").click();
     if(alleFuss) alleFuss.classList.toggle("pult-weg", hud());
   }
+
+  /* ---------- Bewegung: Richtung und Markierung ----------
+     Wohin ein Abschnittswechsel rückt: nach einer Zeile weiter oben im Menü
+     kommt die Karte von oben, sonst von unten (Attribut für pult.css).
+     Wahlbahnen ohne eigenen Gleiter bekommen eine Markierung, die zum
+     gewählten Knopf gleitet — nur nach einem Klick, nicht per Tastatur. */
+  nav.addEventListener("pointerdown", ev => {
+    const a = ev.target.closest && ev.target.closest("a");
+    if(!a) return;
+    const alle = [...nav.querySelectorAll("a")];
+    wurzel.dataset.pultRichtung = alle.indexOf(a) < alle.findIndex(x => x.classList.contains("aktiv")) ? "hoch" : "runter";
+  }, true);
+  // Kandidaten; eine Bahn, die das Werkzeug mit einem eigenen Gleiter versieht, bekommt keine zweite Markierung
+  const MARKEN = "#umfangwahl, .d3-schalter, .pult-skin .segment, .d3-leiste .segment";
+  const bewegtJetzt = () => !wurzel.classList.contains("pult-still") && !wurzel.classList.contains("pult-laden");
+  // Reduzierte Bewegung: statt gleiten an der neuen Stelle kurz einblenden
+  const einblenden = el => { if(el && el.animate) el.animate([{opacity: 0}, {opacity: 1}], {duration: 120, easing: "ease-out"}); };
+  function markeSetzen(seg, gleiten){
+    let m = seg.querySelector(":scope > .pult-marke");
+    if(seg.querySelector(":scope > .gleiter")){
+      if(m){ m.remove(); seg.classList.remove("pult-mit-marke"); }
+      return;
+    }
+    if(!m){
+      m = document.createElement("span"); m.className = "pult-marke"; m.setAttribute("aria-hidden", "true");
+      seg.append(m); seg.classList.add("pult-mit-marke");
+    }
+    const b = seg.querySelector(':scope > button[aria-pressed="true"]');
+    if(!b || !b.offsetWidth){ m.style.visibility = "hidden"; return; }
+    const war = m.style.visibility !== "hidden" && m.offsetWidth > 0, ax = m.offsetLeft, aw = m.offsetWidth;
+    const x = b.offsetLeft, w = b.offsetWidth;
+    m.style.visibility = "";
+    m.style.left = x + "px"; m.style.width = w + "px";
+    m.style.top = b.offsetTop + "px"; m.style.height = b.offsetHeight + "px"; m.style.bottom = "auto";
+    if(!gleiten || !war || ax === x || !m.animate || !bewegtJetzt()) return;
+    if(ruhig.matches) einblenden(m);
+    else m.animate([{transform: `translateX(${ax - x}px) scaleX(${aw / w})`}, {transform: "none"}],
+                   {duration: 180, easing: "cubic-bezier(0.77, 0, 0.175, 1)"});
+  }
+  function markenAlle(gleiten){ document.querySelectorAll(MARKEN).forEach(s => { try{ markeSetzen(s, gleiten); }catch(e){} }); }
+  new MutationObserver(rs => {
+    const segs = new Set(), gleiterBahnen = new Set();
+    rs.forEach(r => {
+      const s = r.target.parentElement;
+      if(!s || !s.matches) return;
+      if(s.matches(MARKEN)) segs.add(s);
+      else if(s.querySelector(":scope > .gleiter")) gleiterBahnen.add(s);
+    });
+    segs.forEach(s => { try{ markeSetzen(s, true); }catch(e){} });
+    // Der Gleiter des Werkzeugs springt bei reduzierter Bewegung — dann blendet er an der neuen Stelle ein
+    if(ruhig.matches && bewegtJetzt() && !wurzel.dataset.skin)
+      gleiterBahnen.forEach(s => { if(!s.classList.contains("zieht")) einblenden(s.querySelector(":scope > .gleiter")); });
+  }).observe(document.body, {subtree: true, attributes: true, attributeFilter: ["aria-pressed"]});
+  if(window.ResizeObserver){
+    const mro = new ResizeObserver(es => es.forEach(e => { try{ markeSetzen(e.target.matches(MARKEN) ? e.target : e.target.parentElement, false); }catch(x){} }));
+    document.querySelectorAll(MARKEN).forEach(s => { mro.observe(s); s.querySelectorAll(":scope > button").forEach(b => mro.observe(b)); });
+  }
+  // Andere Schrift oder anderer Skin heißt andere Knopfbreiten
+  if(document.fonts && document.fonts.ready) document.fonts.ready.then(() => markenAlle(false)).catch(() => {});
+  markenAlle(false);
 
   /* ---------- Anmelden ---------- */
   if(ro){
