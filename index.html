@@ -18264,7 +18264,32 @@ try{
   // Einen Befehl suchen: Name, Kürzel, nacktes Typ- oder Verankerungskürzel, riz/db
   const BEFEHL = new Map();
   DEFS.forEach(d => { BEFEHL.set(NORM(d.name), d); if(d.kurz) BEFEHL.set(NORM(d.kurz), d); });
-  BEFEHL.set("help", BEFEHL.get("hilfe"));
+  // Nur deutsche Namen und Kürzel trennen „L12000“ auf — sonst würde ein Achsname wie „Axis1“ zerlegt
+  const KOEPFE = new Set(BEFEHL.keys());
+  /* Englische Namen: zusätzliche Namen derselben Befehle (die Antworten bleiben
+     deutsch). Gleich lautende (L, h, e1, n, m, info, ifc, 2d …) brauchen keinen. */
+  const EN = {werk: "code", typ: "type", land: "state", absturz: "drop", bauweg: "route",
+    ohr: "ext", ohrl: "extl", ohrr: "extr", feld: "bay", holme: "rails", handlauf: "handrail", verank: "anchor",
+    moertel: "mortar", rahmen: "frame", rohr: "tube", umfang: "scope", achse: "axis", versatz: "offset",
+    gefaelle: "slope", einpassen: "fit", vorn: "front", oben: "top", hell: "light", dunkel: "dark",
+    einheit: "unit", merken: "add", mappe: "folder", "zurück": "undo", vor: "redo", neu: "reset", hilfe: "help"};
+  // Englische Wörter in den Werten, je Befehl — vor dem Lesen der Werte ins Deutsche
+  const EN_WERTE = {bauweg: {straight: "gerade", alignment: "trasse"}, umfang: {all: "alles", anchor: "verank"},
+    handlauf: {split: "geteilt"}, station: {local: "lokal"},
+    feld: {length: "laenge", empty: "leer", joint: "fuge", type: "typ", remove: "weg"}};
+  const enName = d => EN[d.name] || null;
+  DEFS.forEach(d => { const e = enName(d); if(e && !BEFEHL.has(NORM(e))) BEFEHL.set(NORM(e), d); });
+  function enWerte(d, tk, i){
+    const m = EN_WERTE[d.name];
+    if(!m) return;
+    // bis zu drei Wörter, aber nur bis zum nächsten Befehl, der kein Wert dieses Befehls ist
+    for(let k = i; k < Math.min(tk.length, i + 3); k++){
+      const x = m[NORM(tk[k])];
+      if(x) tk[k] = x; else if(finde(tk[k])) break;
+    }
+  }
+  // help: wie hilfe, aber die Übersicht mit den englischen Namen
+  BEFEHL.set("help", Object.assign(Object.create(BEFEHL.get("hilfe")), {run(a){ hilfeZeigen(a[0], true); return true; }}));
   function finde(t){
     if(t == null) return null;
     const n = NORM(t);
@@ -18290,7 +18315,7 @@ try{
         let teil = null;
         for(let k = t.length - 1; k >= 1 && !teil; k--){
           const kopf = t.slice(0, k), rest = t.slice(k);
-          if(BEFEHL.has(NORM(kopf)) && istZahl(rest)) teil = [kopf, rest];
+          if(KOEPFE.has(NORM(kopf)) && istZahl(rest)) teil = [kopf, rest];
         }
         if(teil){ aus.push(...teil); continue; }
       }
@@ -18364,6 +18389,7 @@ try{
         return false;
       }
       i++;
+      enWerte(f.d, tk, i);
       const n = f.vor.length ? 0 : f.d.nimm(tk, i);
       const args = f.vor.concat(tk.slice(i, i + n));
       i += n;
@@ -18384,12 +18410,12 @@ try{
 
   // hilfe und hilfe <befehl>
   const GRUPPEN = [["bauwerk", "Bauwerk"], ["enden", "Enden"], ["aufbau", "Aufbau"], ["trasse", "Trasse"], ["ansicht", "Ansicht"], ["mappe", "Mappe"]];
-  function hilfeZeigen(wort){
+  function hilfeZeigen(wort, englisch){
     if(wort){
       const f = finde(wort);
       if(!f){ sagen(`„${wort}“ ist kein Befehl.`, "rot"); return; }
       const d = f.d;
-      sagen(`${d.syntax}${d.kurz ? `   Kürzel: ${d.kurz}` : ""} — ${d.hilfe}`);
+      sagen(`${d.syntax}${d.kurz ? `   Kürzel: ${d.kurz}` : ""}${enName(d) ? `   englisch: ${enName(d)}` : ""} — ${d.hilfe}`);
       const w = d.werte ? d.werte() : [];
       if(w.length) sagen(`Erlaubt${d.name === "typ" || d.name === "holme" || d.name === "handlauf" || d.name === "verank" ? ` bei ${typ().kurz}` : ""}: ${w.join(" · ")}`);
       const gs = d.gesperrt ? d.gesperrt() : [];
@@ -18401,9 +18427,10 @@ try{
       return;
     }
     for(const [g, titel] of GRUPPEN){
-      const namen = DEFS.filter(d => d.gruppe === g).map(d => d.kurz && d.kurz !== "?" ? `${d.name}/${d.kurz}` : d.name);
+      const namen = DEFS.filter(d => d.gruppe === g).map(d => englisch ? (enName(d) || d.name) : d.kurz && d.kurz !== "?" ? `${d.name}/${d.kurz}` : d.name);
       sagen(`${titel}: ${namen.join(" · ")}`);
     }
+    if(englisch) sagen("Werte englisch: route straight|alignment · scope all|anchor · handrail split|120|80 · station <von> <bis> abs|local · bay <nr> length|empty|joint|type|remove. Die deutschen Namen gehen weiter.");
     sagen("Längen in mm; mit Einheit geht auch: 12 m, 1200cm, 1,1 m (Komma oder Punkt). Stationen ohne Einheit in m, Gefälle in %.");
     sagen("Typ, Verankerung und Regelwerk gehen auch nackt (gel4, gel13, db); Abschnitte beim Namen. Mehrere Befehle in einer Zeile: gel4 L 12000 h 1100. hilfe <befehl> erklärt einen.");
     sagen("Ein Klick auf ein Maß fragt hier nach dem Wert. Enter übernimmt, Esc bricht ab, Tab ergänzt, zweimal Tab zeigt die Möglichkeiten, Pfeil hoch holt frühere Eingaben, F2 zeigt mehr Verlauf.");
@@ -18424,6 +18451,7 @@ try{
         const f = finde(davor[i]);
         if(!f){ i++; d = null; continue; }
         i++;
+        enWerte(f.d, davor, i);
         const n = f.vor.length ? 0 : f.d.nimm(davor, i);
         if(i + n >= davor.length && !f.vor.length && (f.d.min || 0) + 0 > n){ d = f.d; argIndex = davor.length - i; break; }
         if(i + n >= davor.length && !f.vor.length && f.d.werte && n === davor.length - i){ d = f.d; argIndex = n; }
@@ -18442,9 +18470,12 @@ try{
     }
     if(!liste || !liste.length){
       if(d && (d.min || 0) > argIndex) liste = [];
-      else liste = [...new Set([...DEFS.map(d => d.name).filter(n => n !== "?"), ...REGELWERKE.map(w => w.id),
+      else liste = [...new Set([...DEFS.map(d => d.name).filter(n => n !== "?"), ...Object.values(EN), ...REGELWERKE.map(w => w.id),
                      ...REGELWERKE.flatMap(w => w.typen.map(t => kurzNorm(t.kurz))), ...verankOptionen().filter(v => v !== "keine").map(kurzNorm)])];
     }
+    // Englische Werte mit anbieten, wo der Befehl welche kennt; help ergänzt auch englische Namen
+    if(d && EN_WERTE[d.name] && liste.some(x => Object.values(EN_WERTE[d.name]).includes(x))) liste = [...liste, ...Object.keys(EN_WERTE[d.name])];
+    if(d && d.name === "hilfe") liste = [...liste, ...Object.values(EN)];
     const w = NORM(offenesWort);
     return {wort: offenesWort, liste: liste.filter(x => NORM(x).startsWith(w))};
   }
@@ -18483,6 +18514,7 @@ try{
         if(!s.trim()){ sagen(`${text} (bleibt)`); abbrechen(true); return; }
         abbrechen(true);
         const tk = zerlegen(s);
+        enWerte(d, tk, 0);
         const n = d.nimm(tk, 0);
         if(n !== tk.length || n < (d.min || 0)){
           sagen(`${text} ${s.trim()}`, "hell");
