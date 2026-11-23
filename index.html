@@ -1015,6 +1015,11 @@ button.ifc-rot::after{
 .kachel-fakten{font-family:var(--z);font-size:11.5px;color:var(--ink-weich);line-height:1.5}
 .kachel-fuss{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
 .kachel-fuss .hilfe{margin:0;flex:1;min-width:16ch}
+/* Stand sichern / laden: unter der Kachel, zwei kleine Knöpfe und ein Satz */
+.stand-datei{margin-top:10px}
+.stand-datei .zeile{display:flex;gap:6px;flex-wrap:wrap}
+.stand-datei .hilfe{margin:6px 0 0}
+.stand-datei .stand-info{color:var(--ink-weich);font-family:var(--z);font-size:11px}
 .geist{position:fixed;left:0;top:0;z-index:1000;pointer-events:none;background:var(--karte);border:1px solid var(--blau);
   border-radius:8px;padding:6px 10px;font:12px var(--z);color:var(--blau);box-shadow:var(--schatten-hoch);white-space:nowrap}
 
@@ -7521,7 +7526,7 @@ function sonderZeigen(){
       ? `<select data-k="${k}" data-rolle="wert">${TYPEN.map((t,i) =>
           `<option value="${i}"${i===s.wert?" selected":""}>${t.kurz}</option>`).join("")}</select>`
       : s.art === "leer" ? ""
-      : `<input type="number" class="sonder-wert" data-k="${k}" data-rolle="wert" value="${s.wert||0}" step="1" min="0">`;
+      : `<input type="number" class="sonder-wert" data-k="${k}" data-rolle="wert" value="${Number(s.wert)||0}" step="1" min="0">`;
     const roh = String(s.felder == null ? "" : s.felder).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");
     return `<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px">
       <span class="hilfe" style="margin:0">${k+1}. Felder</span>
@@ -10801,7 +10806,7 @@ try{
     zuTrasse.title = "L kommt aus der Achse — in der Karte Trasse ändern";
     zuTrasse.setAttribute("aria-label", `Gesamtlänge L aus der Achse: ${lText}${da && wert > 0 ? " mm" : ""} — zur Karte Trasse`);
     quelle.innerHTML = da
-      ? `kommt aus der Achse <b>${TRASSE.achse}</b> — Bogenlänge des Randes. ` +
+      ? `kommt aus der Achse <b>${fehltText(TRASSE.achse)}</b> — Bogenlänge des Randes. ` +   // der Name kommt aus einer Datei
         `Auf dieser Achse ist <i>L</i> keine Eingabe.`
       : `<b>wartet auf die Achse.</b> Sobald unter <i>Trasse</i> eine geladen oder erstellt ist,` +
         `steht hier ihre Bogenlänge.`;
@@ -11286,6 +11291,9 @@ try{
     klick("teilwahl", `button[data-modus="${s.teil}"]`);
     klick("umfangwahl", `button[data-umfang="${s.umfang}"]`);
     if(hol("verank")){ hol("verank").value = s.verank; hol("verank").dispatchEvent(new Event("change", {bubbles:true})); }
+    /* „nur Verankerung" nimmt die Umfangwahl erst an, wenn eine Verankerung
+       gewählt ist — darum noch einmal, nachdem sie steht. */
+    if(s.umfang !== "alles"){ alles(); klick("umfangwahl", `button[data-umfang="${s.umfang}"]`); }
     sonder = kopie(s.sonder); sonderZeigen();
 
     const t = s.trasse;
@@ -11491,6 +11499,16 @@ try{
   /* ---------- Ablegen: die eine Stelle ----------
      wohin = -1 legt neu ab, sonst ersetzt es den Eintrag mit diesem Index.
      Gemeldet wird an der Kachel und — wenn gezogen wurde — am Ziel. */
+  /* Ein Eintrag aus dem Geländer im Formular — beim Ablegen und beim Laden
+     eines gesicherten Standes derselbe. null, wenn keine IFC entsteht. */
+  function eintragBauen(s, k){
+    const rand = trasseDa() ? TRASSE.seiten[seiteJetzt()] : null;
+    const text = ifcErzeugen(letzte, rand);
+    if(!text) return null;
+    return {name: nameJetzt(), text, schnapp: s, kennung: k,
+            // gezählt wie geschrieben: auf der Trasse an Pfosten und Knicken geteilt, Umfang beachtet
+            urteil: urteilJetzt(), koerper: ifcKoerperZahl(!!rand) || 0};
+  }
   function melden(an, m){ an.forEach(k => { try{ fehltMelden(k, m); }catch(e){} }); }
   function wegnehmen(an){ an.forEach(k => { try{ fehltWeg(k); }catch(e){} }); }
   function ablegen(wohin, ziel, von){
@@ -11516,12 +11534,8 @@ try{
         return nein(`<b>Dieses Geländer liegt schon in der Mappe</b> (Eintrag ${schon + 1}). Zweimal dasselbe ergäbe zwei Geländer übereinander in der Datei. Erst eine Eingabe ändern, dann ablegen.`);
       if(wohin >= 0 && wohin < mappe.length && mappe[wohin].kennung === k)
         return nein(`<b>Eintrag ${wohin + 1} ist schon auf diesem Stand.</b> Erst eine Eingabe ändern, dann ersetzen.`);
-      const rand = trasseDa() ? TRASSE.seiten[seiteJetzt()] : null;
-      const text = ifcErzeugen(letzte, rand);
-      if(!text) return nein(ohneGelaender());
-      const eintrag = {name: nameJetzt(), text, schnapp: s, kennung: k,
-                       // gezählt wie geschrieben: auf der Trasse an Pfosten und Knicken geteilt, Umfang beachtet
-                       urteil: urteilJetzt(), koerper: ifcKoerperZahl(!!rand) || 0};
+      const eintrag = eintragBauen(s, k);
+      if(!eintrag) return nein(ohneGelaender());
       wegnehmen(an); try{ fehltWeg(hol("mappe-ablage")); }catch(e){}
       if(wohin >= 0 && wohin < mappe.length){
         mappe[wohin] = eintrag;
@@ -11933,6 +11947,258 @@ try{
   document.addEventListener("click", ev => {
     if(ev.target.closest && ev.target.closest("#umfangwahl, #bauwegwahl")){ try{ zeigen(); }catch(e){} }
   });
+
+  /* ---------- Stand als Datei: sichern und laden ----------
+     Die Eingaben leben sonst nur, solange die Seite offen ist. „Stand
+     sichern" schreibt das Geländer im Formular und die Mappe als JSON in den
+     Download-Ordner, „Stand laden" holt beides zurück. Gemerkt wird derselbe
+     Schnappschuss wie für „bearbeiten" — kein zweiter Weg.
+
+     Die IFC-Texte der Mappe stehen nicht in der Datei. Beim Laden wird jeder
+     Eintrag ins Formular geholt und neu gerechnet, mit der Rechnung dieser
+     Seite; sein Urteil ist dann das von heute. Was sich nicht genau so
+     zurückholen oder nicht rechnen lässt, nennt der gelbe Kasten am Knopf.
+
+     Die Trasse steht einmal in der Datei, auch wenn mehrere Einträge sie
+     nutzen (quellen, je Eintrag nur die Nummer): eine gelesene TCL als ihr
+     Text, der beim Laden neu gelesen wird; eine selbst erstellte Achse und
+     eine JSON-Trasse als ihre Daten. Die Auswahllisten der Karte Trasse
+     stehen als Wert und Text darin, nicht als HTML — eine Datei bringt keine
+     Auszeichnung in die Seite. */
+  const STAND_FORMAT = "gely-stand", STAND_VERSION = 1;
+  const standPlatz = document.createElement("div");
+  standPlatz.className = "stand-datei"; standPlatz.id = "feld-stand";
+  standPlatz.innerHTML =
+    '<div class="zeile" data-fehlt-ort>' +
+      '<button type="button" class="minitat" id="btn-stand-sichern" title="Formular, Mappe und Trasse in eine Datei schreiben">Stand sichern</button>' +
+      '<button type="button" class="minitat" id="btn-stand-laden" title="Eine gesicherte Datei wählen und alles daraus zurückholen">Stand laden …</button>' +
+      '<input type="file" id="stand-datei" accept=".json,application/json" hidden></div>' +
+    '<p class="hilfe" id="stand-hinweis">Sichern legt eine Datei (.json) im Download-Ordner an — das Geländer im Formular, die Mappe und die geladene Trasse. Laden holt alles daraus zurück und ersetzt Formular und Mappe.</p>' +
+    '<p class="hilfe stand-info" id="stand-info" hidden></p>';
+  kachelPlatz.appendChild(standPlatz);
+
+  const TR_GRUND_NAME = g => (typeof TR_GRUND === "object" && g) ? (Object.keys(TR_GRUND).find(k => TR_GRUND[k] === g) || null) : null;
+  const optionenAus = html => { const s = document.createElement("select"); s.innerHTML = html; return [...s.options].map(o => ({v: o.value, t: o.textContent})); };
+  const htmlEsc = t => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  const optionenHtml = l => (Array.isArray(l) ? l : []).map(o => `<option value="${htmlEsc(o.v)}">${htmlEsc(o.t)}</option>`).join("");
+
+  /* Schnappschuss → Datei. quellen sammelt die Trassen, jede einmal. */
+  function standSchnapp(s, quellen, merk){
+    const o = kopie(Object.assign({}, s, {trasse: null}));
+    const tp = REGELWERKE[s.werk] && REGELWERKE[s.werk].typen[s.typ];
+    if(tp) o.typKurz = tp.kurz;
+    const t = s.trasse;
+    if(t){
+      const schluessel = t.art === "json" ? t.trasse : t.art === "tcl" ? "tcl:" + t.roh : t.dat;
+      if(!merk.has(schluessel)){
+        merk.set(schluessel, quellen.length);
+        quellen.push(t.art === "json" ? {art: "json", trasse: kopie(t.trasse)}
+                   : t.art === "tcl"  ? {art: "tcl", roh: t.roh}
+                   :                    {art: "achse", dat: kopie(t.dat)});
+      }
+      const q = merk.get(schluessel);
+      if(t.art === "json") o.trasse = {art: "json", quelle: q, seite: t.seite};
+      else {
+        const listen = {};
+        TR_LISTEN.forEach(id => { const l = t.listen[id];
+          listen[id] = {optionen: optionenAus(l.html), wert: l.wert, aus: !!l.aus, grund: TR_GRUND_NAME(l.grund)}; });
+        o.trasse = {art: t.art, quelle: q, name: t.name, felder: kopie(t.felder), wahlen: kopie(t.wahlen), listen, seite: t.seite};
+      }
+    }
+    return o;
+  }
+  /* Datei → Schnappschuss. lebend: die Quellen, schon gelesen. */
+  function standAusDatei(o, lebend){
+    if(!o || typeof o !== "object" || !o.felder || typeof o.felder !== "object") throw new Error("Eintrag ohne Felder.");
+    /* Regelwerk und Typ stehen als Nummer der Liste darin, dazu ihr Kürzel:
+       stimmt das Kürzel nicht mehr (die Liste einer späteren Fassung ist
+       anders geordnet), wird nach dem Kürzel gesucht statt still ein anderer
+       Typ genommen. */
+    const werk = o.werk, werkOk = Number.isInteger(werk) && werk >= 0 && werk < REGELWERKE.length;
+    if(!werkOk) throw new Error("Das Regelwerk in der Datei gibt es hier nicht.");
+    const typen = REGELWERKE[werk].typen;
+    let typ = o.typ;
+    if(o.typKurz && !(typen[typ] && typen[typ].kurz === o.typKurz)) typ = typen.findIndex(x => x.kurz === o.typKurz);
+    if(!(Number.isInteger(typ) && typ >= 0 && typ < typen.length))
+      throw new Error(`Den Geländertyp ${o.typKurz ? "„" + o.typKurz + "“ " : ""}gibt es hier nicht.`);
+    const s = kopie(Object.assign({}, o, {trasse: null, werk, typ}));
+    delete s.typKurz;
+    FELDER.forEach(id => { if(s.felder[id] !== undefined && s.felder[id] !== null) s.felder[id] = String(s.felder[id]); });
+    // Sonderfelder: nur bekannte Arten, Zahlen als Zahl, Feldnummern als Text
+    const arten = SONDER_ARTEN.map(a => a[0]);
+    s.sonder = (Array.isArray(s.sonder) ? s.sonder : [])
+      .filter(x => x && typeof x === "object" && arten.includes(x.art))
+      .map(x => Object.assign({}, x, {wert: Number(x.wert) || 0, felder: x.felder == null ? "" : String(x.felder)}));
+    ["holme", "hlArt", "verank", "land", "teil", "bauweg", "umfang"].forEach(k => { if(s[k] != null) s[k] = typeof s[k] === "number" ? s[k] : String(s[k]); });
+    const t = o.trasse;
+    if(t){
+      const q = Number.isInteger(t.quelle) && t.quelle >= 0 ? lebend[t.quelle] : null;
+      if(!q) throw new Error("Die Trasse dieses Eintrags fehlt in der Datei.");
+      if(q.fehler) throw new Error("Die Trasse ließ sich nicht lesen: " + q.fehler);
+      if((t.art === "json") !== (q.art === "json") || (t.art === "tcl" && q.art !== "tcl"))
+        throw new Error("Die Trasse dieses Eintrags passt nicht zu ihrer Quelle in der Datei.");
+      if(t.art === "json") s.trasse = {art: "json", trasse: q.trasse, seite: t.seite};
+      else {
+        const listen = {};
+        TR_LISTEN.forEach(id => { const l = (t.listen && t.listen[id]) || {};
+          listen[id] = {html: optionenHtml(l.optionen), wert: l.wert, aus: !!l.aus,
+                        grund: typeof l.grund === "string" && Object.prototype.hasOwnProperty.call(TR_GRUND, l.grund) ? TR_GRUND[l.grund] : null}; });
+        s.trasse = {art: t.art, dat: q.dat, roh: q.roh || null, name: String(t.name || ""),
+                    felder: t.felder || {}, wahlen: t.wahlen || {}, listen, seite: t.seite};
+      }
+    }
+    return s;
+  }
+
+  function standSichern(){
+    const quellen = [], merk = new Map();
+    const o = {
+      format: STAND_FORMAT, version: STAND_VERSION,
+      gesichert: new Date().toISOString(),
+      aktuell: standSchnapp(schnappschuss(), quellen, merk),
+      mappe: mappe.map(m => standSchnapp(m.schnapp, quellen, merk)),
+      quellen
+    };
+    const d = new Date(), zw = n => String(n).padStart(2, "0");
+    const name = `Gely-Stand_${d.getFullYear()}-${zw(d.getMonth() + 1)}-${zw(d.getDate())}_${zw(d.getHours())}${zw(d.getMinutes())}.json`;
+    speichern(JSON.stringify(o, null, 1), name, "application/json");
+    const info = hol("stand-info");
+    info.hidden = false;
+    info.textContent = `Gesichert als ${name} — das Formular` +
+      (mappe.length ? ` und ${mappe.length} ${mappe.length === 1 ? "Eintrag" : "Einträge"} der Mappe.` : ", die Mappe ist leer.");
+  }
+
+  /* Ein Eintrag aus dem, was gerade im Formular steht — dieselben Prüfungen
+     wie beim Ablegen. Gibt den Grund zurück, wenn es nicht geht. */
+  function eintragAusFormular(){
+    if(wegJetzt() === "trasse"){
+      const fehlt = typeof kurveFehlt === "function" ? kurveFehlt() : (trasseDa() ? null : ohneTrasse());
+      if(fehlt) return {grund: "auf der Trasse nicht zu bauen (Trasse oder Länge passt nicht)"};
+    }
+    if(!gueltig()) return {grund: "kein vollständiges Geländer"};
+    const s = schnappschuss();
+    const e = eintragBauen(s, kennung(s));
+    return e ? {eintrag: e} : {grund: "die IFC ließ sich nicht erzeugen"};
+  }
+
+  function standLaden(o, dateiname){
+    if(!o || o.format !== STAND_FORMAT)
+      throw new Error("Das ist keine gesicherte Stand-Datei dieses Werkzeugs.");
+    if(!Number.isInteger(o.version) || o.version < 1)
+      throw new Error("Die Datei nennt keine gültige Fassung.");
+    if(o.version > STAND_VERSION)
+      throw new Error(`Die Datei ist in einer neueren Fassung gesichert (${o.version}), als diese Seite lesen kann (${STAND_VERSION}).`);
+    /* Die Trassen zuerst: eine TCL wird einmal gelesen, alle Einträge darauf
+       teilen sich das Gelesene — so gelten sie auch beim Vergleich als
+       dieselbe Trasse. */
+    const lebend = (Array.isArray(o.quellen) ? o.quellen : []).map(q => {
+      try{
+        if(!q || typeof q !== "object") return {fehler: "kein Eintrag"};
+        if(q.art === "tcl") return {art: "tcl", roh: String(q.roh), dat: tclLesen(String(q.roh))};
+        if(q.art === "achse"){
+          if(!q.dat || !Array.isArray(q.dat.achsen) || !q.dat.achsen.length || !Array.isArray(q.dat.kurven))
+            return {fehler: "die Achse ist unvollständig"};
+          return {art: "achse", roh: null, dat: q.dat};
+        }
+        if(q.art === "json"){
+          if(!q.trasse || !q.trasse.seiten) return {fehler: "die Trasse ist unvollständig"};
+          return {art: "json", trasse: q.trasse};
+        }
+        return {fehler: "unbekannte Art"};
+      }catch(e){ return {fehler: e.message}; }
+    });
+    /* Der Stand von vorher, falls nichts zu holen ist oder unterwegs etwas
+       bricht — dann soll die Seite stehen wie vor dem Laden, nicht halb. */
+    const vorS = schnappschuss(), vorM = mappe.slice();
+    const zurueck = () => {
+      mappe.length = 0; vorM.forEach(m => mappe.push(m));
+      try{ wiederherstellen(vorS); }catch(e){}
+      try{ zeigen(); }catch(e){}
+    };
+    try{
+      return standEinspielen(o, dateiname, lebend, vorS);
+    }catch(e){ zurueck(); throw e; }
+  }
+  function standEinspielen(o, dateiname, lebend, vorS){
+    const probleme = [], neu = [];
+    (Array.isArray(o.mappe) ? o.mappe : []).forEach((roh, i) => {
+      const nr = `Eintrag ${i + 1}`;
+      try{
+        const s = standAusDatei(roh, lebend);
+        wiederherstellen(s);
+        const abw = abweichungen(s);
+        const r = eintragAusFormular();
+        if(!r.eintrag){ probleme.push(`${nr}: ${r.grund} — nicht in die Mappe genommen`); return; }
+        if(neu.some(m => m.kennung === r.eintrag.kennung)){ probleme.push(`${nr}: gleicht einem früheren Eintrag — nur einmal genommen`); return; }
+        if(abw.length) probleme.push(`${nr}: anders als gesichert (${abw.join(", ")})`);
+        neu.push(r.eintrag);
+      }catch(e){ probleme.push(`${nr}: ${e.message}`); }
+    });
+    let formular = false;
+    if(o.aktuell){
+      try{
+        const s = standAusDatei(o.aktuell, lebend);
+        wiederherstellen(s);
+        const abw = abweichungen(s);
+        if(abw.length) probleme.push(`Formular: anders als gesichert (${abw.join(", ")})`);
+        formular = true;
+      }catch(e){ probleme.push(`Formular: ${e.message}`); }
+    }
+    // Weder ein Eintrag noch das Formular: dann bleibt alles wie vorher.
+    if(!formular && !neu.length)
+      throw new Error("Aus der Datei ließ sich nichts zurückholen" + (probleme.length ? " (" + probleme.join("; ") + ")." : "."));
+    mappe.length = 0; neu.forEach(m => mappe.push(m));
+    bearbeitet = -1; vorher = null; nachBearbeiten = "";
+    /* Ohne gesichertes Formular stünde jetzt der letzte Eintrag darin — das
+       Formular von vor dem Laden ist ehrlicher. */
+    if(!formular) wiederherstellen(vorS);
+    zeigen();
+    const info = hol("stand-info");
+    info.hidden = false;
+    const mappeTeil = neu.length ? `${neu.length} ${neu.length === 1 ? "Eintrag" : "Einträge"} der Mappe` : "die Mappe ist leer";
+    info.textContent = `Geladen aus ${dateiname} — ` + (formular
+      ? `das Formular, ${mappeTeil}.`
+      : `${mappeTeil}; das Formular bleibt, wie es war.`);
+    return probleme;
+  }
+
+  const standKnopf = hol("btn-stand-laden"), standDatei = hol("stand-datei");
+  hol("btn-stand-sichern").addEventListener("click", () => {
+    try{ standSichern(); fehltWeg(hol("btn-stand-sichern")); }
+    catch(e){ fehltMelden(hol("btn-stand-sichern"), `<b>Nicht zu sichern:</b> ${fehltText(e.message)}`); }
+  });
+  /* Eine volle Mappe wird beim Laden ersetzt — das sagt der Kasten vorher,
+     mit dem Knopf, der trotzdem lädt. Gesperrt wird nichts. */
+  standKnopf.addEventListener("click", () => {
+    if(mappe.length){
+      fehltMelden(standKnopf, {html: `<b>Die Mappe ist nicht leer.</b> Ein geladener Stand ersetzt sie (${mappe.length} ${mappe.length === 1 ? "Eintrag" : "Einträge"}) und das Formular. Wer sie behalten will, sichert vorher.`,
+        geh: [{text: "Erst sichern", tun: () => { hol("btn-stand-sichern").click(); }},
+              {text: "Trotzdem laden", tun: () => { fehltWeg(standKnopf); standDatei.click(); }}]});
+      return;
+    }
+    fehltWeg(standKnopf);
+    standDatei.click();
+  });
+  standDatei.addEventListener("change", () => {
+    const datei = standDatei.files && standDatei.files[0];
+    standDatei.value = "";                 // dieselbe Datei noch einmal wählen soll wieder laden
+    if(!datei) return;
+    const leser = new FileReader();
+    leser.onload = () => {
+      let probleme;
+      try{ probleme = standLaden(JSON.parse(leser.result), datei.name); }
+      catch(e){
+        fehltMelden(standKnopf, `<b>Nicht zu laden:</b> ${fehltText(e instanceof SyntaxError ? "Die Datei ist kein lesbares JSON." : e.message)} Formular und Mappe sind unverändert.`);
+        return;
+      }
+      if(probleme.length)
+        fehltMelden(standKnopf, `<b>Nicht alles ließ sich genau so zurückholen.</b> ${fehltText(probleme.join("; "))}. Bitte diese Stellen prüfen.`);
+      else fehltWeg(standKnopf);
+    };
+    leser.onerror = () => fehltMelden(standKnopf, "<b>Die Datei ließ sich nicht lesen.</b> Formular und Mappe sind unverändert.");
+    leser.readAsText(datei);
+  });
+  window.gelyStandDatei = {sichern: standSichern, laden: standLaden};    // für die Prüfung von außen
 
   window.ifcZusammenlegen = zusammenlegen;      // für die Prüfung von außen
   window.mappeStand = () => ({eintraege: mappe.map(m => m.name), bearbeitet, drin: drinIndex()});   // ebenso
