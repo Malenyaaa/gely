@@ -5445,10 +5445,11 @@ function ansichtEinrichten(id, knopfId, standId){
     ev.preventDefault();
   });
 
-  // Nie disabled: gibt es kein Bild, sagt der Knopf, warum (gelber Kasten).
+  // Nie disabled. Gibt es kein Bild, tut der Knopf still nichts — was „Einpassen“
+  // tut, weiß jeder, und die leere Fläche sagt schon, dass nichts da ist (Wunsch 23.11.2026).
   const knopf = ANSICHT_FL[id].knopf;
   if(knopf) knopf.addEventListener("click", () => {
-    if(!bild()){ fehltMelden(knopf, "<b>Noch kein Bild.</b> Sobald hier gezeichnet wird, passt der Knopf es ein."); return; }
+    if(!bild()) return;
     fehltWeg(knopf);
     ansichtEinpassen(id);
   });
