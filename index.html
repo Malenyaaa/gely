@@ -15324,6 +15324,24 @@ try{
 .d3-leer[hidden]{display:none}
 .d3-kreuz{position:absolute;width:13px;height:13px;margin:-6.5px 0 0 -6.5px;pointer-events:none;z-index:1}
 .d3-kreuz[hidden]{display:none}
+/* Achsenkreuz: Farben aus --d3-achse-x/-y/-z, sonst Vorgaben je Hell/Dunkel
+   (gegen --bp ≥ 3 : 1). Die Buchstaben tragen die Bedeutung, die Farbe hilft. */
+.d3-achsen{position:absolute;left:12px;bottom:46px;width:68px;height:68px;overflow:visible;pointer-events:none;z-index:1;
+  --ax:var(--d3-achse-x,#c0392b);--ay:var(--d3-achse-y,#1d7a33);--az:var(--d3-achse-z,#1f5fbf)}
+:root[data-theme=dunkel] .d3-achsen{--ax:var(--d3-achse-x,#ff7b72);--ay:var(--d3-achse-y,#56d364);--az:var(--d3-achse-z,#79b8ff)}
+.d3-achsen[hidden]{display:none}
+.d3-achsen line{stroke-width:1.6;stroke-linecap:round}
+.d3-achsen text{font:600 11px/1 var(--z,monospace)}
+.d3-achsen .hinten line{stroke-dasharray:3 2.5;stroke-width:1.3}
+.d3-achsen .hinten text{font-weight:400}
+.d3-achse-x line{stroke:var(--ax)} .d3-achse-x text{fill:var(--ax)}
+.d3-achse-y line{stroke:var(--ay)} .d3-achse-y text{fill:var(--ay)}
+.d3-achse-z line{stroke:var(--az)} .d3-achse-z text{fill:var(--az)}
+.d3-achsen-mitte{fill:var(--d3-kante,var(--bp-linie))}
+/* Auf der Bühne über der Leiste im freien Feld; wo die Seite unten links schon
+   ein 2D-Achskreuz hat, an dessen Stelle (es ist in 3D ausgeblendet) */
+#karte-ansicht.hud-buehne .d3-achsen{left:var(--frei-l,300px);bottom:auto;top:calc(var(--frei-t,90px) + var(--frei-h,400px) - 112px)}
+body:has(.pult-achse) #karte-ansicht.hud-buehne .d3-achsen{left:18px;top:auto;bottom:calc(var(--pult-unten,0px) + var(--pult-rechts-h,0px) + 12px)}
 .d3-kreuz::before,.d3-kreuz::after{content:"";position:absolute;background:var(--d3-kante,var(--bp-linie))}
 .d3-kreuz::before{left:calc(50% - .75px);top:0;width:1.5px;height:100%}
 .d3-kreuz::after{top:calc(50% - .75px);left:0;height:1.5px;width:100%}
@@ -15372,6 +15390,28 @@ try{
   kreuz.className = "d3-kreuz";
   kreuz.hidden = true;
   kreuz.setAttribute("aria-hidden", "true");
+  /* Achsenkreuz unten links: X, Y, Z der IFC, dreht mit dem Blick, zeigt nur
+     die Richtung. Gezeichnet mit jedem Bild (achsenZeichnen), nie für sich. */
+  const SVGNS = "http://www.w3.org/2000/svg";
+  const achsenBild = document.createElementNS(SVGNS, "svg");
+  achsenBild.setAttribute("class", "d3-achsen");
+  achsenBild.setAttribute("viewBox", "-34 -34 68 68");
+  achsenBild.setAttribute("aria-hidden", "true");
+  const achsTeile = ["x", "y", "z"].map(a => {
+    const g = document.createElementNS(SVGNS, "g");
+    g.setAttribute("class", "d3-achse-" + a);
+    const l = document.createElementNS(SVGNS, "line");
+    l.setAttribute("x1", "0"); l.setAttribute("y1", "0");
+    const t = document.createElementNS(SVGNS, "text");
+    t.textContent = a.toUpperCase();
+    t.setAttribute("text-anchor", "middle"); t.setAttribute("dominant-baseline", "central");
+    g.append(l, t);
+    achsenBild.appendChild(g);
+    return {g, l, t};
+  });
+  const ursprung = document.createElementNS(SVGNS, "circle");
+  ursprung.setAttribute("r", "1.6"); ursprung.setAttribute("class", "d3-achsen-mitte");
+  achsenBild.appendChild(ursprung);
   leer.hidden = true;
   const leiste = document.createElement("div");
   leiste.className = "d3-leiste";
@@ -15385,6 +15425,7 @@ try{
     '</div>';
   flaeche.appendChild(leer);
   flaeche.appendChild(kreuz);
+  flaeche.appendChild(achsenBild);
   flaeche.appendChild(leiste);
   fl.after(flaeche);
   aufraeumen.push(() => { flaeche.remove(); karte.classList.remove("d3-an"); });
@@ -15887,6 +15928,8 @@ try{
        so gedreht, dass das Geländer im Mittel längs x läuft — sonst hießen
        „vorn" und „iso" dort irgendetwas. */
     let Vw = p => auf(Pg, p), Dw = v => drehe(Pg, v);
+    // Wie die Achsen der IFC (ihr Weltsystem) in der Ansicht liegen — fürs Achsenkreuz
+    let ifcAchse = v => v;
     if(trasseDa()){
       const erster = s => s.art === "p" ? s.B[0] : s.ringe[0][0];
       const pts = straenge.map(s => Vw(erster(s)));
@@ -15908,6 +15951,7 @@ try{
       const V0 = Vw, D0 = Dw;
       Vw = p => rz(sub(V0(p), A));
       Dw = v => rz(D0(v));
+      ifcAchse = rz;                                   // nur gedreht, nicht verschoben
     }
 
     // Stränge in Ringe der Ansicht
@@ -15975,7 +16019,8 @@ try{
 
     const zahl = {koerper: item.length, straenge: st.length, dreiecke: tri.length/9, kanten: kant.length/84};
     return {O, lo, hi, V: new Float32Array(V), tri: new Float32Array(tri), triN: new Float32Array(triN),
-            kant: new Float32Array(kant), flaechen: fl2, stuecke, zahl, ms: performance.now() - t0, msIfc: tIfc};
+            kant: new Float32Array(kant), flaechen: fl2, stuecke, zahl, ms: performance.now() - t0, msIfc: tIfc,
+            achsen: [ifcAchse([1,0,0]), ifcAchse([0,1,0]), ifcAchse([0,0,1])]};
   }
 
   // Ein Strang (Ringe gleicher Punktzahl, Schleifen nach pr.loops) ins Netz
@@ -16533,6 +16578,7 @@ void main(){ gl_FragColor = vec4(uK, 1.0); }`;
     const t0 = performance.now();
     if(gleiten) gleitSchritt();
     if(!kreuz.hidden && Z.dreh) kreuzZeigen(Z.dreh);      // nach einer Größenänderung wandert die Bildmitte
+    achsenZeichnen();
     try{ maler.malen(W, H, DPR, stilLesen()); }
     catch(e){ console.error(e); if(maler.art === "gl"){ malerWechseln(true); return; } }
     messung.bild = performance.now() - t0; messung.bilder++;
@@ -16622,6 +16668,29 @@ void main(){ gl_FragColor = vec4(uK, 1.0); }`;
     messTreffer.ms = performance.now() - t0; messTreffer.quader = nq; messTreffer.dreiecke = nd;
     if(!isFinite(best)) return null;
     return add(add(o, mul(d, best)), N.O);
+  }
+  /* Achsenkreuz: die drei Achsen der IFC in Blickachsen. Nur die Richtung —
+     auch in der Perspektive, deshalb ohne Fluchtung. Hinten (vom Betrachter
+     weg) gestrichelt und leiser; hinten zuerst gezeichnet. */
+  function achsenZeichnen(){
+    const N = Z.netz;
+    achsenBild.toggleAttribute("hidden", !N);     // SVG kennt .hidden nicht — das Attribut trägt die Regel im Stil
+    if(!N) return;
+    const {e, r, u} = achsen();
+    const LANG = 22, SCHRIFT = 29;
+    const teile = achsTeile.map((T, i) => {
+      const a = N.achsen[i];
+      return {T, x: dot(a, r), y: -dot(a, u), z: dot(a, e)};
+    });
+    teile.sort((p, q) => p.z - q.z).forEach(({T, x, y, z}) => {
+      T.l.setAttribute("x2", (x*LANG).toFixed(2)); T.l.setAttribute("y2", (y*LANG).toFixed(2));
+      // Zeigt die Achse fast auf den Betrachter, rückt der Buchstabe etwas vom Ursprung weg
+      const l = Math.hypot(x, y), k = l < 0.25 ? 0.25/(l || 1) : 1;
+      T.t.setAttribute("x", (x*SCHRIFT*k + (l < 0.25 ? 7 : 0)).toFixed(2));
+      T.t.setAttribute("y", (y*SCHRIFT*k).toFixed(2));
+      T.g.classList.toggle("hinten", z < -0.05);
+      achsenBild.insertBefore(T.g, ursprung);          // Reihenfolge = Zeichenfolge
+    });
   }
   // Das Kreuz am Drehpunkt, nur solange gedreht wird
   function kreuzZeigen(G){
@@ -16843,6 +16912,7 @@ void main(){ gl_FragColor = vec4(uK, 1.0); }`;
     // sofort neu bauen statt nach der Wartezeit (für Messungen)
     neuBauen: () => { clearTimeout(neubauUhr); Z.schmutzig = true; Z.an && bild(); return Object.assign({}, messung); },
     drehen, schieben, zoomen,
+    achsenkreuz: () => achsenBild.hasAttribute("hidden") ? null : achsTeile.map(T => ({x2: +T.l.getAttribute("x2"), y2: +T.l.getAttribute("y2"), hinten: T.g.classList.contains("hinten"), rect: T.g.getBoundingClientRect().toJSON()})),
     treffen: (px, py) => { const p = treffen(px, py); return {p, ms: messTreffer.ms, quader: messTreffer.quader, dreiecke: messTreffer.dreiecke}; },
     kreuz: () => kreuz.hidden ? null : [parseFloat(kreuz.style.left), parseFloat(kreuz.style.top)], drehpunkt: () => Z.dreh,
     // ein Punkt des Netzes (Anteil 0…1 der Punktliste), in Ansichtskoordinaten, für Prüfungen
