@@ -955,6 +955,11 @@ button.ifc-rot::after{
 .mappe-liste .name small{display:block;color:var(--blau);font-family:var(--s);font-size:10.5px}
 .mappe-liste .name small.leise{color:var(--ink-leise)}
 .mappe-liste .name:hover small.leise{color:var(--blau)}
+/* Das Urteil je Eintrag: dieselben Farben wie die Lampe im Plankopf, der Satz daneben sagt es auch ohne Farbe */
+.mappe-liste .m-lampe{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:4px;vertical-align:0;background:var(--kante-stark)}
+.mappe-liste .m-lampe.ok{background:var(--gruen)} .mappe-liste .m-lampe.warn{background:var(--ocker)}
+.mappe-liste .m-lampe.fehler{background:var(--rot)}
+.mappe-liste .m-urteil.fehler{color:var(--rot)}
 .mappe-liste .tun{display:flex;gap:2px}
 .mini{
   height:20px;min-width:18px;padding:0 4px;border:1px solid var(--kante);background:var(--karte);
@@ -11329,6 +11334,27 @@ try{
     return [...new Set(aus)];
   }
 
+  /* ---------- Das Urteil je Eintrag ----------
+     Beim Ablegen vom Plankopf abgelesen (dort entscheidet der Rechenteil,
+     was rot, gelb oder grün ist) und mit dem Eintrag gemerkt — es gilt für
+     genau die Eingaben, die in der Datei landen. Die Mappe nimmt jedes
+     vollständige Geländer an, auch eines mit Verstoß; das soll man sehen,
+     bevor die Datei geschrieben wird. */
+  function urteilJetzt(){
+    const st = hol("band") && hol("band").querySelector(".zelle.status");
+    const f = st && st.querySelector(".fahne");
+    if(!st || !f) return null;
+    const art = st.classList.contains("fehler") ? "fehler" : st.classList.contains("warn") ? "warn"
+              : st.classList.contains("ok") ? "ok" : "";
+    return {art, text: f.textContent.trim()};
+  }
+  function urteilZeile(m){
+    const u = m.urteil;
+    const koerper = m.koerper ? `${m.koerper} Körper · ` : "";
+    if(!u || !u.text) return koerper;
+    return `<span class="m-urteil ${u.art}"><span class="m-lampe ${u.art}" aria-hidden="true"></span>${fehltText(u.text)}</span> · ${koerper}`;
+  }
+
   /* ---------- Anzeigen ---------- */
   function zeigen(){
     const n = mappe.length, drin = drinIndex();
@@ -11352,7 +11378,8 @@ try{
       `<li class="dropziel${i === bearbeitet ? " in-arbeit" : ""}" data-i="${i}">` +
         `<span class="nr">${i + 1}.</span>` +
         `<button type="button" class="name" data-tun="bearbeiten" title="Zum Bearbeiten ins Formular laden — danach an der Kachel „Mappe-Eintrag ersetzen“">` +
-          `${fehltText(m.name)}${i === bearbeitet ? "<small>wird bearbeitet</small>" : "<small class=\"leise\">bearbeiten</small>"}</button>` +
+          `${fehltText(m.name)}<small${i === bearbeitet ? "" : ' class="leise"'}>${urteilZeile(m)}` +
+          `${i === bearbeitet ? "wird bearbeitet" : "bearbeiten"}</small></button>` +
         `<span class="tun">` +
           `<button type="button" class="mini" data-tun="hoch" title="Nach oben" aria-label="Eintrag ${i + 1} nach oben">▲</button>` +
           `<button type="button" class="mini" data-tun="runter" title="Nach unten" aria-label="Eintrag ${i + 1} nach unten">▼</button>` +
@@ -11382,7 +11409,19 @@ try{
     const fertig = !!gueltig();
     const gesamt = n + (drin < 0 && fertig ? 1 : 0);
     hol("btn-mappe-ifc").textContent = `IFC 4 schreiben · ${gesamt} Geländer`;
-    hol("mappe-datei").textContent = (n === 0
+    /* Ein Verstoß in der Mappe steht vorn im Satz über die Datei — die Lampe
+       allein ginge in der Liste unter, und die Zeile zeigt nur zwei Zeilen. */
+    const rot = mappe.map((m, i) => m.urteil && m.urteil.art === "fehler" ? i + 1 : 0).filter(Boolean);
+    const rotSatz = !rot.length ? ""
+      : rot.length === 1 ? `Eintrag ${rot[0]} hält nicht alle Maße ein. `
+      : `Die Einträge ${rot.slice(0, -1).join(", ")} und ${rot[rot.length - 1]} halten nicht alle Maße ein. `;
+    /* Das aktuelle Geländer kommt mit in die Datei, wenn es nicht schon darin
+       liegt — ist es rot, gehört das in denselben Satz. zeigen() läuft nach
+       jeder Rechnung, wenn der Plankopf schon steht. */
+    const jetzt = urteilJetzt();
+    const rotJetzt = n > 0 && drin < 0 && !!gueltig() && jetzt && jetzt.art === "fehler"
+      ? "Das aktuelle Geländer hält nicht alle Maße ein. " : "";
+    hol("mappe-datei").textContent = rotSatz + rotJetzt + (n === 0
       ? "Die Mappe ist leer — der Knopf schreibt nur das aktuelle Geländer."
       : (drin >= 0
           ? (n === 1 ? "Das Geländer der Mappe; es ist das aktuelle (Eintrag 1) und kommt nicht doppelt hinein."
@@ -11480,7 +11519,9 @@ try{
       const rand = trasseDa() ? TRASSE.seiten[seiteJetzt()] : null;
       const text = ifcErzeugen(letzte, rand);
       if(!text) return nein(ohneGelaender());
-      const eintrag = {name: nameJetzt(), text, schnapp: s, kennung: k};
+      const eintrag = {name: nameJetzt(), text, schnapp: s, kennung: k,
+                       // gezählt wie geschrieben: auf der Trasse an Pfosten und Knicken geteilt, Umfang beachtet
+                       urteil: urteilJetzt(), koerper: ifcKoerperZahl(!!rand) || 0};
       wegnehmen(an); try{ fehltWeg(hol("mappe-ablage")); }catch(e){}
       if(wohin >= 0 && wohin < mappe.length){
         mappe[wohin] = eintrag;
