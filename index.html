@@ -3266,7 +3266,8 @@ button.ifc-rot::after{border-radius:0}
    Alle Maße in mm. */
 
 // Handlaufvarianten für Gel 3, 4 und 6: das Blatt zeigt den geteilten Handlauf
-// mit dem Zusatz „z.B.“, die ungeteilten Profile stammen von Gel 5.
+// mit dem Zusatz „z.B.“, die ungeteilten Profile stammen von Gel 5. Seit
+// 23.11.2026 dort gesperrt (handlaufwahlZeigen): auf dem 70er-Pfosten ohne Blatt.
 const HL_WAHL = [["geteilt","geteilt"],["ungeteilt","ungeteilt 120"],["ungeteiltKlein","ungeteilt 80"]];
 
 /* Vorgabewerte aus RiZ-ING, Stand Dezember 2023 – Gruppe Gel.
@@ -8140,12 +8141,23 @@ function holmwahlZeigen(){
                      : `${t.kurz} ist mit ${t.holme.wahl[0]} Holmen festgelegt.`);
 }
 
+/* Den ungeteilten Handlauf zeichnet die RiZ-ING nur bei Gel 5, dort auf den
+   Füllstäben. Auf den 70er-Pfosten von Gel 3, 4 und 6 zeigen die Blätter den
+   geteilten nach Gel 10 (Unterteil 80 breit, deckt den Pfosten); ein
+   ungeteilter läge mit seinem 65 bzw. 45 breiten Hals auf dem offenen
+   Pfostenrohr, und wie er dort befestigt wäre, regelt kein Blatt. Die Knöpfe
+   bleiben sichtbar und sagen das. */
+const HL_UNGETEILT_GRUND = `<b>Den ungeteilten Handlauf gibt es nach RiZ-ING nur bei Gel 5</b> — dort liegt er auf den Füllstäben. ` +
+  `Auf den 70er-Pfosten von Gel 3, 4 und 6 zeigen die Blätter den geteilten Handlauf nach Gel 10: sein Unterteil ist 80 breit und deckt den Pfosten ab. ` +
+  `Ein ungeteilter läge mit dem schmaleren Hals auf dem offenen Pfostenrohr; wie er dort befestigt wäre, regelt kein Blatt.`;
 function handlaufwahlZeigen(){
   const t = TYPEN[typIndex], w = t.handlauf && t.handlauf.wahl;
   $("feld-handlauf").style.display = w ? "" : "none";
   if(!w) return;
   $("handlaufwahl").innerHTML = w.map(([art,bez]) =>
     `<button type="button" data-art="${art}" aria-pressed="${art === hlArt}">${bez}</button>`).join("");
+  if(t.handlauf.art === "geteilt")
+    [...$("handlaufwahl").children].forEach(b => { if(b.dataset.art !== "geteilt") knopfSperren(b, HL_UNGETEILT_GRUND); });
 }
 
 $("handlaufwahl").addEventListener("click", ev => {
