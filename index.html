@@ -3646,6 +3646,62 @@ function pruefen(r){
       `${werk.lang} verlangt eine Fußleiste, wenn Verkehrswege unter oder neben dem Bauwerk verlaufen: ` +
       `Höhe ≥ ${t.fussleiste.hoehe} mm, Spalt zur Kappe ≤ ${t.fussleiste.spalt} mm. Sie wird hier nicht mit erzeugt.`);
 
+  /* Die Trasse. Was das Werkzeug aus der Datei nicht wissen kann, steht hier
+     bei den übrigen Prüfungen — nicht nur in der Meldezeile der Karte Trasse,
+     wo man beim Export nicht hinsieht. Nur, wenn eine Trasse vorliegt — dann
+     IST der Weg der über die Trasse (die Wegwahl zieht nach, siehe dort; der
+     Wechsel auf „gerade" entlädt sie und rechnet neu).
+     Die Länge ist gelb, wenn sie nicht zum Rand passt (der Export verweigert
+     dann ohnehin); Ausrundung und Vorzeichen sind Auskunft, kein Urteil —
+     sie färben den Plankopf nicht. Namen aus der Datei gehen maskiert in
+     den Text, die Prüfungen werden als HTML gezeigt. */
+  const aufTrasse = typeof TRASSE !== "undefined" && TRASSE && TRASSE.seiten;
+  if(aufTrasse && r.gueltig){
+    const seite = ($("trasse-seite") && $("trasse-seite").value) || "links";
+    const rand = TRASSE.seiten[seite];
+    const randName = TRASSE._direkt ? `der Standlinie ${fehltText(TRASSE.achse)}` : `am Rand ${seite}`;
+    if(rand){
+      if(!(Math.abs(rand.laenge - r.L) <= 1))          // auch eine unlesbare Länge ist keine passende
+        p("hinweis","Länge passt nicht zum Rand",
+          `Im Formular ${fmt(r.L)} ${einheit}, ${randName} ${fmt(rand.laenge)} ${einheit} entlang der Trasse. ` +
+          `Erst die Länge des Randes übernehmen (Karte Trasse), dann stimmen Teilung und Export.`);
+      else
+        p("ok","Länge aus der Trasse",
+          `L ist die Länge ${randName}, ${fmt(rand.laenge)} ${einheit}, gemessen entlang der Trasse. ` +
+          `Teilung und Pfosten folgen ihr.`);
+    }
+    const T = TRASSE._roh;                 // nur bei einer gelesenen TCL oder eigenen Achse
+    if(T){
+      const opt = TRASSE._opt || {};
+      const de = (v, n) => Number(v).toLocaleString("de-DE", {minimumFractionDigits: n, maximumFractionDigits: n});
+      // Stationen so, wie die Karte Trasse sie zeigt: lokal oder absolut nach ihrer Wahl
+      const s0 = $("tr-sbezug") && $("tr-sbezug").value === "abs" ? (T.sbegin || 0) : 0;
+      const station = s => `${de(s + s0, 3)} m`;
+      // Nur, was das Geländer berührt: die Ausrundung reicht halb vor und halb hinter ihren Punkt
+      const von = isFinite(opt.sVon) ? opt.sVon : 0, bis = isFinite(opt.sBis) ? opt.sBis : T.sEnde;
+      const rund = ausrundungenVernachlaessigt(T).filter(x => x.s + x.halb >= von && x.s - x.halb <= bis);
+      if(rund.length){
+        const max = rund.reduce((a, b) => b.mm > a.mm ? b : a);
+        p("neutral","Ausrundung geradlinig gerechnet",
+          `Die Gradiente wird zwischen ihren Punkten geradlinig gerechnet; Ausrundungen bildet das Werkzeug nicht nach. ` +
+          (rund.length === 1
+            ? `Bei Station ${station(max.s)} bleiben dadurch ${de(max.mm, 1)} mm unberücksichtigt.`
+            : `An ${rund.length} Ausrundungen im Bereich des Geländers bleiben bis zu ${de(max.mm, 1)} mm unberücksichtigt (Station ${station(max.s)}).`) +
+          ` Gemeint ist der Stich in der Mitte der Ausrundung, Halbmesser × Neigungsänderung² / 8.`);
+      }
+      if(!TRASSE._direkt){
+        const vz = opt.gefVz === 1 ? "+" : "−";
+        p("neutral","Vorzeichen des Quergefälles",
+          (T.gef
+            ? `Quergefälle aus der Kurve „${fehltText(T.gefName)}“, Vorzeichen ${vz}. Ob ihre Werte nach links oder ` +
+              `nach rechts fallend gemeint sind, steht nicht in der Datei.`
+            : `Quergefälle konstant ${de(T.gefKonst, 2)} %, Vorzeichen ${vz}. Ob damit der richtige Rand ` +
+              `oben liegt, kann das Werkzeug nicht gegen das Bauwerk prüfen.`) +
+          ` Einmal am Modell prüfen: liegen die beiden Ränder in der Höhe vertauscht, in der Karte Trasse das Vorzeichen umstellen.`);
+      }
+    }
+  }
+
   r.fehler  = liste.filter(x => x.art === "fehler").length;
   r.hinweis = liste.filter(x => x.art === "hinweis").length;
   return liste;
@@ -8309,7 +8365,9 @@ function trasseAbschalten(meldung){
   ["btn-ifc-kurve","btn-dxf-plan-kurve","btn-json","btn-kurve-dxf"].forEach(i => knopfSperren($(i), ohneTrasse));
   $("feld-rand").style.display = "";      // ohne Trasse wieder sichtbar
   knopfBeschriften();
-  zeichneTrasse(letzte);                  // das Trassenbild verschwindet mit
+  /* Neu rechnen statt nur das Trassenbild wegnehmen: die Prüfungen zur
+     Trasse gehen mit ihr (zeichneTrasse läuft darin mit). */
+  alles();
 }
 
 // Datei einlesen und die Auswahllisten aus ihr füllen — Achsen und Kurven kommen
@@ -8357,6 +8415,24 @@ function tclEinlesen(){
 // umzurechnen, und die Felder dafuer verschwinden, damit niemand doppelt versetzt.
 function modusAusAchse(){
   $("tr-modus").value = /^GEL[_-]/i.test($("tr-achse").value || "") ? "direkt" : "versatz";
+}
+
+/* Die Gradiente wird zwischen ihren Punkten geradlinig gerechnet. Was eine
+   Ausrundung dabei unberücksichtigt lässt, ist ihr Stich in der Mitte:
+   Halbmesser × Neigungsänderung² / 8. Genannt wird, was über 1 mm liegt —
+   in der Meldezeile der Trasse und bei den Prüfungen, aus dieser einen Rechnung. */
+function ausrundungenVernachlaessigt(T){
+  const aus = [];
+  for(const ru of T.rundungen || []){
+    const i = T.grad.findIndex(p => p.s === ru.s);
+    if(i <= 0 || i >= T.grad.length-1) continue;
+    const n1 = (T.grad[i].h - T.grad[i-1].h)/(T.grad[i].s - T.grad[i-1].s);
+    const n2 = (T.grad[i+1].h - T.grad[i].h)/(T.grad[i+1].s - T.grad[i].s);
+    const st = ru.r * Math.pow(n2-n1,2)/8*1000;
+    // halb: die halbe Länge der Ausrundung (Tangente), in m wie die Station
+    if(st > 1) aus.push({s: ru.s, mm: st, halb: ru.r * Math.abs(n2-n1) / 2});
+  }
+  return aus;
 }
 
 function trasseAusTcl(){
@@ -8415,14 +8491,8 @@ function trasseAusTcl(){
         `liegt auf ${(aVon.x + NP.x).toFixed(3)} / ${(aVon.y + NP.y).toFixed(3)}.`
       : ` Nullpunkt nicht angewendet — die Koordinaten bleiben projektlokal.`;
     if(T.profilNotlage) txt += ` Kein ACTIVE-Gradientenprofil — benutzt wird "${T.profil}".`;
-    for(const ru of T.rundungen){
-      const i = T.grad.findIndex(p => p.s === ru.s);
-      if(i <= 0 || i >= T.grad.length-1) continue;
-      const n1 = (T.grad[i].h - T.grad[i-1].h)/(T.grad[i].s - T.grad[i-1].s);
-      const n2 = (T.grad[i+1].h - T.grad[i].h)/(T.grad[i+1].s - T.grad[i].s);
-      const st = ru.r * Math.pow(n2-n1,2)/8*1000;
-      if(st > 1) txt += ` Ausrundung bei Station ${ru.s}: ${st.toFixed(1)} mm vernachlässigt.`;
-    }
+    for(const ru of ausrundungenVernachlaessigt(T))
+      txt += ` Ausrundung bei Station ${ru.s}: ${ru.mm.toFixed(1)} mm vernachlässigt.`;
     $("tcl-info").textContent = txt;
     feldFrei($("trasse-seite"));
     ["btn-ifc-kurve","btn-dxf-plan-kurve","btn-json","btn-kurve-dxf"].forEach(i => knopfFrei($(i)));
@@ -8516,7 +8586,7 @@ $("trasse-datei").addEventListener("change", ev => {
       knopfSperren($("btn-ifc-kurve"), ohneTrasse);
       knopfSperren($("btn-dxf-plan-kurve"), ohneTrasse);
       $("trasse-info").textContent = "Datei nicht lesbar: " + e.message;
-      zeichneTrasse(letzte);
+      alles();                                 // Trassenbild und Prüfungen zur Trasse gehen mit
     }
   };
   leser.readAsText(datei);
