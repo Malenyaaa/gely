@@ -1760,9 +1760,9 @@ button, summary, label, select, a, .reiter{cursor:pointer}
   --bz-linie:#3a4044;
 
   --d3-grund:#15181a;
-  --d3-flaeche:#1d2124;
-  --d3-kante:#d9dcd6;
-  --d3-licht:#2b3033;
+  --d3-flaeche:#9aa09b;
+  --d3-kante:#2a2f32;
+  --d3-licht:#e4e6e1;
 }
 }
 
@@ -2222,7 +2222,7 @@ button.ifc-rot::after{border-radius:0}
 
   --bz-grund:#0f100f; --bz-ink:#ededed; --bz-alt:#b4b5b1; --bz-gelb:#f0c35a; --bz-rot:#ff8f80; --bz-linie:#0f100f;
 
-  --d3-grund:var(--raum); --d3-flaeche:#3f413f; --d3-kante:#c9cac6; --d3-licht:#6a6c6a;
+  --d3-grund:var(--raum); --d3-flaeche:#8f918f; --d3-kante:#2a2f32; --d3-licht:#dcdddb;
   color-scheme:dark;
 }
 
@@ -2519,6 +2519,78 @@ html :is(:focus-visible,#pult-gibt-es-nicht):focus-visible{transition:none !impo
 .pult-marke{transform-origin:0 0}
 /* Paletten: der Menü-Knopf „Mappe" sinkt beim Drücken nicht — das Menü bleibt ohne Weg */
 :root[data-skin=paletten] .hud-dock #chip-mappe:active{translate:none !important}
+
+/* ---------- Auswahllisten, die aufgleiten ----------
+   Wo der Browser die anpassbare Auswahlliste kennt (appearance: base-select),
+   wird nur ihr Aussehen gesetzt: die <select> und ihre Werte bleiben, wie sie
+   sind, alle Behandler des Werkzeugs laufen weiter. Die Liste gleitet beim
+   Öffnen 160 ms von oben auf, beim Schließen blendet sie in 100 ms aus; per
+   Tastatur geöffnet (pult-still) steht sie sofort da; bei reduzierter
+   Bewegung nur Überblenden. Ältere Browser behalten die normale Liste. */
+@supports (appearance: base-select){
+@media screen{
+  select,::picker(select){appearance:base-select}
+  select{display:inline-flex;align-items:center;justify-content:space-between;gap:8px;padding:0 9px 0 10px;text-align:left}
+  select::picker-icon{content:"";flex:none;width:6px;height:6px;margin:-3px 2px 0 0;
+    border-right:1.5px solid var(--ink-weich);border-bottom:1.5px solid var(--ink-weich);rotate:45deg}
+  html:not(.pult-still):not(.pult-laden) select::picker-icon{transition:rotate var(--dauer-kurz) var(--kurve-raus),margin var(--dauer-kurz) var(--kurve-raus)}
+  select:open::picker-icon{rotate:225deg;margin-top:3px}
+
+  ::picker(select){
+    border:1px solid var(--ink-weich);border-radius:0;background:var(--karte);color:var(--ink);
+    padding:2px 0;margin:2px 0;box-shadow:none;font:400 13px/1.35 var(--s);max-height:min(60vh,420px);
+    opacity:1;translate:0 0}
+  html:not(.pult-still):not(.pult-laden) ::picker(select){
+    transition:opacity 100ms ease-out,translate 100ms ease-out,overlay 100ms allow-discrete,display 100ms allow-discrete}
+  html:not(.pult-still):not(.pult-laden) select:open::picker(select){
+    transition:opacity var(--dauer-kurz) var(--kurve-raus),translate var(--dauer-kurz) var(--kurve-raus),
+               overlay var(--dauer-kurz) allow-discrete,display var(--dauer-kurz) allow-discrete}
+  select:not(:open)::picker(select){opacity:0;translate:0 calc(-3px * var(--pult-weg))}
+  @starting-style{ select:open::picker(select){opacity:0;translate:0 calc(-6px * var(--pult-weg))} }
+
+  select option{display:flex;align-items:center;gap:8px;padding:4px 10px;min-height:26px;font:inherit;background:transparent;color:var(--ink)}
+  select option::checkmark{display:none}
+  select option:hover{background:var(--blau-hell)}
+  select option:focus-visible{outline:2px solid var(--blau);outline-offset:-2px}
+  /* Gewählt: umgekehrt und fett — nicht nur Farbe */
+  select option:checked{background:var(--blau);color:var(--blau-ink);font-weight:700}
+  select option:disabled{color:var(--ink-leise);font-style:italic}
+  select optgroup{padding:0;font-weight:700;color:var(--ink-weich);background:transparent}
+  select optgroup::label{display:block;padding:6px 10px 2px;font:700 11.5px/1.3 var(--s);color:var(--ink-weich)}
+  select optgroup option{font-weight:400;padding-left:18px}
+  select optgroup option:checked{font-weight:700}
+
+  /* Paletten: die Liste erhaben, mit schwarzer Außenlinie; gewählt eingedrückt */
+  :root[data-skin=paletten] ::picker(select){background:var(--pal);border:1px solid var(--rahmen-aussen);
+    box-shadow:inset 1px 1px 0 var(--bev-hell),inset -1px -1px 0 var(--bev-dunkel)}
+  :root[data-skin=paletten] select option:hover{background:color-mix(in srgb,var(--pal) 80%,var(--bev-hell))}
+  :root[data-skin=paletten] select option:checked{background:var(--pal-tief);color:var(--ink);
+    box-shadow:inset 1px 1px 0 var(--kbev-dunkel),inset -1px -1px 0 var(--kbev-hell)}
+  :root[data-skin=paletten] select option:focus-visible{outline-color:var(--signal)}
+  /* Die Landeswahl im schwarzen Titelbalken (Paletten): die Liste dunkel wie der Balken */
+  :root[data-skin=paletten] .karte-kopf select::picker(select){background:#2a2b2a;color:#f2f2f2;border-color:#0a0a0a;
+    --ink:#f2f2f2;--ink-weich:#b9bab8;--blau-hell:rgba(255,255,255,.12);box-shadow:inset 1px 1px 0 #6a6b6a,inset -1px -1px 0 #0a0a0a}
+  :root[data-skin=paletten] .karte-kopf select option:checked{background:#0f100f;color:#f2f2f2;box-shadow:inset 1px 1px 0 #0a0a0a,inset -1px -1px 0 #6a6b6a}
+}
+}
+
+/* 3D im Dunkeln: helle Körper mit dunklen Kanten (oben in den Marken). Die Mitte des
+   Achsenkreuzes nimmt sonst die Kantenfarbe — sie bleibt hell wie bisher. */
+@media screen{
+  :root[data-theme=dunkel] .d3-achsen-mitte{fill:#d9dcd6}
+  :root[data-skin=paletten][data-theme=dunkel] .d3-achsen-mitte{fill:#c9cac6}
+}
+
+/* ---------- „?“ ohne Kasten ----------
+   Wunsch: kein Rahmen um die Fragezeichen, in beiden Aussehen. Erkennbar
+   bleiben sie über die Farbe beim Darüberfahren, den Fokusrahmen und — wenn
+   die Erklärung offen ist — fett und unterstrichen. */
+html .k-frage, :root[data-skin=paletten] .k-frage{
+  border:0 !important;background:transparent !important;box-shadow:none !important;
+  padding-inline:3px;min-width:18px;font-weight:600}
+html .k-frage:hover{color:var(--bp-mass,currentColor) !important;background:transparent !important}
+html .k-frage[aria-expanded=true]{font-weight:700;text-decoration:underline;text-underline-offset:2px;background:transparent !important}
+html .k-frage:focus-visible{outline:2px solid currentColor;outline-offset:1px}
 </style>
 </head>
 <body>
@@ -15377,8 +15449,9 @@ try{
    den Geländeranfang so gedreht, dass das Geländer im Mittel längs x läuft.
 
    Bedienung wie in CAD:
-     linke Taste / ein Finger      dreht um das Ziel
-     rechte oder mittlere Taste,
+     rechte oder linke Taste,
+     ein Finger                    dreht um den gegriffenen Punkt (wie in Allplan)
+     mittlere Taste,
      Umschalt + linke Taste        verschiebt
      Rad                           zoomt zum Zeiger
      zwei Finger                   zoomen und verschieben
@@ -15422,8 +15495,16 @@ try{
 #karte-ansicht.d3-an > #zeichnung{visibility:hidden}
 #karte-ansicht.d3-an:not(.hud-buehne) > #zeichnung{min-height:clamp(300px,56vh,680px)}
 .bp-kopf .d3-schalter{margin-left:auto;padding:2px;flex:0 0 auto;align-self:center}
-.bp-kopf .d3-schalter button{flex:0 0 auto;padding:2px 12px;font-size:11.5px;line-height:18px}
+.bp-kopf .d3-schalter button{flex:0 0 auto;padding:2px 12px;font-size:11.5px;line-height:18px;white-space:nowrap}
+/* Würfel vor „3D": drei Flächen in drei Tönen der Schriftfarbe, Kanten 1 px */
+.bp-kopf .d3-schalter .d3-wuerfel{display:inline-block;vertical-align:-2px;margin-right:4px;overflow:visible}
+.bp-kopf .d3-schalter{flex-wrap:nowrap}
 .bp-kopf .d3-schalter ~ .minitat{margin-left:0}
+/* „3D" leicht plastisch: zwei versetzte Lagen in der eigenen Schriftfarbe,
+   ausgedünnt — folgt damit hell/dunkel, gewählt/nicht gewählt und jedem Thema.
+   „2D" bleibt flach. */
+.bp-kopf .d3-schalter button[data-d3="3d"]{
+  text-shadow:1px 1px 0 color-mix(in srgb,currentColor 38%,transparent),2px 2px 0 color-mix(in srgb,currentColor 16%,transparent)}
 .d3-flaeche{position:absolute;left:0;top:0;z-index:0;overflow:hidden;outline:none;touch-action:none;background:var(--d3-grund,var(--bp))}
 .d3-flaeche[hidden]{display:none !important}
 .d3-flaeche:focus-visible{box-shadow:inset 0 0 0 2px var(--blau)}
@@ -15481,7 +15562,13 @@ body:has(.pult-achse) #karte-ansicht.hud-buehne .d3-achsen{position:fixed;left:1
   schalter.setAttribute("aria-label", "Darstellung der Ansicht");
   schalter.innerHTML =
     '<button type="button" data-d3="2d" aria-pressed="true" title="Die maßstäbliche Ansicht mit Maßen">2D</button>' +
-    '<button type="button" data-d3="3d" aria-pressed="false" title="Das Geländer als Körper, frei drehbar — dieselben Körper wie im IFC- und DXF-Export">3D</button>';
+    '<button type="button" data-d3="3d" aria-pressed="false" title="Das Geländer als Körper, frei drehbar — dieselben Körper wie im IFC- und DXF-Export">' +
+      '<svg class="d3-wuerfel" aria-hidden="true" focusable="false" viewBox="0 0 14 14" width="13" height="13">' +
+        '<path d="M1.4 4.2 7 7.4v6.2L1.4 10.4z" fill="currentColor"/>' +
+        '<path d="M7 7.4l5.6-3.2v6.2L7 13.6z" fill="currentColor" fill-opacity=".65"/>' +
+        '<path d="M7 1l5.6 3.2L7 7.4 1.4 4.2z" fill="currentColor" fill-opacity=".35"/>' +
+        '<path d="M7 1l5.6 3.2v6.2L7 13.6 1.4 10.4V4.2zM1.4 4.2 7 7.4l5.6-3.2M7 7.4v6.2" fill="none" stroke="currentColor" stroke-width="1" stroke-linejoin="round"/>' +
+      '</svg>3D</button>';
   const knopf2d = schalter.children[0], knopf3d = schalter.children[1];
   if(kopf){
     /* Der gelbe Kasten soll unter dem Kopf stehen, nicht mitten in der Knopfreihe */
@@ -15543,7 +15630,7 @@ body:has(.pult-achse) #karte-ansicht.hud-buehne .d3-achsen{position:fixed;left:1
   fl.after(flaeche);
   aufraeumen.push(() => { flaeche.remove(); karte.classList.remove("d3-an"); });
 
-  const HILFE = "Linke Taste dreht · rechte oder mittlere Taste oder Umschalt + links verschiebt · Rad zoomt zum Zeiger · Doppelklick passt ein";
+  const HILFE = "Rechte oder linke Taste dreht, mittlere verschiebt — wie in Allplan · Umschalt + links verschiebt auch · Rad zoomt zum Zeiger · Doppelklick (auch mit dem Rad) passt ein";
   let leinwand = null;                 // das Canvas
   let maler = null;                    // {art: "gl"|"2d", ...}
 
@@ -16566,6 +16653,7 @@ void main(){ gl_FragColor = vec4(uK, 1.0); }`;
      dann sofort malen (der ResizeObserver läuft vor dem Malen des Browsers),
      sonst flackerte ein leeres Bild auf. */
   function neuVermessen(){
+    drehK = 0;
     const geleert = groesse();
     if(Z.eingepasst && !gleiten && !schwung && Z.netz){ const w = einpassWerte(); if(w){ Z.s = w.s; Z.T = w.T; } }
     if(geleert) bild(); else anfordern();
@@ -16700,7 +16788,16 @@ void main(){ gl_FragColor = vec4(uK, 1.0); }`;
   }
 
   /* ---------- Bedienung ---------- */
-  const DREH = 0.0065;                                // rad je Bildpunkt
+  /* Drehempfindlichkeit: einmal quer über das freie Feld ziehen dreht 180°.
+     Bis 23.11.2026 waren es fest 0,0065 rad je Bildpunkt — bei 900 px Feld
+     rund 335°, zu schnell. Gemessen wird beim Greifen (das Feld ändert sich
+     mit den Tafeln), mindestens 500 px Bezug, damit ein kleines Fenster nicht
+     überempfindlich wird. */
+  let drehK = 0;
+  function drehJePixel(){
+    if(!drehK){ const f = feld(); drehK = Math.PI / Math.max(500, f.b + 32); }
+    return drehK;
+  }
   const ZOOM = 1.15;
   const begrenzen = () => { Z.ph = Math.max(-Math.PI/2, Math.min(Math.PI/2, Z.ph)); };
   /* ---------- Drehen um den gegriffenen Punkt ----------
@@ -16719,7 +16816,8 @@ void main(){ gl_FragColor = vec4(uK, 1.0); }`;
     const alt = achsen();
     const v = g ? sub(g, Z.T) : null;
     const a = v ? [dot(v, alt.r), dot(v, alt.u), dot(v, alt.e)] : null;
-    Z.th -= dx*DREH; Z.ph += dy*DREH; begrenzen();
+    const k = drehJePixel();
+    Z.th -= dx*k; Z.ph += dy*k; begrenzen();
     if(a){
       const neu = achsen();
       Z.T = sub(g, add(add(mul(neu.r, a[0]), mul(neu.u, a[1])), mul(neu.e, a[2])));
@@ -16845,7 +16943,7 @@ void main(){ gl_FragColor = vec4(uK, 1.0); }`;
     const jetzt = performance.now(), dt = Math.min(50, jetzt - schwung.t);
     schwung.t = jetzt;
     drehen(schwung.vx * dt, schwung.vy * dt);         // weiter um denselben Drehpunkt
-    const k = Math.exp(-dt / 140);
+    const k = Math.exp(-dt / 90);                     // klingt rasch ab (vorher 140 ms)
     schwung.vx *= k; schwung.vy *= k;
     if(Math.hypot(schwung.vx, schwung.vy) < 0.02){ schwung = null; Z.dreh = null; }
     else anfordern();
@@ -16853,7 +16951,7 @@ void main(){ gl_FragColor = vec4(uK, 1.0); }`;
 
   function bedienungAnhaengen(c){
     const finger = new Map();
-    let zug = null, kneif = null, spur = [];
+    let zug = null, kneif = null, spur = [], mitteDruck = null;
     const lokal = ev => { const rc = c.getBoundingClientRect(); return [ev.clientX - rc.left, ev.clientY - rc.top]; };
     const still = ev => ev.stopPropagation();
     ["click", "mousedown", "auxclick", "mouseup", "pointerup", "pointercancel"].forEach(n => c.addEventListener(n, still));
@@ -16867,9 +16965,22 @@ void main(){ gl_FragColor = vec4(uK, 1.0); }`;
       try{ c.setPointerCapture(ev.pointerId); }catch(e){}
       finger.set(ev.pointerId, lokal(ev));
       if(finger.size === 2){ zug = null; kneif = null; Z.dreh = null; kreuzZeigen(null); c.classList.remove("zieht", "schiebt"); return; }
-      const schiebt = ev.pointerType === "mouse" ? (ev.button === 1 || ev.button === 2 || (ev.button === 0 && ev.shiftKey)) : false;
+      // Wie in Allplan: rechte Taste dreht, mittlere verschiebt; links dreht auch (Touchpad), mit Umschalt verschiebt es
+      const schiebt = ev.pointerType === "mouse" ? (ev.button === 1 || (ev.button === 0 && ev.shiftKey)) : false;
       if(ev.pointerType === "mouse" && ev.button > 2) return;
       if(ev.button === 1 || ev.button === 2) ev.preventDefault();
+      /* Zweimal kurz die mittlere Taste an fast derselben Stelle: einpassen, wie
+         in 2D und wie der Knopf (dblclick feuert für sie nicht). Ohne Bewegung
+         verschiebt der erste Druck nichts. */
+      if(ev.button === 1){
+        const jetzt = performance.now(), p = lokal(ev);
+        if(mitteDruck && jetzt - mitteDruck.t < 400 && Math.hypot(p[0] - mitteDruck.x, p[1] - mitteDruck.y) < 6){
+          mitteDruck = null; zug = null; finger.delete(ev.pointerId);
+          halt(); einpassen(); return;
+        }
+        mitteDruck = {t: jetzt, x: p[0], y: p[1]};
+      }
+      drehK = 0;                                     // Bezug fürs Drehen neu messen
       zug = {id: ev.pointerId, p: lokal(ev), schiebt};
       spur = [[performance.now(), ...zug.p]];
       c.classList.add(schiebt ? "schiebt" : "zieht");
@@ -16892,7 +17003,11 @@ void main(){ gl_FragColor = vec4(uK, 1.0); }`;
         return;
       }
       if(!zug || zug.id !== ev.pointerId) return;
+      // Fenster verlor mitten im Ziehen den Fokus und kein pointerup kam: Maus ohne Taste beendet den Zug
+      if(ev.pointerType === "mouse" && !ev.buttons){ los(ev); return; }
       const dx = p[0] - zug.p[0], dy = p[1] - zug.p[1];
+      // Wer wirklich verschiebt, macht keinen Doppelklick mit dem Rad mehr daraus
+      if(mitteDruck && Math.hypot(p[0] - mitteDruck.x, p[1] - mitteDruck.y) >= 6) mitteDruck = null;
       zug.p = p;
       if(zug.schiebt) schieben(dx, dy); else drehen(dx, dy);
       spur.push([performance.now(), ...p]);
@@ -16908,7 +17023,8 @@ void main(){ gl_FragColor = vec4(uK, 1.0); }`;
           const a = spur[0], b = spur[spur.length-1], dt = b[0] - a[0];
           if(dt > 0 && performance.now() - b[0] < 60){
             const vx = (b[1]-a[1])/dt, vy = (b[2]-a[2])/dt;
-            if(Math.hypot(vx, vy) > 0.25){ schwung = {vx, vy, t: performance.now()}; anfordern(); }
+            // erst ab einem deutlichen Wurf, und schwächer als die Hand (vorher ab 0,25 px/ms, volle Stärke)
+            if(Math.hypot(vx, vy) > 0.5){ schwung = {vx: vx*0.5, vy: vy*0.5, t: performance.now()}; anfordern(); }
           }
         }
         zug = null;
@@ -16919,6 +17035,7 @@ void main(){ gl_FragColor = vec4(uK, 1.0); }`;
     };
     c.addEventListener("pointerup", los);
     c.addEventListener("pointercancel", los);
+    c.addEventListener("lostpointercapture", ev => { if(finger.has(ev.pointerId)) los(ev); });
     c.addEventListener("wheel", ev => {
       ev.preventDefault(); ev.stopPropagation();
       if(!Z.netz) return;
@@ -16933,7 +17050,7 @@ void main(){ gl_FragColor = vec4(uK, 1.0); }`;
   flaeche.addEventListener("keydown", ev => {
     if(ev.target !== flaeche || ev.altKey || ev.ctrlKey || ev.metaKey) return;
     const k = ev.key;
-    const schritt = 15 / (DREH * 180/Math.PI);         // 15° je Druck
+    const schritt = (5 * Math.PI/180) / drehJePixel();  // 5° je Druck (vorher 15°)
     if(k === "1") blick("vorn");
     else if(k === "2") blick("oben");
     else if(k === "3") blick("iso");
@@ -17343,7 +17460,7 @@ try{
       sagen(`Ansicht 3D, ${BLICKE[ziel]}.`);
       return;
     }
-    sagen("Ansicht 3D. Linke Taste dreht, rechte oder mittlere verschiebt, das Rad zoomt; 2d schaltet zurück.");
+    sagen("Ansicht 3D. Rechte oder linke Taste dreht, mittlere verschiebt — wie in Allplan; das Rad zoomt; 2d schaltet zurück.");
   }
 
   /* ---------- Die Befehle ----------
