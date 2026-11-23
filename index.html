@@ -879,6 +879,8 @@ button[aria-disabled=true]{opacity:.45;cursor:help}
 /* Die kleinen Knöpfe werden nur leiser, nicht blass — sie bleiben lesbar */
 :is(.minitat,.mini,.verlauf-knopf)[aria-disabled=true]{opacity:1;color:var(--ink-leise);border-style:dashed}
 :is(.minitat,.mini,.verlauf-knopf)[aria-disabled=true]:hover{color:var(--ink-leise);border-color:var(--kante-stark);background:transparent}
+/* ↶ ↷ ohne Schritt erklären nichts — also kein Fragezeichen am Zeiger */
+.verlauf-knopf[aria-disabled=true]{cursor:default}
 button[aria-disabled=true]:active{transform:none}
 /* Ein Feld, das gerade nicht gilt, bleibt bedienbar und sagt beim Versuch im
    gelben Kasten, warum (feldSperren() im Skript) */
@@ -14346,19 +14348,28 @@ try{
     if(!t.length) return "Eingaben";
     return t.length > 2 ? `${t.slice(0, 2).join(", ")} und ${t.length - 2} weitere` : t.join(", ");
   }
+  /* Ohne Schritt sind ↶ ↷ nur leiser, ohne gelben Kasten: was Rückgängig
+     und Wiederholen tun, weiß jeder, und der Klick tut dann schlicht nichts.
+     aria-disabled ohne _fehlt — der Abfänger für gesperrte Knöpfe meldet
+     nur, wenn es einen Grund gibt. Nie disabled. */
+  function stillSperren(k){
+    k.setAttribute("aria-disabled", "true");
+    k._fehlt = null;
+    try{ fehltWeg(k); }catch(e){}
+  }
   function knoepfeZeigen(){
     if(pos > 0){
       knopfFrei(zurueckK);
       zurueckK.title = `Rückgängig: ${beschreiben(verlauf[pos].s, verlauf[pos - 1].s)} (Strg+Z)`;
     } else {
-      knopfSperren(zurueckK, "<b>Nichts zurückzunehmen.</b> Seit dem Laden der Seite gibt es keinen früheren Stand.");
+      stillSperren(zurueckK);
       zurueckK.title = "Rückgängig — noch nichts zurückzunehmen (Strg+Z)";
     }
     if(pos < verlauf.length - 1){
       knopfFrei(vorK);
       vorK.title = `Wiederholen: ${beschreiben(verlauf[pos].s, verlauf[pos + 1].s)} (Strg+Y)`;
     } else {
-      knopfSperren(vorK, "<b>Nichts zu wiederholen.</b> Wiederholen holt zurück, was mit ↶ zurückgenommen wurde.");
+      stillSperren(vorK);
       vorK.title = "Wiederholen — nichts zurückgenommen (Strg+Y)";
     }
   }
@@ -14403,10 +14414,10 @@ try{
     ev.preventDefault();
     // Den offenen Stand vorher festhalten — sonst stünde ↶ noch auf „nichts zurückzunehmen"
     clearTimeout(warten); try{ aufnehmen(); }catch(e){}
-    // Wie ein Klick auf den Knopf — mit dessen gelbem Kasten, wenn es nichts zu tun gibt
+    // Wie ein Klick auf den Knopf — gibt es nichts zu tun, geschieht nichts (stillSperren)
     (zurueck ? zurueckK : vorK).click();
   });
-  // Ebenso mit der Maus: beim Herunterdrücken, vor der Sperre, die den Klick sonst abfängt
+  // Ebenso mit der Maus: schon beim Herunterdrücken, damit der Knopf beim Klick den neuesten Stand kennt
   gruppe.addEventListener("pointerdown", () => { clearTimeout(warten); try{ aufnehmen(); }catch(e){} });
   if(typeof alles === "function"){
     const alt = alles;
