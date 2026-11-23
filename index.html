@@ -1702,9 +1702,10 @@ button, summary, label, select, a, .reiter{cursor:pointer}
 
   /* 3D-Ansicht */
   --d3-grund:#f2f1ec;
-  --d3-flaeche:#d6d5cc;
+  /* Flächen deutlich dunkler als der Grund — sonst verschwindet das Geländer im Hellen */
+  --d3-flaeche:#7d7c74;
   --d3-kante:#1e2122;
-  --d3-licht:#f7f6f1;
+  --d3-licht:#b3b2a8;
 }
 
 :root[data-theme=dunkel]{
@@ -2193,7 +2194,7 @@ button.ifc-rot::after{border-radius:0}
   --z:var(--s);
   --mass:Consolas,"Lucida Console","Courier New",monospace;
 
-  --d3-grund:var(--raum); --d3-flaeche:#8f908e; --d3-kante:#3a3b39; --d3-licht:#e4e5e3; --d3-strich:0.75;
+  --d3-grund:var(--raum); --d3-flaeche:#6f706e; --d3-kante:#2a2b29; --d3-licht:#b0b1af; --d3-strich:0.75;
   color-scheme:light;
 }
 :root[data-skin=paletten][data-theme=dunkel]{
