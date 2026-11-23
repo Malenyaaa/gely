@@ -13868,6 +13868,7 @@ try{
     else if(p.typ === "kreis") text = `rund ⌀ ${zahl1(p.d || gross)}`;
     else if(p.typ === "sechskant") text = `Sechskant SW ${zahl1(p.sw)}`;
     else if(q.name === "Fundament" || q.name === "Mörtelbett") text = `Block ${zahl1(gross)} × ${zahl1(klein)}`;
+    else if(/platte/i.test(q.name || "")) text = `Platte ${zahl1(gross)} × ${zahl1(klein)}`;   // Fußplatte & Co.: der Grundriss, die Dicke steht als Höhe darunter
     else text = `Vollprofil ${zahl1(gross)} × ${zahl1(klein)}`;
     return {text, laenge, laengeWort: ri === "steht" ? "Höhe" : "Länge"};
   }
