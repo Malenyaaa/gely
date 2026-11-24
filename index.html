@@ -3352,6 +3352,11 @@ button, summary, label, select, a, .reiter{cursor:pointer}
   systemDunkel.addEventListener("change", anwenden);   // greift nur bei "system"
   anwenden();
 })();
+/* Beim Aufbau bewegt sich nichts: die Klasse steht ab dem ersten Zeichnen, nicht erst,
+   wenn das Skript unten läuft — sonst rollen Karten und Knöpfe beim Laden einmal auf.
+   Weg kommt sie kurz nach load — auch dann, wenn pult.js ausfällt. */
+document.documentElement.classList.add("pult-laden");
+addEventListener("load", () => setTimeout(() => document.documentElement.classList.remove("pult-laden"), 400), {once: true});
 </script>
 <style id="look-pult">
 /* ===========================================================================
@@ -4159,7 +4164,8 @@ button.ifc-rot::after{border-radius:0}
 .pult-kante::before{content:"";position:absolute;left:0;right:0;top:-5px;bottom:-5px}
 .pult-kante::after{content:"";position:absolute;left:50%;top:1px;width:28px;height:3px;margin-left:-14px;
   border-top:1px solid var(--bz-alt);border-bottom:1px solid var(--bz-alt);pointer-events:none}
-.pult-kante:hover::after,.pult-kante.zieht::after,.pult-kante:focus-visible::after{border-color:var(--bz-gelb);width:44px;margin-left:-22px}
+/* Hover, Ziehen, Fokus: nur die Farbe wechselt, die Striche bleiben gleich lang */
+.pult-kante:hover::after,.pult-kante.zieht::after,.pult-kante:focus-visible::after{border-color:var(--bz-gelb)}
 .pult-kante:focus-visible{box-shadow:inset 0 0 0 2px var(--bz-gelb)}
 .pult-kante.zieht{background:color-mix(in srgb,var(--bz-grund) 70%,var(--bz-gelb))}
 :root[data-skin=paletten] .pult-kante{background:var(--pal);box-shadow:inset 0 1px 0 var(--bev-hell),inset 0 -1px 0 var(--bev-dunkel)}
@@ -19100,6 +19106,8 @@ try{
 
   /* ---------- Bewegung: wann still ----------
      pult-laden: beim ersten Aufbau bewegt sich nichts (bis kurz nach load).
+       Gesetzt und wieder entfernt wird sie schon im Kopf der Seite (beim
+       Farbschema); hier nur zur Sicherheit noch einmal.
      pult-still: was per Tastatur oder Befehlszeile ausgelöst wird, springt
      sofort — gesetzt bei jedem Tastendruck, kurz danach wieder weg. Die
      Regeln dazu stehen in pult.css, Abschnitt „Bewegung". */
