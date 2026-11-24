@@ -1525,7 +1525,7 @@ window.GELY_EN = {
       let grund = null;
       try{
         if(!quelle) grund = lang === "en" ? "The state of the page cannot be read." : "Der Stand der Seite ist nicht zu lesen.";
-        else sessionStorage.setItem(STAND, JSON.stringify({voll: !!window.gelyStandVoll, s: quelle.lesen()}));
+        else sessionStorage.setItem(STAND, JSON.stringify({voll: !!window.gelyStandVoll, s: quelle.lesen(), ansicht: ansichtLesen()}));
         localStorage.setItem(MERKEN, l);
       }catch(e){
         const was = String(e && e.message || e).replace(/[<>&]/g, "");
@@ -1548,16 +1548,53 @@ window.GELY_EN = {
   };
   document.documentElement.lang = lang;
 
-  // Nach dem Umschalten: den mitgegebenen Stand zurück
+  /* Was man sieht, geht mit: der offene Abschnitt, die Mappe, 2D oder 3D.
+     Ohne das baute die Seite nach dem Neuladen erst den ersten Abschnitt auf. */
+  function ansichtLesen(){
+    const app = document.getElementById("app");
+    return {
+      abschnitt: window.gelyAbschnitt ? gelyAbschnitt.lesen() : null,
+      mappe: !!(app && app.classList.contains("mappe-offen")),
+      d3: !!(window.gely3d && gely3d.istAn && gely3d.istAn())
+    };
+  }
+  function ansichtSetzen(a){
+    if(!a) return;
+    const teil = f => { try{ f(); }catch(e){ console.warn("Ansicht nach dem Sprachwechsel:", e); } };
+    if(a.abschnitt && window.gelyAbschnitt) teil(() => gelyAbschnitt.setzen(a.abschnitt));
+    if(a.d3 && window.gely3d) teil(() => gely3d.an());
+    // Die Mappe-Tafel gibt es nur im HUD; auf schmalem Fenster öffnete der Aufruf sonst das Menü
+    const app = document.getElementById("app");
+    if(a.mappe && app && app.classList.contains("hud") && typeof window.leisteOeffnen === "function") teil(() => leisteOeffnen(true));
+  }
+
+  /* Nach dem Umschalten: die Seite bleibt verdeckt (nur der Grund ist zu
+     sehen), bis Stand und Ansicht zurück sind — sonst stünde kurz der erste
+     Abschnitt mit leeren Feldern da. Spätestens nach 3 s wird sie gezeigt. */
+  let wechsel = false;
+  try{ wechsel = !!sessionStorage.getItem(STAND); }catch(e){}
+  const zeigen = () => document.documentElement.classList.remove("sprache-wechsel");
+  if(wechsel){
+    const st = document.createElement("style");
+    st.textContent = "html.sprache-wechsel body > *{visibility:hidden !important}";
+    document.head.appendChild(st);
+    document.documentElement.classList.add("sprache-wechsel");
+    setTimeout(zeigen, 3000);
+    // Solange verdeckt, geht keine Taste blind in die Befehlszeile oder an Kürzel
+    const tasteHalten = ev => { if(document.documentElement.classList.contains("sprache-wechsel")){ ev.preventDefault(); ev.stopImmediatePropagation(); } };
+    addEventListener("keydown", tasteHalten, true);
+  }
   addEventListener("load", () => setTimeout(() => {
     let roh = null;
     try{ roh = sessionStorage.getItem(STAND); sessionStorage.removeItem(STAND); }catch(e){}
-    if(!roh) return;
-    try{
+    if(roh) try{
       const o = JSON.parse(roh);
       if(o.voll && window.gelyStandVoll) gelyStandVoll.setzen(o.s);
       else if(!o.voll && window.gelyStand) gelyStand.setzen(o.s);
+      ansichtSetzen(o.ansicht);
     }catch(e){ console.warn("Stand nach dem Sprachwechsel nicht zurück:", e); }
+    // Zeigen erst, wenn das zurückgeholte Bild gezeichnet ist (die Leiste zieht über ein Bild nach)
+    requestAnimationFrame(() => requestAnimationFrame(zeigen));
   }, 0));
 
   if(lang !== "en") return;
@@ -15545,6 +15582,14 @@ try{
     anwenden();
     zeilenMarkieren();
   }
+  /* Für den Sprachwechsel: welcher Abschnitt offen ist, und ihn nach dem
+     Neuladen wieder wählen (fehlt er jetzt, bleibt die Wahl, wie sie ist).
+     Bei „Alle Karten zeigen“ gibt es keine Wahl — dann nichts merken, sonst
+     klappte das Wählen Karten auf. */
+  window.gelyAbschnitt = {
+    lesen: () => alle ? null : wahl,
+    setzen(id){ const a = verfuegbar().find(x => x.id === id); if(a && a.id !== wahl) waehlen(a); return !!a; }
+  };
   /* Für alles, was irgendwohin springt: liegt das Ziel in einer
      weggeschalteten Karte, wird der Abschnitt gewählt, der diese Karte
      zeigt — die zuletzt gewählte Eingabe, wenn sie es tut (die Ansicht
@@ -19061,7 +19106,7 @@ void main(){ gl_FragColor = vec4(uK, 1.0); }`;
   nachRechnung(typeof letzte !== "undefined" ? letzte : null);
 
   // Schnittstelle für die Befehlszeile: an, aus, Blick und neu malen nach einem Wechsel des Aussehens
-  window.gely3d = { an: () => setzen(true), aus: () => setzen(false), blick, malenJetzt: () => { Z.an && bild(); } };
+  window.gely3d = { an: () => setzen(true), aus: () => setzen(false), istAn: () => Z.an, blick, malenJetzt: () => { Z.an && bild(); } };
   }catch(e){
     kaputt = true;
     aufraeumen.forEach(f => { try{ f(); }catch(x){} });
